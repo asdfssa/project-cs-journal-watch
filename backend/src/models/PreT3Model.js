@@ -160,8 +160,27 @@ class PreT3Model {
     if (!rows.length) return rows;
     const approvalsMap = await fetchApprovalsMap('Pre_T3', rows.map(r => r.pre_t3_id));
 
+    // student_info / advisor_info ประกอบสดจาก users — query เดียวต่อ list (นิสิต + อาจารย์ทุกคนที่เกี่ยวข้อง)
+    // อาจารย์ใช้ approver_id ของคำร้องนั้นจริง (ไม่ใช่ advisor_assignments ปัจจุบัน) → เปลี่ยนที่ปรึกษาทีหลัง คำร้องเก่าไม่เพี้ยน
+    const userIds = new Set(rows.map(r => r.student_id));
+    for (const steps of Object.values(approvalsMap)) {
+      for (const step of ['Advisor', 'Co_Advisor_1', 'Co_Advisor_2']) {
+        if (steps[step]?.approver_id) userIds.add(steps[step].approver_id);
+      }
+    }
+    const [userRows] = await db.query(
+      `SELECT user_id, prefix, first_name, last_name, msu_mail, phone, department, degree_level
+         FROM users WHERE user_id IN (?)`,
+      [[...userIds]]
+    );
+    const users = new Map(userRows.map(u => [u.user_id, u]));
+    const advisor = (step) => users.get(step?.approver_id) || null;
+    const nameOf = (u) => (u ? `${u.first_name} ${u.last_name}` : null);
+
     return rows.map(row => {
       const steps = approvalsMap[row.pre_t3_id] || {};
+      const stu = users.get(row.student_id);
+      const [major, co1, co2] = [advisor(steps.Advisor), advisor(steps.Co_Advisor_1), advisor(steps.Co_Advisor_2)];
       return {
         ...row,
         journal_snapshot:       PreT3Model._buildJournalSnapshot(row),
@@ -173,6 +192,24 @@ class PreT3Model {
         co_advisor_2_approval:  slotFromApproval(steps.Co_Advisor_2),
         faculty_com_approval:   slotFromApproval(steps.Faculty_Committee, { withMeeting: true }),
         program_chair_approval: { status: 'N/A', user_id: null, remark: null, approved_at: null },
+        student_info: stu ? {
+          student_id:   stu.user_id,
+          full_name:    `${stu.prefix || ''} ${stu.first_name} ${stu.last_name}`.trim(),
+          msu_mail:     stu.msu_mail,
+          phone:        stu.phone || null,
+          department:   stu.department || null,
+          degree_level: stu.degree_level || null,
+        } : null,
+        // ตำแหน่ง = prefix (เช่น ผศ.ดร.) — schema ไม่มีคอลัมน์ตำแหน่งแยก
+        advisor_info: {
+          main_advisor_name:     nameOf(major),
+          main_advisor_position: major?.prefix || null,
+          co_advisor_1:          nameOf(co1),
+          co_advisor_1_position: co1?.prefix || null,
+          co_advisor_2:          nameOf(co2),
+          co_advisor_2_position: co2?.prefix || null,
+          remark:                null,
+        },
       };
     });
   }
