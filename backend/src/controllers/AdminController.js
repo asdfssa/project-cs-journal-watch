@@ -6,6 +6,11 @@
 const db          = require('../config/database');
 const { parsePagination, nonStringField } = require('../utils/input');
 const MailService = require('../services/MailService');
+const OtpModel    = require('../models/OtpModel');
+
+// Staff จัดการได้เฉพาะ Student/Supervisor — แก้/ระงับ/คืนสถานะ Staff คนอื่นต้องเป็น Admin
+const staffTouchingStaff = (req, target) => req.user.role === 'Staff' && target.role === 'Staff';
+const mailOf = (v) => String(v ?? '').trim().toLowerCase();
 
 class AdminController {
 
@@ -207,6 +212,11 @@ const [rows] = await db.query(
       if (!target.length) return res.status(404).json({ success: false, message: 'ไม่พบผู้ใช้' });
       if (['Admin','SuperAdmin'].includes(target[0].role))
         return res.status(403).json({ success: false, message: 'ไม่สามารถระงับ Admin ได้' });
+      if (staffTouchingStaff(req, target[0]))
+        return res.status(403).json({ success: false, message: 'Staff ไม่สามารถระงับบัญชี Staff ได้ กรุณาติดต่อ Admin' });
+      // ระงับได้เฉพาะบัญชีที่ใช้งานอยู่ — บัญชี Pending (เช่น Staff ที่สมัครรออนุมัติ) ต้องอนุมัติหรือปฏิเสธแทน
+      if (target[0].account_status !== 'Active')
+        return res.status(400).json({ success: false, message: 'ระงับได้เฉพาะบัญชีที่มีสถานะ Active เท่านั้น' });
 
       await db.query(
         `UPDATE users SET account_status = 'Suspended' WHERE user_id = ?`,
@@ -229,6 +239,8 @@ const [rows] = await db.query(
       if (!target.length) return res.status(404).json({ success: false, message: 'ไม่พบผู้ใช้' });
       if (['Admin', 'SuperAdmin'].includes(target[0].role))
         return res.status(403).json({ success: false, message: 'ไม่สามารถคืนสถานะ Admin ผ่านหน้านี้ได้' });
+      if (staffTouchingStaff(req, target[0]))
+        return res.status(403).json({ success: false, message: 'Staff ไม่สามารถคืนสถานะบัญชี Staff ได้ กรุณาติดต่อ Admin' });
       if (target[0].account_status !== 'Suspended')
         return res.status(400).json({ success: false, message: 'สถานะต้องเป็น Suspended เท่านั้น' });
 
@@ -260,6 +272,8 @@ const [rows] = await db.query(
       if (!target.length) return res.status(404).json({ success: false, message: 'ไม่พบผู้ใช้' });
       if (['Admin', 'SuperAdmin'].includes(target[0].role))
         return res.status(403).json({ success: false, message: 'ไม่สามารถแก้ไขข้อมูล Admin ผ่านหน้านี้ได้' });
+      if (staffTouchingStaff(req, target[0]))
+        return res.status(403).json({ success: false, message: 'Staff ไม่สามารถแก้ไขข้อมูล Staff ได้ กรุณาติดต่อ Admin' });
 
       const badField = nonStringField(req.body, ['first_name', 'last_name', 'msu_mail']);
       if (badField) return res.status(400).json({ success: false, code: 'INVALID_INPUT', message: `${badField} ต้องเป็นข้อความ` });
@@ -286,6 +300,11 @@ const [rows] = await db.query(
       if (!merged.last_name?.trim())  return res.status(400).json({ success: false, message: 'นามสกุลห้ามว่าง' });
       if (!merged.msu_mail?.trim())   return res.status(400).json({ success: false, message: 'อีเมลห้ามว่าง' });
 
+      // msu_mail คือ key ของ Google login — เปลี่ยนได้เฉพาะ Admin (กัน Staff เปลี่ยนเป็นอีเมลตัวเองแล้วสวมรอยเข้าระบบ)
+      const mailChanged = mailOf(merged.msu_mail) !== mailOf(current.msu_mail);
+      if (mailChanged && req.user.role === 'Staff')
+        return res.status(403).json({ success: false, message: 'การเปลี่ยนอีเมลต้องทำโดย Admin' });
+
       // degree_level/curriculum_year/study_plan_code เฉพาะนิสิต
       if (!['Student'].includes(current.role)) {
         merged.degree_level    = null;
@@ -303,7 +322,7 @@ const [rows] = await db.query(
           merged.prefix || null,
           merged.first_name,
           merged.last_name,
-          merged.msu_mail,
+          mailOf(merged.msu_mail),
           merged.phone || null,
           merged.facebook_id || null,
           merged.line_id || null,
@@ -313,6 +332,7 @@ const [rows] = await db.query(
           id,
         ]
       );
+      if (mailChanged) await OtpModel.invalidateActive(id, 'password_reset');
 
       return res.json({ success: true, message: 'แก้ไขข้อมูลเรียบร้อยแล้ว' });
     } catch (err) { next(err); }
@@ -921,12 +941,19 @@ records = parse(req.file.buffer, {
       if (!merged.last_name)  return res.status(400).json({ success: false, message: 'นามสกุลห้ามว่าง' });
       if (!merged.msu_mail)   return res.status(400).json({ success: false, message: 'อีเมลห้ามว่าง' });
 
+      // อีเมลของ Admin ใช้รับ OTP login/รีเซ็ตรหัสผ่าน — เปลี่ยนได้เฉพาะ SuperAdmin หรือเจ้าของบัญชี
+      // (กัน Admin เปลี่ยนอีเมล Admin คนอื่นเป็นของตัวเองแล้ว forgot-password ยึดบัญชี)
+      const mailChanged = mailOf(merged.msu_mail) !== mailOf(cur.msu_mail);
+      if (mailChanged && callerRole !== 'SuperAdmin' && Number(id) !== req.user.sub)
+        return res.status(403).json({ success: false, message: 'เปลี่ยนอีเมลของ Admin คนอื่นได้เฉพาะ SuperAdmin' });
+
       await db.query(
         `UPDATE users
          SET first_name = ?, last_name = ?, msu_mail = ?
          WHERE user_id = ?`,
         [merged.first_name, merged.last_name, merged.msu_mail, id]
       );
+      if (mailChanged) await OtpModel.invalidateActive(id, 'password_reset');
 
       return res.json({ success: true, message: 'แก้ไขข้อมูล Admin เรียบร้อยแล้ว' });
     } catch (err) { next(err); }
