@@ -505,7 +505,7 @@ class PreT3Model {
               p.overall_status = 'Approved'
               AND NOT EXISTS (
                 SELECT 1 FROM t3_requests t
-                 WHERE t.pre_t3_id = p.pre_t3_id AND t.overall_status = 'Approved'
+                 WHERE t.pre_t3_id = p.pre_t3_id AND t.overall_status IN ('Pending', 'Approved')
               )
             )
           )`,
@@ -515,11 +515,11 @@ class PreT3Model {
   }
 
   /**
-   * เช็คว่า Pre-T3 นี้มี T3 ที่ Approved แล้วผูกอยู่ไหม (ใช้ตัดสินใจก่อนยกเลิก)
+   * เช็คว่า Pre-T3 นี้มี T3 ที่ยังรอพิจารณาหรืออนุมัติแล้วผูกอยู่ไหม (ใช้ตัดสินใจก่อนยกเลิก)
    */
-  static async hasApprovedT3(preT3Id) {
+  static async hasActiveT3(preT3Id) {
     const [rows] = await db.query(
-      `SELECT 1 FROM t3_requests WHERE pre_t3_id = ? AND overall_status = 'Approved' LIMIT 1`,
+      `SELECT 1 FROM t3_requests WHERE pre_t3_id = ? AND overall_status IN ('Pending', 'Approved') LIMIT 1`,
       [preT3Id]
     );
     return rows.length > 0;

@@ -461,11 +461,11 @@ class PreT3Controller {
           message: `ไม่สามารถยกเลิกได้ Pre-T3 อยู่ในสถานะ ${row.overall_status}`,
         });
       }
-      if (row.overall_status === 'Approved' && await PreT3Model.hasApprovedT3(preT3Id)) {
+      if (row.overall_status === 'Approved' && await PreT3Model.hasActiveT3(preT3Id)) {
         return res.status(400).json({
           success: false,
-          code: 'T3_ALREADY_APPROVED',
-          message: 'ไม่สามารถยกเลิกได้ เนื่องจากมี T3 ที่ได้รับการอนุมัติแล้วผูกกับ Pre-T3 นี้',
+          code: 'T3_ACTIVE',
+          message: 'ไม่สามารถยกเลิกได้ เนื่องจากมี T3 ที่รอพิจารณาหรืออนุมัติแล้วผูกกับ Pre-T3 นี้ กรุณายกเลิก T3 ก่อน',
         });
       }
 

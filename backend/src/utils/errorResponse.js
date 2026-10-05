@@ -77,6 +77,14 @@ function parseError(err) {
     return { code: 'INVALID_JSON', message: 'รูปแบบ JSON ที่ส่งมาไม่ถูกต้อง', status: 400, raw: err.message };
   }
 
+  // error ฝั่ง client จาก body-parser / http-errors (413 body ใหญ่เกิน, 415 encoding ไม่รองรับ ฯลฯ)
+  if (err.expose && err.status >= 400 && err.status < 500) {
+    const message = err.status === 413
+      ? 'ข้อมูลที่ส่งมีขนาดใหญ่เกินกำหนด (สูงสุด 10MB)'
+      : 'คำขอไม่ถูกต้อง กรุณาตรวจสอบข้อมูลที่ส่งมา';
+    return { code: err.status === 413 ? 'PAYLOAD_TOO_LARGE' : 'BAD_REQUEST', message, status: err.status, raw: err.message };
+  }
+
   // Default
   return {
     code: 'SERVER_ERROR',
