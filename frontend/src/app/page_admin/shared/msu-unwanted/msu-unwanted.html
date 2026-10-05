@@ -1,0 +1,426 @@
+<div class="unwanted-page">
+
+  <!-- ── HERO BANNER ── -->
+  <div class="hero-banner">
+    <div class="hero-left">
+      <img class="hero-logo" src="/img_journal/msu_unwanted.png" alt="MSU Unwanted">
+      <div class="hero-text">
+        <h1 class="hero-title">รายชื่อวารสารเหล่านี้ไม่สามารถใช้ยื่นสำเร็จการศึกษาได้</h1>
+        <p class="hero-sub">
+          มหาวิทยาลัยมหาสารคาม (มมส.) ได้ประกาศไม่รับรองวารสารเหล่านี้อย่างเป็นทางการ
+          ห้ามนำมาใช้แนบแบบฟอร์ม Pre-T3 / T3 ทุกกรณี — แม้วารสารจะปรากฏใน
+          Scopus หรือ TCI ก็ตาม กรุณาตรวจสอบรายการนี้ก่อนการตีพิมพ์ทุกครั้ง
+        </p>
+      </div>
+    </div>
+    <div class="hero-right">
+      <div class="hero-stat">
+        @if (isLoading()) {
+          <span class="hero-stat-num">—</span>
+        } @else {
+          <span class="hero-stat-num">{{ totalItems() }}</span>
+        }
+        <span class="hero-stat-label">รายการทั้งหมด</span>
+      </div>
+      <div class="hero-divider"></div>
+      <div class="hero-stat">
+        <span class="hero-stat-num">{{ currentPage() }}/{{ totalPagesCount() }}</span>
+        <span class="hero-stat-label">หน้าปัจจุบัน</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TOOLBAR ── -->
+  <div class="toolbar-card">
+    <div class="search-wrap">
+      <span class="search-icon-s"><i class="ti ti-search"></i></span>
+      <input
+        class="search-field"
+        type="text"
+        placeholder="ค้นหาชื่อวารสาร, ISSN..."
+        [ngModel]="searchQuery()"
+        (ngModelChange)="searchQuery.set($event)"
+        (keyup.enter)="search()"
+      />
+    </div>
+    <div class="action-group">
+      <button class="btn-filter" (click)="search()" [disabled]="isLoading()">ค้นหา</button>
+      <button class="btn-refresh" (click)="refresh()">รีเฟรช</button>
+      @if (canManage) {
+        <div class="staff-divider"></div>
+        <button class="btn-add-journal" (click)="openAddModal()">
+          <span>+</span> เพิ่มวารสาร
+        </button>
+        <button class="btn-import-csv" (click)="openCsvModal()">
+          <i class="ti ti-upload"></i> นำเข้า CSV
+        </button>
+      }
+    </div>
+  </div>
+
+  <!-- ── LOADING ── -->
+  @if (isLoading()) {
+    <div class="loading-card">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">กำลังโหลดรายการวารสาร...</div>
+    </div>
+  }
+
+  <!-- ── ERROR ── -->
+  @if (!isLoading() && errorMessage()) {
+    <div class="error-card">
+      <span class="error-icon"><i class="ti ti-alert-triangle"></i></span>
+      <div class="error-text">{{ errorMessage() }}</div>
+      <button class="btn-retry" (click)="loadData()">ลองใหม่</button>
+    </div>
+  }
+
+  <!-- ── TABLE ── -->
+  @if (!isLoading() && !errorMessage()) {
+    <div class="table-card">
+      <!-- บอกผู้ใช้บนมือถือ/iPad ว่าตารางเลื่อนซ้าย-ขวาดูต่อได้ (ซ่อนบนจอกว้าง) -->
+      <div class="table-scroll-hint">
+        <i class="ti ti-arrows-horizontal"></i>
+        เลื่อนซ้าย-ขวาเพื่อดูข้อมูลเพิ่มเติมและปุ่ม "รายละเอียด"
+      </div>
+      <div class="table-scroll">
+      <table class="uw-table">
+        <thead>
+          <tr>
+            <th class="col-num">ลำดับ</th>
+            <th class="col-name">ชื่อวารสาร</th>
+            <th class="col-status">สถานะ</th>
+            <th class="col-issn">เลข ISSN</th>
+            <th class="col-reason">หมายเหตุ</th>
+            <th class="col-date">วันที่บันทึก</th>
+            <th [class]="canManage ? 'col-action-staff' : 'col-action'"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (j of journals(); track j.unwanted_id; let i = $index) {
+            <tr class="uw-row">
+              <td class="col-num">{{ ((currentPage() - 1) * itemsPerPage + i + 1) }}</td>
+              <td class="col-name">
+                <div class="journal-name">{{ j.journal_name }}</div>
+                <div class="journal-pub">{{ j.publisher }}</div>
+              </td>
+              <td class="col-status">
+                <span class="badge-unwanted"><i class="ti ti-ban"></i> Unwanted</span>
+                <span class="badge-banned">ห้ามยื่น</span>
+              </td>
+              <td class="col-issn">
+                <div class="issn-box">{{ j.issn || '—' }}</div>
+              </td>
+              <td class="col-reason">
+                <div class="reason-detail">{{ j.note || '—' }}</div>
+              </td>
+              <td class="col-date">
+                <div class="date-main">{{ formatDate(j.recorded_date) }}</div>
+                <div class="date-by">โดย: {{ addedBy(j) }}</div>
+              </td>
+              <td [class]="canManage ? 'col-action-staff' : 'col-action'">
+                <div class="row-actions">
+                  <button class="btn-detail" (click)="openDetail(j)">รายละเอียด</button>
+                  @if (canManage) {
+                    <button class="btn-edit-row" (click)="openEditModal(j, $event)"><i class="ti ti-pencil"></i> แก้ไข</button>
+                    <button class="btn-del-row"  (click)="openDeleteModal(j, $event)"><i class="ti ti-trash"></i> ลบ</button>
+                  }
+                </div>
+              </td>
+            </tr>
+          }
+          @if (journals().length === 0) {
+            <tr>
+              <td [attr.colspan]="canManage ? 7 : 7" class="empty-row"><i class="ti ti-inbox"></i> ไม่พบข้อมูลวารสาร</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+      </div>
+
+      <!-- PAGINATION -->
+      <div class="pagination-row">
+        <span class="page-info">หน้า {{ currentPage() }} จาก {{ totalPagesCount() }} (ทั้งหมด {{ totalItems() }} รายการ)</span>
+        <div class="page-btns">
+          <button class="page-btn" [disabled]="currentPage() === 1" (click)="setPage(currentPage() - 1)">‹</button>
+          @for (p of pageNumbers(); track p) {
+            <button class="page-btn" [class.page-active]="p === currentPage()" (click)="setPage(p)">{{ p }}</button>
+          }
+          <button class="page-btn" [disabled]="currentPage() === totalPagesCount()" (click)="setPage(currentPage() + 1)">›</button>
+        </div>
+      </div>
+    </div>
+  }
+
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     DETAIL MODAL (read-only)
+════════════════════════════════════════════════════════════ -->
+@if (selectedJournal(); as j) {
+  <div class="modal-overlay" (click)="closeDetail()">
+    <div class="modal-box" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title">{{ j.journal_name }}</div>
+        <div class="modal-issn-sub">ISSN: {{ j.issn || '—' }}</div>
+      </div>
+      <div class="modal-body">
+        <div class="modal-alert">
+          <span class="modal-alert-icon"><i class="ti ti-ban"></i></span>
+          <span>{{ j.note || 'วารสารนี้อยู่ในรายการ MSU Unwanted Journals' }}</span>
+        </div>
+        <table class="detail-table">
+          <tr><td class="dt-label">ชื่อวารสาร</td><td class="dt-value">{{ j.journal_name }}</td></tr>
+          <tr><td class="dt-label">ISSN</td><td class="dt-value">{{ j.issn || '—' }}</td></tr>
+          <tr><td class="dt-label">Publisher</td><td class="dt-value">{{ j.publisher || '—' }}</td></tr>
+          <tr><td class="dt-label">หมายเหตุ</td><td class="dt-value">{{ j.note || '—' }}</td></tr>
+          <tr><td class="dt-label">วันที่บันทึก</td><td class="dt-value">{{ formatDate(j.recorded_date) }}</td></tr>
+          <tr><td class="dt-label">บันทึกโดย</td><td class="dt-value">{{ addedBy(j) }}</td></tr>
+          <tr><td class="dt-label">ผลสรุป</td><td class="dt-value dt-red"><i class="ti ti-ban"></i> ห้ามนำไปยื่น Pre-T3 / T3 ทุกกรณี</td></tr>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <span class="modal-footer-note">บันทึกเมื่อ: {{ formatDate(j.recorded_date) }} · โดย: {{ addedBy(j) }}</span>
+        <button class="btn-close" (click)="closeDetail()">ปิด</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ════════════════════════════════════════════════════════════
+     ADD SINGLE MODAL (admin/super-admin only)
+════════════════════════════════════════════════════════════ -->
+@if (addModal()) {
+  <div class="modal-overlay" (click)="closeAddModal()">
+    <div class="form-modal" (click)="$event.stopPropagation()">
+
+      <div class="fmodal-header">
+        <div class="fmodal-title">
+          <span class="fmodal-icon"><i class="ti ti-plus"></i></span>
+          เพิ่มวารสารใหม่
+        </div>
+        <button class="fmodal-close" (click)="closeAddModal()">✕</button>
+      </div>
+
+      <div class="fmodal-body">
+        <div class="form-grid">
+          <div class="form-group form-group--full">
+            <label class="form-label">ชื่อวารสาร <span class="req">*</span></label>
+            <input class="form-control" type="text" placeholder="เช่น Predatory Journal"
+                   [(ngModel)]="addForm.journal_name" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">ISSN</label>
+            <input class="form-control" type="text" placeholder="0000-0000"
+                   [(ngModel)]="addForm.issn" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">วันที่บันทึก</label>
+            <input class="form-control" type="date" [(ngModel)]="addForm.recorded_date" />
+          </div>
+          <div class="form-group form-group--full">
+            <label class="form-label">สำนักพิมพ์ (Publisher)</label>
+            <input class="form-control" type="text" placeholder="เช่น Unknown Publisher"
+                   [(ngModel)]="addForm.publisher" />
+          </div>
+          <div class="form-group form-group--full">
+            <label class="form-label">หมายเหตุ (Note)</label>
+            <textarea class="form-control form-textarea" rows="3"
+                      placeholder="หมายเหตุว่าทำไมถึงอยู่ใน Blacklist..."
+                      [(ngModel)]="addForm.note"></textarea>
+          </div>
+          <div class="form-group form-group--full">
+            <label class="form-label">ไฟล์หลักฐาน <span class="form-hint">(PDF/JPG/PNG/WEBP, max 10 MB — ไม่บังคับ)</span></label>
+            <div class="file-drop-area">
+              <input class="file-input" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" (change)="onAddFileChange($event)" #addFileInput />
+              <div class="file-drop-content" (click)="addFileInput.click()">
+                @if (addFile) {
+                  <span class="file-chosen"><i class="ti ti-paperclip"></i> {{ addFile.name }}</span>
+                } @else {
+                  <span class="file-placeholder"><i class="ti ti-folder"></i> คลิกเพื่อเลือกไฟล์</span>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+
+        @if (addResult(); as r) {
+          <div [class]="r.ok ? 'result-banner result-banner--ok' : 'result-banner result-banner--err'">
+            @if (r.ok) { <i class="ti ti-circle-check"></i> } @else { <i class="ti ti-alert-triangle"></i> } {{ r.msg }}
+          </div>
+        }
+      </div>
+
+      <div class="fmodal-footer">
+        <button class="btn-fcancel" (click)="closeAddModal()" [disabled]="isAdding()">ยกเลิก</button>
+        <button class="btn-fsubmit btn-fsubmit--green" (click)="submitAdd()"
+                [disabled]="isAdding() || !addForm.journal_name.trim()">
+          @if (isAdding()) { <span class="btn-spinner"></span> กำลังบันทึก... }
+          @else             { <i class="ti ti-circle-check"></i> บันทึกวารสาร }
+        </button>
+      </div>
+
+    </div>
+  </div>
+}
+
+<!-- ════════════════════════════════════════════════════════════
+     IMPORT CSV MODAL (admin/super-admin only)
+════════════════════════════════════════════════════════════ -->
+@if (csvModal()) {
+  <div class="modal-overlay" (click)="closeCsvModal()">
+    <div class="form-modal form-modal--sm" (click)="$event.stopPropagation()">
+
+      <div class="fmodal-header">
+        <div class="fmodal-title">
+          <span class="fmodal-icon"><i class="ti ti-upload"></i></span>
+          นำเข้าวารสาร (CSV)
+        </div>
+        <button class="fmodal-close" (click)="closeCsvModal()">✕</button>
+      </div>
+
+      <div class="fmodal-body">
+        <div class="csv-hint">
+          <div class="csv-hint__title">รูปแบบ CSV ที่รองรับ</div>
+          <code class="csv-hint__code">journal_name, issn, publisher, note, recorded_date</code>
+          <div class="csv-hint__note">• ต้องมีแถวหัวตาราง (header row)<br>• recorded_date ใช้รูปแบบ YYYY-MM-DD<br>• บันทึกไฟล์เป็น UTF-8</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">เลือกไฟล์ CSV <span class="req">*</span></label>
+          <div class="file-drop-area">
+            <input class="file-input" type="file" accept=".csv" (change)="onCsvFileChange($event)" #csvFileInput />
+            <div class="file-drop-content" (click)="csvFileInput.click()">
+              @if (csvFile) {
+                <span class="file-chosen"><i class="ti ti-paperclip"></i> {{ csvFile.name }}</span>
+              } @else {
+                <span class="file-placeholder"><i class="ti ti-folder"></i> คลิกเพื่อเลือกไฟล์ .csv</span>
+              }
+            </div>
+          </div>
+        </div>
+
+        @if (importResult(); as r) {
+          <div [class]="r.ok ? 'result-banner result-banner--ok' : 'result-banner result-banner--err'">
+            @if (r.ok) { <i class="ti ti-circle-check"></i> } @else { <i class="ti ti-alert-triangle"></i> } {{ r.msg }}
+          </div>
+        }
+      </div>
+
+      <div class="fmodal-footer">
+        <button class="btn-fcancel" (click)="closeCsvModal()" [disabled]="isImporting()">ยกเลิก</button>
+        <button class="btn-fsubmit btn-fsubmit--navy" (click)="submitCsv()"
+                [disabled]="isImporting() || !csvFile">
+          @if (isImporting()) { <span class="btn-spinner"></span> กำลังนำเข้า... }
+          @else               { <i class="ti ti-upload"></i> นำเข้าข้อมูล }
+        </button>
+      </div>
+
+    </div>
+  </div>
+}
+
+<!-- ════════════════════════════════════════════════════════════
+     EDIT MODAL (admin/super-admin only)
+════════════════════════════════════════════════════════════ -->
+@if (editModal(); as j) {
+  <div class="modal-overlay" (click)="closeEditModal()">
+    <div class="form-modal" (click)="$event.stopPropagation()">
+
+      <div class="fmodal-header fmodal-header--yellow">
+        <div class="fmodal-title">
+          <span class="fmodal-icon"><i class="ti ti-pencil"></i></span>
+          แก้ไขวารสาร
+        </div>
+        <button class="fmodal-close" (click)="closeEditModal()">✕</button>
+      </div>
+
+      <div class="fmodal-body">
+        <div class="edit-id-bar">แก้ไข: <strong>{{ j.journal_name }}</strong> · ID: {{ j.unwanted_id }}</div>
+
+        <div class="form-grid">
+          <div class="form-group form-group--full">
+            <label class="form-label">ชื่อวารสาร <span class="req">*</span></label>
+            <input class="form-control" type="text" [(ngModel)]="editForm.journal_name" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">ISSN</label>
+            <input class="form-control" type="text" [(ngModel)]="editForm.issn" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">วันที่บันทึก</label>
+            <input class="form-control" type="date" [(ngModel)]="editForm.recorded_date" />
+          </div>
+          <div class="form-group form-group--full">
+            <label class="form-label">สำนักพิมพ์ (Publisher)</label>
+            <input class="form-control" type="text" [(ngModel)]="editForm.publisher" />
+          </div>
+          <div class="form-group form-group--full">
+            <label class="form-label">หมายเหตุ (Note)</label>
+            <textarea class="form-control form-textarea" rows="3" [(ngModel)]="editForm.note"></textarea>
+          </div>
+          <div class="form-group form-group--full">
+            <label class="form-label">
+              ไฟล์หลักฐานใหม่
+              <span class="form-hint">(ทิ้งว่างหากไม่ต้องการเปลี่ยน)</span>
+            </label>
+            <div class="file-drop-area">
+              <input class="file-input" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" (change)="onEditFileChange($event)" #editFileInput />
+              <div class="file-drop-content" (click)="editFileInput.click()">
+                @if (editFile) {
+                  <span class="file-chosen"><i class="ti ti-paperclip"></i> {{ editFile.name }}</span>
+                } @else {
+                  <span class="file-placeholder"><i class="ti ti-folder"></i> คลิกเพื่อเลือกไฟล์ใหม่</span>
+                }
+              </div>
+            </div>
+            <label class="clear-evidence-row">
+              <input type="checkbox" [(ngModel)]="editClearEvidence" />
+              <span>ลบไฟล์หลักฐานเดิมออก (clear_evidence)</span>
+            </label>
+          </div>
+        </div>
+
+        @if (editResult(); as r) {
+          <div [class]="r.ok ? 'result-banner result-banner--ok' : 'result-banner result-banner--err'">
+            @if (r.ok) { <i class="ti ti-circle-check"></i> } @else { <i class="ti ti-alert-triangle"></i> } {{ r.msg }}
+          </div>
+        }
+      </div>
+
+      <div class="fmodal-footer">
+        <button class="btn-fcancel" (click)="closeEditModal()" [disabled]="isEditing()">ยกเลิก</button>
+        <button class="btn-fsubmit btn-fsubmit--yellow" (click)="submitEdit()"
+                [disabled]="isEditing() || !editForm.journal_name.trim()">
+          @if (isEditing()) { <span class="btn-spinner"></span> กำลังบันทึก... }
+          @else             { <i class="ti ti-pencil"></i> บันทึกการแก้ไข }
+        </button>
+      </div>
+
+    </div>
+  </div>
+}
+
+<!-- ════════════════════════════════════════════════════════════
+     DELETE CONFIRM MODAL (admin/super-admin only)
+════════════════════════════════════════════════════════════ -->
+@if (deleteModal(); as j) {
+  <div class="modal-overlay" (click)="closeDeleteModal()">
+    <div class="delete-modal" (click)="$event.stopPropagation()">
+      <div class="delete-modal__icon"><i class="ti ti-trash"></i></div>
+      <div class="delete-modal__title">ยืนยันการลบวารสาร</div>
+      <div class="delete-modal__body">
+        คุณต้องการลบ <strong>{{ j.journal_name }}</strong> (ISSN: {{ j.issn || '—' }})
+        ออกจากรายการ MSU Unwanted ใช่หรือไม่?
+        <div class="delete-modal__warn">การกระทำนี้ไม่สามารถยกเลิกได้</div>
+      </div>
+      <div class="delete-modal__actions">
+        <button class="btn-fcancel" (click)="closeDeleteModal()" [disabled]="isDeleting()">ยกเลิก</button>
+        <button class="btn-fsubmit btn-fsubmit--red" (click)="submitDelete()" [disabled]="isDeleting()">
+          @if (isDeleting()) { <span class="btn-spinner"></span> กำลังลบ... }
+          @else              { <i class="ti ti-trash"></i> ยืนยันลบ }
+        </button>
+      </div>
+    </div>
+  </div>
+}

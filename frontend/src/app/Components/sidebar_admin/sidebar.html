@@ -1,0 +1,92 @@
+<aside class="sidebar" [class.collapsed]="!isOpen">
+
+  <!-- User Card -->
+  <div class="user-card">
+    <div class="uc-topbar"></div>
+    <div class="uc-body">
+      @if (isOpen) {
+        <div class="user-info">
+          <div class="user-name">{{ userName }}</div>
+          <span class="role-badge">{{ userRole }}</span>
+          <div class="user-email">{{ userEmail }}</div>
+        </div>
+      }
+    </div>
+    <div class="uc-separator"></div>
+  </div>
+
+  @if (isOpen) {
+    <div class="profile-btn-wrap">
+      <a class="profile-btn" [routerLink]="getProfileRoute()">
+        <span>ดูโปรไฟล์</span>
+        <span class="profile-arrow">→</span>
+      </a>
+    </div>
+  }
+
+  <!-- Navigation -->
+  <nav class="nav-wrap">
+    @for (group of navGroups; track group.group) {
+      @if (isOpen) {
+        <div class="nav-group-label">{{ group.group }}</div>
+      }
+      <ul class="nav-list">
+        @for (item of group.items; track item.label) {
+          <li>
+            @if (item.children) {
+              <button class="nav-item nav-parent"
+                      [class.active]="hasActiveChild(item)"
+                      (click)="toggleExpand(item.label)">
+                <span class="nav-icon"><i [class]="item.icon"></i></span>
+                @if (isOpen) {
+                  <span class="nav-label">{{ item.label }}</span>
+                  <span class="nav-chevron" [class.open]="isExpanded(item.label)">▼</span>
+                }
+              </button>
+              <div class="sub-menu-wrap" [class.expanded]="isOpen && isExpanded(item.label)">
+                <ul class="nav-sub-list">
+                  @for (child of item.children; track child.label; let last = $last) {
+                    <li class="sub-item-li" [class.last]="last">
+                      <a class="nav-sub-item"
+                         [routerLink]="child.route"
+                         [class.active]="isActive(child.route)">
+                        <span class="nav-label">{{ child.label }}</span>
+                        @if (isActive(child.route)) {
+                          <span class="nav-indicator"></span>
+                        }
+                      </a>
+                    </li>
+                  }
+                </ul>
+              </div>
+            } @else {
+              <a class="nav-item"
+                 [routerLink]="item.route"
+                 [class.active]="isActive(item.route!)"
+                 [attr.data-label]="item.label">
+                <span class="nav-icon"><i [class]="item.icon"></i></span>
+                @if (isOpen) {
+                  <span class="nav-label">{{ item.label }}</span>
+                  @if (isActive(item.route!)) {
+                    <span class="nav-indicator"></span>
+                  }
+                }
+              </a>
+            }
+          </li>
+        }
+      </ul>
+    }
+  </nav>
+
+  <!-- Logout -->
+  <div class="logout-wrap">
+    <button class="logout-btn" (click)="logout()">
+      <span class="logout-icon"><i class="ti ti-logout"></i></span>
+      @if (isOpen) {
+        <span>ออกจากระบบ</span>
+      }
+    </button>
+  </div>
+
+</aside>

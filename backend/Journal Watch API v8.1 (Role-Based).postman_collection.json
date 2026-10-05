@@ -1,0 +1,4109 @@
+{
+  "info": {
+    "_postman_id": "3337eba3-143e-429f-8fc4-9a89adee31e0",
+    "name": "Journal Watch API v8 (Role-Based)",
+    "description": "จัดกลุ่ม endpoint ตาม Role: Student | Advisor | Staff | Admin",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "46105737",
+    "_collection_link": "https://go.postman.co/collection/46105737-3337eba3-143e-429f-8fc4-9a89adee31e0?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "🎓 Student",
+      "item": [
+        {
+          "name": "Auth",
+          "item": [
+            {
+              "name": "Login (Google)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "const res = pm.response.json();",
+                      "if (res.success && res.data?.accessToken) {",
+                      "  pm.collectionVariables.set('access_token', res.data.accessToken);",
+                      "}"
+                    ],
+                    "type": "text/javascript",
+                    "packages": {},
+                    "requests": {}
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"idToken\": \"eyJhbGciOiJSUzI1NiIsImtpZCI6IjA2YzdjNDc2NzliODA4ZmNlZGY3MzkxZDdiMWUzNjU3YmNhMzBkYmIiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmdvb2dsZS5jb20iLCJhenAiOiIxMDYzMTM3MTYyODEwLXNoZzZlaTN0MXJkdXIxOHZmbWM1aWwwaXA0anNldTYwLmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29tIiwiYXVkIjoiMTA2MzEzNzE2MjgxMC1zaGc2ZWkzdDFyZHVyMTh2Zm1jNWlsMGlwNGpzZXU2MC5hcHBzLmdvb2dsZXVzZXJjb250ZW50LmNvbSIsInN1YiI6IjEwNDkxNzMzNzkyNzkyMTE0OTU2MSIsImhkIjoibXN1LmFjLnRoIiwiZW1haWwiOiI2NjAxMTIxMjE0OEBtc3UuYWMudGgiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwibmJmIjoxNzgwNDc5NTY4LCJuYW1lIjoi4Lit4Lij4Lij4LiW4LiK4Lix4LiiIOC4iuC4seC4ouC4muC4seC4k-C4keC4tOC4lSIsInBpY3R1cmUiOiJodHRwczovL2xoMy5nb29nbGV1c2VyY29udGVudC5jb20vYS9BQ2c4b2NMLV85QkFpXzUwallkbFpSRXppa0RsTXRoYTRCY0RfS3RTaFZNZmxNeXpKeUVsaDFvPXM5Ni1jIiwiZ2l2ZW5fbmFtZSI6IuC4reC4o-C4o-C4luC4iuC4seC4oiIsImZhbWlseV9uYW1lIjoi4LiK4Lix4Lii4Lia4Lix4LiT4LiR4Li04LiVIiwiaWF0IjoxNzgwNDc5ODY4LCJleHAiOjE3ODA0ODM0NjgsImp0aSI6ImNjZDVkNmExZGU3NzE1OTBkYmMwY2I2YmI2OWIwNzI0OTEzZTc4NGUifQ.Clz1X8AFhwzcPfaTFnTnTSZm_2NW5mZXIP1iEAK7vvD8dGpmauL6zuLlQ2Ku604eXiXI_YS3VmfMs5Ko1jCJKExJbcHh9Q9ty5xycVoBItbE15JHiBS0Yln87cDBsPVfsTPHDDL9TBOBN2ombEUjjEsM-OxOPAn0b-ZtZZOb-77FZYfOVixInF74eIK9gq2X2s6Pq5Vq-kdwBUhYUjNvV4_ibNSVh4Bssan2nlQRKw807BwT9IdbKzEP6K4mkF3tF-5d4ESNZKwPj7BgI-VqoL2fOFnN8OCsI78nNFpSLUGtdGX86lanvSSFjkOgeNC3y9RfH4wXBaRe5AFY_vWwRQ\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/auth/google",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "google"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Refresh Token",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/auth/refresh",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "refresh"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Me",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/auth/me",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "me"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Logout",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/auth/logout",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "logout"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "โปรไฟล์",
+          "item": [
+            {
+              "name": "ดูโปรไฟล์ตัวเอง",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/user/profile",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "user",
+                    "profile"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "แก้ไขโปรไฟล์",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phone\": \"0812345678\",\n  \"facebook_id\": \"my_fb\",\n  \"line_id\": \"my_line\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/user/profile",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "user",
+                    "profile"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "วารสาร",
+          "item": [
+            {
+              "name": "ค้นหา Scopus (Cache/API)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/journal/scopus?issn=0950-6608",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "journal",
+                    "scopus"
+                  ],
+                  "query": [
+                    {
+                      "key": "issn",
+                      "value": "0950-6608"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ค้นหา Scopus (Web Scraping — Real-time)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/journal/scopus/scrape?issn=2398-9629",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "journal",
+                    "scopus",
+                    "scrape"
+                  ],
+                  "query": [
+                    {
+                      "key": "issn",
+                      "value": "2398-9629"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ค้นหา TCI (Cache/API)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/journal/tci?issn=3056-9052",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "journal",
+                    "tci"
+                  ],
+                  "query": [
+                    {
+                      "key": "issn",
+                      "value": "3056-9052"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ค้นหา TCI (Web Scraping — Real-time)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/journal/tci/scrape?issn=3088-2575",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "journal",
+                    "tci",
+                    "scrape"
+                  ],
+                  "query": [
+                    {
+                      "key": "issn",
+                      "value": "3088-2575"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ตรวจสอบวารสารต้องห้าม (Check ISSN)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/unwanted-journals/check/0140-6736",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "unwanted-journals",
+                    "check",
+                    "0140-6736"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ดูรายการวารสารต้องห้ามทั้งหมด",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/unwanted-journals",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "unwanted-journals"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Pre-T3",
+          "item": [
+            {
+              "name": "ยื่น Pre-T3",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"journal_snapshot\": {\n    \"issn\": \"1234-5668\",\n    \"journal_name\": \"Example Journal_1\",\n    \"journal_url\": \"https://example1.com\",\n    \"indexed_database\": \"Scopus\",\n    \"quartile_or_tier\": \"Q2\",\n    \"is_discontinued\": false,\n    \"is_hijacked\": false\n  },\n  \"article_info\": {\n    \"title_en\": \"Article Title in English\",\n    \"title_th\": \"ชื่อบทความภาษาไทย\",\n    \"authors\": \"สมชาย ใจดี\",\n    \"publish_year\": 2025,\n    \"doi\": \"10.1234/example.2025\"\n  },\n  \"checklist_data\": {\n    \"item1\": true, \"item2\": true, \"item3\": true,\n    \"item4\": true, \"item5\": true, \"item6\": true,\n    \"item7\": true, \"item8\": true, \"item9\": true\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/pre-t3",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "pre-t3"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ดูประวัติของตัวเอง",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/pre-t3/my",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "pre-t3",
+                    "my"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ดูรายละเอียด Pre-T3 ตาม ID ของ Pre-T3 ของ User นั้นๆ",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/pre-t3/20",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "pre-t3",
+                    "20"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ยื่นซ้ำหลัง Rejected",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"journal_snapshot\": {\n    \"issn\": \"9876-5432\",\n    \"journal_name\": \"Better Journal\",\n    \"journal_url\": \"https://better.com\",\n    \"indexed_database\": \"Scopus\",\n    \"quartile_or_tier\": \"Q1\",\n    \"is_discontinued\": false,\n    \"is_hijacked\": false\n  },\n  \"checklist_data\": {\n    \"item1\": true, \"item2\": true, \"item3\": true,\n    \"item4\": true, \"item5\": true, \"item6\": true,\n    \"item7\": true, \"item8\": true, \"item9\": true\n  }\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/pre-t3/1/resubmit",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "pre-t3",
+                    "1",
+                    "resubmit"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ยกเลิก Pre-T3",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/pre-t3/20/cancel",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "pre-t3",
+                    "20",
+                    "cancel"
+                  ]
+                },
+                "description": "ทำได้เฉพาะ status Pending หรือ Rejected"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "T3",
+          "item": [
+            {
+              "name": "ยื่น T3",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"pre_t3_id\": 1,\n  \"journal_snapshot\": { \"issn\": \"1234-5679\", \"journal_name\": \"Example Journal\" },\n  \"paper_and_research_details\": {\n    \"title_thai\": \"ชื่อบทความ\",\n    \"title_english\": \"Article Title\",\n    \"first_author\": \"สมชาย ใจดี\",\n    \"corresponding_author\": \"สมชาย ใจดี\",\n    \"innovation_type\": \"การนำไปใช้ประโยชน์เชิงพาณิชย์\",\n    \"innovation_detail\": \"รายละเอียด\"\n  },\n  \"publication_details\": {\n    \"type\": \"วารสารวิชาการระดับนานาชาติ\",\n    \"weight_score\": 1.0,\n    \"specified_database\": \"Scopus\",\n    \"status\": \"published\",\n    \"volume\": \"12\",\n    \"issue\": \"3\",\n    \"publish_year\": \"2025\"\n  },\n  \"journal_metrics\": {\n    \"has_impact_score\": true,\n    \"impact_factor\": 2.45,\n    \"citescore\": 3.10,\n    \"score_year\": \"2024\"\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/t3",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "t3"
+                  ]
+                },
+                "description": "ต้องมี Pre-T3 ที่ overall_status = Approved ก่อน"
+              },
+              "response": []
+            },
+            {
+              "name": "ยื่น T3 + อัปโหลดไฟล์ (One-shot)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "pre_t3_id",
+                      "value": "1",
+                      "type": "text",
+                      "description": "ID ของ Pre-T3 ที่ overall_status = Approved"
+                    },
+                    {
+                      "key": "journal_snapshot",
+                      "value": "{\"issn\":\"1234-5679\",\"journal_name\":\"Example Journal\"}",
+                      "type": "text",
+                      "description": "JSON string"
+                    },
+                    {
+                      "key": "paper_and_research_details",
+                      "value": "{\"title_thai\":\"ชื่อบทความ\",\"title_english\":\"Article Title\",\"first_author\":\"สมชาย ใจดี\",\"corresponding_author\":\"สมชาย ใจดี\",\"innovation_type\":\"การนำไปใช้ประโยชน์เชิงพาณิชย์\",\"innovation_detail\":\"รายละเอียด\"}",
+                      "type": "text",
+                      "description": "JSON string"
+                    },
+                    {
+                      "key": "publication_details",
+                      "value": "{\"type\":\"วารสารวิชาการระดับนานาชาติ\",\"weight_score\":1.0,\"specified_database\":\"Scopus\",\"status\":\"published\",\"volume\":\"12\",\"issue\":\"3\",\"publish_year\":\"2025\"}",
+                      "type": "text",
+                      "description": "JSON string"
+                    },
+                    {
+                      "key": "journal_metrics",
+                      "value": "{\"has_impact_score\":true,\"impact_factor\":2.45,\"citescore\":3.10,\"score_year\":\"2024\"}",
+                      "type": "text",
+                      "description": "JSON string"
+                    },
+                    {
+                      "key": "acceptance_letter",
+                      "type": "file",
+                      "description": "หนังสือตอบรับ (PDF/JPG/PNG, max 10MB) — optional",
+                      "value": null
+                    },
+                    {
+                      "key": "full_paper",
+                      "type": "file",
+                      "description": "บทความฉบับสมบูรณ์ — optional",
+                      "value": null
+                    },
+                    {
+                      "key": "journal_cover",
+                      "type": "file",
+                      "description": "ปกวารสาร — optional",
+                      "value": null
+                    },
+                    {
+                      "key": "table_of_contents",
+                      "type": "file",
+                      "description": "สารบัญ — optional",
+                      "value": null
+                    },
+                    {
+                      "key": "database_evidence",
+                      "type": "file",
+                      "description": "หลักฐานฐานข้อมูล — optional",
+                      "value": null
+                    },
+                    {
+                      "key": "peer_review_result",
+                      "type": "file",
+                      "description": "ผล Peer Review — optional",
+                      "value": null
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{base_url}}/t3/with-files",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "t3",
+                    "with-files"
+                  ]
+                },
+                "description": "ยื่น T3 + อัปโหลดไฟล์แนบในคำขอเดียว (Content-Type: multipart/form-data)\nText fields ส่งเป็น JSON string | File fields ทั้งหมดเป็น optional\nต้องมี Pre-T3 ที่ overall_status = Approved ก่อน"
+              },
+              "response": []
+            },
+            {
+              "name": "ดูประวัติของตัวเอง",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/t3/my",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "t3",
+                    "my"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ดูรายละเอียด T3 ตาม ID",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/t3/1",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "t3",
+                    "1"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ยกเลิก T3",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/t3/3/cancel",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "t3",
+                    "3",
+                    "cancel"
+                  ]
+                },
+                "description": "ทำได้เฉพาะ status Pending หรือ Rejected"
+              },
+              "response": []
+            },
+            {
+              "name": "อัปโหลดไฟล์แนบ",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "acceptance_letter",
+                      "type": "file",
+                      "description": "หนังสือตอบรับ (PDF/JPG/PNG, max 10MB)",
+                      "value": null
+                    },
+                    {
+                      "key": "full_paper",
+                      "type": "file",
+                      "description": "บทความฉบับสมบูรณ์",
+                      "value": null
+                    },
+                    {
+                      "key": "journal_cover",
+                      "type": "file",
+                      "description": "ปกวารสาร",
+                      "value": null
+                    },
+                    {
+                      "key": "table_of_contents",
+                      "type": "file",
+                      "description": "สารบัญ",
+                      "value": null
+                    },
+                    {
+                      "key": "database_evidence",
+                      "type": "file",
+                      "description": "หลักฐานฐานข้อมูล",
+                      "value": null
+                    },
+                    {
+                      "key": "peer_review_result",
+                      "type": "file",
+                      "description": "ผล Peer Review",
+                      "value": null
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{base_url}}/upload/t3/1/files",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "upload",
+                    "t3",
+                    "1",
+                    "files"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ดาวน์โหลดไฟล์แนบ",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/upload/t3/1/files/acceptance_letter",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "upload",
+                    "t3",
+                    "1",
+                    "files",
+                    "acceptance_letter"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ลบไฟล์แนบ",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/upload/t3/1/files/acceptance_letter",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "upload",
+                    "t3",
+                    "1",
+                    "files",
+                    "acceptance_letter"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Bug Report",
+          "item": [
+            {
+              "name": "รายงานปัญหา",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"category\": \"form\",\n  \"title\": \"หัวข้อปัญหา\",\n  \"description\": \"รายละเอียดปัญหา\",\n  \"page_url\": \"http://localhost:4200/dashboard\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/bug-reports",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "bug-reports"
+                  ]
+                },
+                "description": "category: scraper | form | auth | notification | other"
+              },
+              "response": []
+            },
+            {
+              "name": "ดูรายงานของตัวเอง",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/bug-reports/my?page=1&limit=20",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "bug-reports",
+                    "my"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "👨‍🏫 Advisor (Supervisor)",
+      "item": [
+        {
+          "name": "Auth",
+          "item": [
+            {
+              "name": "Login (Google)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "const res = pm.response.json();\nif (res.success && res.data?.accessToken) {\n  pm.collectionVariables.set('access_token', res.data.accessToken);\n}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"idToken\": \"GOOGLE_ID_TOKEN_HERE\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/auth/google",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "google"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Refresh Token",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/auth/refresh",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "refresh"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Me",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/auth/me",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "me"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Logout",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/auth/logout",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "logout"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "โปรไฟล์",
+          "item": [
+            {
+              "name": "ดูโปรไฟล์ตัวเอง",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/user/profile",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "user",
+                    "profile"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "แก้ไขโปรไฟล์",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phone\": \"0812345678\",\n  \"facebook_id\": \"my_fb\",\n  \"line_id\": \"my_line\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/user/profile",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "user",
+                    "profile"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "วารสาร",
+          "item": [
+            {
+              "name": "ค้นหา Scopus (Cache/API)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/journal/scopus?issn=0125-8281",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "journal",
+                    "scopus"
+                  ],
+                  "query": [
+                    {
+                      "key": "issn",
+                      "value": "0125-8281"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ค้นหา Scopus (Web Scraping — Real-time)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/journal/scopus/scrape?issn=14741733",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "journal",
+                    "scopus",
+                    "scrape"
+                  ],
+                  "query": [
+                    {
+                      "key": "issn",
+                      "value": "14741733"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ค้นหา TCI (Cache/API)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/journal/tci?issn=0125-8281",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "journal",
+                    "tci"
+                  ],
+                  "query": [
+                    {
+                      "key": "issn",
+                      "value": "0125-8281"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ค้นหา TCI (Web Scraping — Real-time)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/journal/tci/scrape?issn=2468-1458",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "journal",
+                    "tci",
+                    "scrape"
+                  ],
+                  "query": [
+                    {
+                      "key": "issn",
+                      "value": "2468-1458"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ตรวจสอบวารสารต้องห้าม",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/unwanted-journals/check/0140-6736",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "unwanted-journals",
+                    "check",
+                    "0140-6736"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Pre-T3",
+          "item": [
+            {
+              "name": "ดูรายการรออนุมัติ (ของนิสิตตัวเอง)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/pre-t3/pending",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "pre-t3",
+                    "pending"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ดูรายละเอียด Pre-T3 ตาม ID",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/pre-t3/1",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "pre-t3",
+                    "1"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ประวัติการอนุมัติ/ปฏิเสธ Pre-T3 ของตัวเอง",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/pre-t3/history?page=1&limit=20",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "pre-t3",
+                    "history"
+                  ],
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "Approved",
+                      "description": "Approved | Rejected (ถ้าไม่ระบุ = ทั้งหมด)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    }
+                  ]
+                },
+                "description": "Advisor ดูประวัติที่ตัวเองเคยอนุมัติหรือปฏิเสธแล้ว\nFilter: ?status=Approved หรือ ?status=Rejected (ไม่ระบุ = ทั้งหมด)\nรองรับ pagination: page, limit"
+              },
+              "response": []
+            },
+            {
+              "name": "อนุมัติ Pre-T3",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"action\": \"approve\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/pre-t3/1/advisor-review",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "pre-t3",
+                    "1",
+                    "advisor-review"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ปฏิเสธ Pre-T3",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"action\": \"reject\",\n  \"remark\": \"เหตุผลการปฏิเสธ\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/pre-t3/1/advisor-review",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "pre-t3",
+                    "1",
+                    "advisor-review"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "T3",
+          "item": [
+            {
+              "name": "ดูรายการรออนุมัติ (ของนิสิตตัวเอง)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/t3/pending",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "t3",
+                    "pending"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ดูรายละเอียด T3 ตาม ID",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/t3/1",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "t3",
+                    "1"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ประวัติการอนุมัติ/ปฏิเสธ T3 ของตัวเอง",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/t3/history?page=1&limit=20",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "t3",
+                    "history"
+                  ],
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "Approved",
+                      "description": "Approved | Rejected (ถ้าไม่ระบุ = ทั้งหมด)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    }
+                  ]
+                },
+                "description": "Advisor ดูประวัติที่ตัวเองเคยอนุมัติหรือปฏิเสธ T3 แล้ว\nFilter: ?status=Approved หรือ ?status=Rejected (ไม่ระบุ = ทั้งหมด)\nรองรับ pagination: page, limit"
+              },
+              "response": []
+            },
+            {
+              "name": "อนุมัติ T3",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"action\": \"approve\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/t3/1/advisor-review",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "t3",
+                    "1",
+                    "advisor-review"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ปฏิเสธ T3",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"action\": \"reject\",\n  \"remark\": \"เหตุผลการปฏิเสธ\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/t3/1/advisor-review",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "t3",
+                    "1",
+                    "advisor-review"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ดาวน์โหลดไฟล์แนบ T3",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/upload/t3/1/files/full_paper",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "upload",
+                    "t3",
+                    "1",
+                    "files",
+                    "full_paper"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Bug Report",
+          "item": [
+            {
+              "name": "รายงานปัญหา",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"category\": \"other\",\n  \"title\": \"หัวข้อปัญหา\",\n  \"description\": \"รายละเอียด\",\n  \"page_url\": \"http://localhost:4200\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/bug-reports",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "bug-reports"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ดูรายงานของตัวเอง",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/bug-reports/my?page=1&limit=20",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "bug-reports",
+                    "my"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🏢 Staff",
+      "item": [
+        {
+          "name": "Auth",
+          "item": [
+            {
+              "name": "Register Staff (Google — ครั้งแรก)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"idToken\": \"GOOGLE_ID_TOKEN_HERE\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/auth/register-staff",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "register-staff"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Login (Google)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "const res = pm.response.json();\nif (res.success && res.data?.accessToken) {\n  pm.collectionVariables.set('access_token', res.data.accessToken);\n}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"idToken\": \"GOOGLE_ID_TOKEN_HERE\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/auth/google",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "google"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Refresh Token",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/auth/refresh",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "refresh"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Me",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/auth/me",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "me"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Logout",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/auth/logout",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "logout"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "โปรไฟล์",
+          "item": [
+            {
+              "name": "ดูโปรไฟล์ตัวเอง",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/user/profile",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "user",
+                    "profile"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "แก้ไขโปรไฟล์",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"phone\": \"0812345678\",\n  \"facebook_id\": \"\",\n  \"line_id\": \"\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/user/profile",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "user",
+                    "profile"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "จัดการผู้ใช้",
+          "item": [
+            {
+              "name": "ดูรายชื่อผู้ใช้",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/manage/users?page=1&limit=20",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "manage",
+                    "users"
+                  ],
+                  "query": [
+                    {
+                      "key": "role",
+                      "value": "",
+                      "description": "Student | Supervisor | Program_Chair | Staff",
+                      "disabled": true
+                    },
+                    {
+                      "key": "status",
+                      "value": "",
+                      "description": "Pending | Active | Suspended",
+                      "disabled": true
+                    },
+                    {
+                      "key": "search",
+                      "value": "",
+                      "description": "ค้นหาชื่อ/อีเมล",
+                      "disabled": true
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "เพิ่มผู้ใช้ (Single)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"role\": \"Student\",\n  \"first_name\": \"สมชาย\",\n  \"last_name\": \"ใจดี\",\n  \"msu_mail\": \"somchai@msu.ac.th\",\n  \"prefix\": \"นาย\",\n  \"phone\": \"0812345678\",\n  \"degree_level\": \"Master\",\n  \"curriculum_year\": \"2566\",\n  \"study_plan_code\": \"Master_A1\",\n  \"advisor_major_mail\": \"\",\n  \"advisor_co1_mail\": \"\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/manage/users/single",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "manage",
+                    "users",
+                    "single"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Import ผู้ใช้ (CSV)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "description": "CSV: role,first_name,last_name,msu_mail,prefix,phone,degree_level,curriculum_year,study_plan_code,advisor_major_mail,advisor_co1_mail",
+                      "value": null
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{base_url}}/manage/users/import",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "manage",
+                    "users",
+                    "import"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Suspend User",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/manage/users/1/suspend",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "manage",
+                    "users",
+                    "1",
+                    "suspend"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Activate User",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/manage/users/1/activate",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "manage",
+                    "users",
+                    "1",
+                    "activate"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "อัปเดต Advisor",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"advisor_major_mail\": \"advisor@msu.ac.th\",\n  \"advisor_co1_mail\": \"\",\n  \"advisor_co2_mail\": \"\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/manage/users/1/advisors",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "manage",
+                    "users",
+                    "1",
+                    "advisors"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "แก้ไขข้อมูลผู้ใช้",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"prefix\": \"นาย\",\n  \"first_name\": \"สมชาย\",\n  \"last_name\": \"ใจดี\",\n  \"msu_mail\": \"somchai@msu.ac.th\",\n  \"phone\": \"0812345678\",\n  \"degree_level\": \"Master\",\n  \"curriculum_year\": \"2566\",\n  \"study_plan_code\": \"Master_A1\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/manage/users/1",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "manage",
+                    "users",
+                    "1"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "วารสาร",
+          "item": [
+            {
+              "name": "ค้นหา Scopus (Cache/API)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/journal/scopus?issn=0125-8281",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "journal",
+                    "scopus"
+                  ],
+                  "query": [
+                    {
+                      "key": "issn",
+                      "value": "0125-8281"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ค้นหา Scopus (Web Scraping — Real-time)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/journal/scopus/scrape?issn=14741733",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "journal",
+                    "scopus",
+                    "scrape"
+                  ],
+                  "query": [
+                    {
+                      "key": "issn",
+                      "value": "14741733"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ค้นหา TCI (Cache/API)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/journal/tci?issn=0125-8281",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "journal",
+                    "tci"
+                  ],
+                  "query": [
+                    {
+                      "key": "issn",
+                      "value": "0125-8281"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ค้นหา TCI (Web Scraping — Real-time)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/journal/tci/scrape?issn=2468-1458",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "journal",
+                    "tci",
+                    "scrape"
+                  ],
+                  "query": [
+                    {
+                      "key": "issn",
+                      "value": "2468-1458"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Proxy Status",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/journal/proxy-status",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "journal",
+                    "proxy-status"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "วารสารต้องห้าม",
+          "item": [
+            {
+              "name": "ดูรายการทั้งหมด",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/unwanted-journals",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "unwanted-journals"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ตรวจสอบ ISSN",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/unwanted-journals/check/0140-6736",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "unwanted-journals",
+                    "check",
+                    "0140-6736"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ดูไฟล์หลักฐาน",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/unwanted-journals/1/evidence",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "unwanted-journals",
+                    "1",
+                    "evidence"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "เพิ่มวารสาร (Single)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "journal_name",
+                      "value": "Predatory Journal",
+                      "type": "text"
+                    },
+                    {
+                      "key": "issn",
+                      "value": "0000-0000",
+                      "type": "text"
+                    },
+                    {
+                      "key": "publisher",
+                      "value": "Unknown Publisher",
+                      "type": "text"
+                    },
+                    {
+                      "key": "note",
+                      "value": "วารสารล่า — ไม่ผ่านการ peer review จริง",
+                      "description": "หมายเหตุว่าทำไมถึงอยู่ใน Blacklist",
+                      "type": "text"
+                    },
+                    {
+                      "key": "recorded_date",
+                      "value": "2026-01-01",
+                      "type": "text"
+                    },
+                    {
+                      "key": "evidence_file",
+                      "type": "file",
+                      "description": "ไฟล์หลักฐาน (PDF/JPG/PNG/WEBP, max 10 MB) — ไม่บังคับ",
+                      "src": []
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{base_url}}/unwanted-journals/single",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "unwanted-journals",
+                    "single"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Import วารสาร (CSV)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "description": "CSV: journal_name,issn,publisher,note,recorded_date",
+                      "value": null
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{base_url}}/unwanted-journals/import",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "unwanted-journals",
+                    "import"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "แก้ไขวารสาร",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "journal_name",
+                      "value": "",
+                      "description": "ชื่อวารสาร (ห้ามเป็นค่าว่าง ถ้าส่ง)",
+                      "type": "text",
+                      "disabled": true
+                    },
+                    {
+                      "key": "issn",
+                      "value": "",
+                      "description": "เลข ISSN ของวารสาร",
+                      "type": "text",
+                      "disabled": true
+                    },
+                    {
+                      "key": "publisher",
+                      "value": "สำนักพิมพ์ใหม่",
+                      "description": "ชื่อสำนักพิมพ์",
+                      "type": "text",
+                      "disabled": true
+                    },
+                    {
+                      "key": "note",
+                      "value": "อัปเดตหมายเหตุ",
+                      "description": "หมายเหตุว่าทำไมถึงอยู่ใน Blacklist",
+                      "type": "text"
+                    },
+                    {
+                      "key": "recorded_date",
+                      "value": "",
+                      "description": "วันที่บันทึก (YYYY-MM-DD)",
+                      "type": "text",
+                      "disabled": true
+                    },
+                    {
+                      "key": "evidence_file",
+                      "type": "file",
+                      "description": "ไฟล์หลักฐานใหม่ (แทนไฟล์เดิม, PDF/JPG/PNG/WEBP, max 10 MB) — ไม่บังคับ",
+                      "src": []
+                    },
+                    {
+                      "key": "clear_evidence",
+                      "value": "true",
+                      "description": "ส่ง true เพื่อลบไฟล์หลักฐานที่มีอยู่ (ไม่ต้องส่งถ้าแนบไฟล์ใหม่)",
+                      "type": "text",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{base_url}}/unwanted-journals/1",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "unwanted-journals",
+                    "1"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ลบวารสาร",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/unwanted-journals/1",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "unwanted-journals",
+                    "1"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Pre-T3",
+          "item": [
+            {
+              "name": "ดูรายการรออนุมัติ (อาจารย์ approve แล้ว)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/pre-t3/pending",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "pre-t3",
+                    "pending"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ดูรายละเอียด Pre-T3 ตาม ID",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/pre-t3/1",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "pre-t3",
+                    "1"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ประวัติการอนุมัติ/ปฏิเสธ Pre-T3 (Faculty Com)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/pre-t3/history?page=1&limit=20",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "pre-t3",
+                    "history"
+                  ],
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "Approved",
+                      "description": "Approved | Rejected (ถ้าไม่ระบุ = ทั้งหมด)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    }
+                  ]
+                },
+                "description": "Staff ดูประวัติ Pre-T3 ทั้งหมดที่ Faculty Com เคยตัดสินแล้ว (Approved หรือ Rejected)\nFilter: ?status=Approved|Rejected (ไม่ระบุ = ทั้งหมด)"
+              },
+              "response": []
+            },
+            {
+              "name": "Faculty Com อนุมัติ",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"action\": \"approve\",\n  \"meeting_no\": \"3/2568\",\n  \"meeting_date\": \"2025-05-20\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/pre-t3/1/faculty-review",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "pre-t3",
+                    "1",
+                    "faculty-review"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Faculty Com ปฏิเสธ",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"action\": \"reject\",\n  \"remark\": \"เหตุผลการปฏิเสธ\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/pre-t3/1/faculty-review",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "pre-t3",
+                    "1",
+                    "faculty-review"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "T3",
+          "item": [
+            {
+              "name": "ดูรายการรออนุมัติ (อาจารย์ approve แล้ว)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/t3/pending",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "t3",
+                    "pending"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ดูรายละเอียด T3 ตาม ID",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/t3/1",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "t3",
+                    "1"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ประวัติการอนุมัติ/ปฏิเสธ T3 (Faculty Com)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/t3/history?page=1&limit=20",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "t3",
+                    "history"
+                  ],
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "Approved",
+                      "description": "Approved | Rejected (ถ้าไม่ระบุ = ทั้งหมด)",
+                      "disabled": true
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    }
+                  ]
+                },
+                "description": "Staff ดูประวัติ T3 ทั้งหมดที่ Faculty Com เคยตัดสินแล้ว (Approved หรือ Rejected)\nFilter: ?status=Approved|Rejected (ไม่ระบุ = ทั้งหมด)"
+              },
+              "response": []
+            },
+            {
+              "name": "Faculty Com อนุมัติ T3",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"action\": \"approve\",\n  \"meeting_no\": \"3/2568\",\n  \"meeting_date\": \"2025-05-20\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/t3/1/faculty-review",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "t3",
+                    "1",
+                    "faculty-review"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Faculty Com ปฏิเสธ T3",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"action\": \"reject\",\n  \"remark\": \"เอกสารแนบไม่ครบ\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/t3/1/faculty-review",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "t3",
+                    "1",
+                    "faculty-review"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ดาวน์โหลดไฟล์แนบ T3",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/upload/t3/1/files/full_paper",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "upload",
+                    "t3",
+                    "1",
+                    "files",
+                    "full_paper"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Bug Report",
+          "item": [
+            {
+              "name": "รายงานปัญหา",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"category\": \"other\",\n  \"title\": \"หัวข้อปัญหา\",\n  \"description\": \"รายละเอียด\",\n  \"page_url\": \"http://localhost:4200\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/bug-reports",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "bug-reports"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ดูรายงานของตัวเอง",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/bug-reports/my?page=1&limit=20",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "bug-reports",
+                    "my"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "👑 Admin",
+      "item": [
+        {
+          "name": "Auth",
+          "item": [
+            {
+              "name": "Login (Username + Password)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "const res = pm.response.json();\nif (res.success && res.data?.otpToken) {\n  pm.collectionVariables.set('otp_token', res.data.otpToken);\n}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"superadmin123\",\n  \"password\": \"superadmin123\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/auth/login",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Verify OTP",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "const res = pm.response.json();\nif (res.success && res.data?.accessToken) {\n  pm.collectionVariables.set('access_token', res.data.accessToken);\n}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{otp_token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"otpCode\": \"123456\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/auth/verify-otp",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "verify-otp"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Refresh Token",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/auth/refresh",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "refresh"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Me",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/auth/me",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "me"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Logout",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/auth/logout",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "logout"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Forgot Password (ขอรีเซ็ตรหัสผ่าน)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "const res = pm.response.json();",
+                      "if (res.success && res.data?.resetOtpToken) {",
+                      "  pm.collectionVariables.set('reset_otp_token', res.data.resetOtpToken);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"admin01\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/auth/forgot-password",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "forgot-password"
+                  ]
+                },
+                "description": "Step 1: ส่ง username → รับ OTP ทางอีเมล + resetOtpToken (Auto-save ลง collection variable)\nเฉพาะ Admin / SuperAdmin ที่ account_status = Active เท่านั้น"
+              },
+              "response": []
+            },
+            {
+              "name": "Reset Password (รีเซ็ตรหัสผ่าน)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{reset_otp_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"otpCode\": \"123456\",\n  \"newPassword\": \"NewPass@1234\",\n  \"confirmPassword\": \"NewPass@1234\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/auth/reset-password",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "reset-password"
+                  ]
+                },
+                "description": "Step 2: ส่ง OTP (จากอีเมล) + รหัสผ่านใหม่\nHeader: Authorization: Bearer {{reset_otp_token}} (จาก Forgot Password)\nPassword rules: ≥8 ตัว, มีตัวพิมพ์ใหญ่, พิมพ์เล็ก, ตัวเลข\nสำเร็จแล้ว: sessions ทุก device จะถูก logout ทันที"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Dashboard",
+          "item": [
+            {
+              "name": "Get Stats",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/stats",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "stats"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "System Logs",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/logs?page=1&limit=50",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "logs"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "50"
+                    },
+                    {
+                      "key": "user_id",
+                      "value": null,
+                      "disabled": true
+                    },
+                    {
+                      "key": "action",
+                      "value": null,
+                      "disabled": true
+                    },
+                    {
+                      "key": "target_type",
+                      "value": null,
+                      "disabled": true
+                    },
+                    {
+                      "key": "date_from",
+                      "value": null,
+                      "disabled": true
+                    },
+                    {
+                      "key": "date_to",
+                      "value": null,
+                      "disabled": true
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "จัดการ Admin",
+          "item": [
+            {
+              "name": "สร้าง Admin",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"admin_new\",\n  \"password\": \"password123\",\n  \"first_name\": \"ชื่อ\",\n  \"last_name\": \"นามสกุล\",\n  \"msu_mail\": \"admin@msu.ac.th\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/admin/admins",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "admins"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Suspend Admin",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/admins/1/suspend",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "admins",
+                    "1",
+                    "suspend"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Activate Admin",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/admins/1/activate",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "admins",
+                    "1",
+                    "activate"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "แก้ไข Admin",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"first_name\": \"ชื่อใหม่\",\n  \"last_name\": \"นามสกุลใหม่\",\n  \"msu_mail\": \"admin_new@msu.ac.th\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/admin/admins/1",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "admins",
+                    "1"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ลบ Admin (SuperAdmin only)",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/admins/1",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "admins",
+                    "1"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "จัดการผู้ใช้",
+          "item": [
+            {
+              "name": "ดูรายชื่อผู้ใช้",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/manage/users?page=1&limit=20",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "manage",
+                    "users"
+                  ],
+                  "query": [
+                    {
+                      "key": "role",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "status",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "search",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "เพิ่มผู้ใช้ (Single)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"role\": \"Student\",\n  \"first_name\": \"สมชาย\",\n  \"last_name\": \"ใจดี\",\n  \"msu_mail\": \"somchai@msu.ac.th\",\n  \"prefix\": \"นาย\",\n  \"phone\": \"0812345678\",\n  \"degree_level\": \"Master\",\n  \"curriculum_year\": \"2566\",\n  \"study_plan_code\": \"Master_A1\",\n  \"advisor_major_mail\": \"\",\n  \"advisor_co1_mail\": \"\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/manage/users/single",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "manage",
+                    "users",
+                    "single"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Import ผู้ใช้ (CSV)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "description": "CSV: role,first_name,last_name,msu_mail,prefix,phone,degree_level,curriculum_year,study_plan_code,advisor_major_mail,advisor_co1_mail",
+                      "value": null
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{base_url}}/manage/users/import",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "manage",
+                    "users",
+                    "import"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Approve User",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/manage/users/1/approve",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "manage",
+                    "users",
+                    "1",
+                    "approve"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Suspend User",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/manage/users/1/suspend",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "manage",
+                    "users",
+                    "1",
+                    "suspend"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Activate User",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/manage/users/1/activate",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "manage",
+                    "users",
+                    "1",
+                    "activate"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "อัปเดต Advisor",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"advisor_major_mail\": \"advisor@msu.ac.th\",\n  \"advisor_co1_mail\": \"\",\n  \"advisor_co2_mail\": \"\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/manage/users/1/advisors",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "manage",
+                    "users",
+                    "1",
+                    "advisors"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "แก้ไขข้อมูลผู้ใช้",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"prefix\": \"นาย\",\n  \"first_name\": \"สมชาย\",\n  \"last_name\": \"ใจดี\",\n  \"msu_mail\": \"somchai@msu.ac.th\",\n  \"phone\": \"0812345678\",\n  \"degree_level\": \"Master\",\n  \"curriculum_year\": \"2566\",\n  \"study_plan_code\": \"Master_A1\"\n}"
+                },
+                "url": {
+                  "raw": "{{base_url}}/manage/users/1",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "manage",
+                    "users",
+                    "1"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "วารสารต้องห้าม",
+          "item": [
+            {
+              "name": "ดูรายการทั้งหมด",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/unwanted-journals",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "unwanted-journals"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ดูไฟล์หลักฐาน",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/unwanted-journals/1/evidence",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "unwanted-journals",
+                    "1",
+                    "evidence"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "เพิ่มวารสาร (Single)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "journal_name",
+                      "value": "Predatory Journal",
+                      "type": "text"
+                    },
+                    {
+                      "key": "issn",
+                      "value": "0000-0000",
+                      "type": "text"
+                    },
+                    {
+                      "key": "publisher",
+                      "value": "Unknown",
+                      "type": "text"
+                    },
+                    {
+                      "key": "note",
+                      "value": "หมายเหตุ",
+                      "description": "หมายเหตุว่าทำไมถึงอยู่ใน Blacklist",
+                      "type": "text"
+                    },
+                    {
+                      "key": "recorded_date",
+                      "value": "2026-01-01",
+                      "type": "text"
+                    },
+                    {
+                      "key": "evidence_file",
+                      "type": "file",
+                      "description": "ไฟล์หลักฐาน (PDF/JPG/PNG/WEBP, max 10 MB) — ไม่บังคับ",
+                      "src": []
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{base_url}}/unwanted-journals/single",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "unwanted-journals",
+                    "single"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Import วารสาร (CSV)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "description": "CSV: journal_name,issn,publisher,note,recorded_date",
+                      "value": null
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{base_url}}/unwanted-journals/import",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "unwanted-journals",
+                    "import"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "แก้ไขวารสาร",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "journal_name",
+                      "value": "",
+                      "description": "ชื่อวารสาร (ห้ามเป็นค่าว่าง ถ้าส่ง)",
+                      "type": "text",
+                      "disabled": true
+                    },
+                    {
+                      "key": "issn",
+                      "value": "",
+                      "description": "เลข ISSN ของวารสาร",
+                      "type": "text",
+                      "disabled": true
+                    },
+                    {
+                      "key": "publisher",
+                      "value": "สำนักพิมพ์ใหม่",
+                      "description": "ชื่อสำนักพิมพ์",
+                      "type": "text",
+                      "disabled": true
+                    },
+                    {
+                      "key": "note",
+                      "value": "อัปเดต",
+                      "description": "หมายเหตุว่าทำไมถึงอยู่ใน Blacklist",
+                      "type": "text"
+                    },
+                    {
+                      "key": "recorded_date",
+                      "value": "",
+                      "description": "วันที่บันทึก (YYYY-MM-DD)",
+                      "type": "text",
+                      "disabled": true
+                    },
+                    {
+                      "key": "evidence_file",
+                      "type": "file",
+                      "description": "ไฟล์หลักฐานใหม่ (แทนไฟล์เดิม, PDF/JPG/PNG/WEBP, max 10 MB) — ไม่บังคับ",
+                      "src": []
+                    },
+                    {
+                      "key": "clear_evidence",
+                      "value": "true",
+                      "description": "ส่ง true เพื่อลบไฟล์หลักฐานที่มีอยู่ (ไม่ต้องส่งถ้าแนบไฟล์ใหม่)",
+                      "type": "text",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{base_url}}/unwanted-journals/1",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "unwanted-journals",
+                    "1"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ลบวารสาร",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/unwanted-journals/1",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "unwanted-journals",
+                    "1"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Bug Reports",
+          "item": [
+            {
+              "name": "ดูรายการทั้งหมด",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/bug-reports?page=1&limit=20",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "bug-reports"
+                  ],
+                  "query": [
+                    {
+                      "key": "status",
+                      "value": "",
+                      "description": "open | in_progress | resolved | wontfix",
+                      "disabled": true
+                    },
+                    {
+                      "key": "category",
+                      "value": "",
+                      "description": "scraper | form | auth | notification | other",
+                      "disabled": true
+                    },
+                    {
+                      "key": "search",
+                      "value": "",
+                      "disabled": true
+                    },
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "20"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ดูรายละเอียด",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/bug-reports/1",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "bug-reports",
+                    "1"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "อัปเดต Status",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"resolved\",\n  \"resolved_note\": \"แก้ไขแล้ว\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/bug-reports/1/status",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "bug-reports",
+                    "1",
+                    "status"
+                  ]
+                },
+                "description": "status: in_progress | resolved | wontfix"
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3001/api/v3"
+    },
+    {
+      "key": "access_token",
+      "value": ""
+    },
+    {
+      "key": "otp_token",
+      "value": ""
+    },
+    {
+      "key": "reset_otp_token",
+      "value": ""
+    }
+  ]
+}

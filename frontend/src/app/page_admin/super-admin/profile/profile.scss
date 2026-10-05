@@ -1,0 +1,481 @@
+@use 'sass:color';
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+$navy:   #1C2744;
+$gold:   #E8A800;
+$bg:     #F5F7FB;
+$white:  #ffffff;
+$muted:  #6B7280;
+$border: #E4E8F0;
+$green:  #15803d;
+
+:host {
+  display: block;
+  font-family: 'Sarabun', sans-serif;
+  background: $bg;
+}
+
+/* ══ PAGE WRAPPER ══ */
+.profile-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 28px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ══ LOADING / ERROR ══ */
+.pf-loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: $white;
+  border-radius: 14px;
+  border: 1.5px solid $border;
+  padding: 48px 24px;
+  justify-content: center;
+  color: $muted;
+  font-size: 14px;
+}
+
+.pf-spinner {
+  width: 22px;
+  height: 22px;
+  border: 3px solid rgba($navy, 0.1);
+  border-top-color: $gold;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.pf-error {
+  background: #fff3f3;
+  border: 1px solid #f5c6c6;
+  border-radius: 12px;
+  padding: 14px 18px;
+  color: #c0392b;
+  font-size: 13px;
+}
+
+/* ══ SHARED: Gold topbar ══ */
+.pf-topbar {
+  height: 5px;
+  background: linear-gradient(90deg, #262D40 0%, #E0A100 100%);
+  border-radius: 14px 14px 0 0;
+  flex-shrink: 0;
+}
+
+/* ══ CARD BASE ══ */
+.pf-card,
+.pf-summary,
+.pf-edit-card {
+  background: $white;
+  border-radius: 14px;
+  border: 1.5px solid $border;
+  box-shadow: 0 2px 8px rgba($navy, 0.05);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ══ SUMMARY CARD ══ */
+.pf-summary {
+  &__body {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 24px 28px;
+    flex-wrap: wrap;
+  }
+
+  &__left {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  &__role {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: $muted;
+    margin: 0;
+    letter-spacing: 0.01em;
+  }
+
+  &__name {
+    font-size: 26px;
+    font-weight: 800;
+    color: $navy;
+    margin: 0;
+    line-height: 1.2;
+    letter-spacing: -0.3px;
+  }
+
+  &__email {
+    font-size: 13px;
+    color: $muted;
+    margin: 0;
+  }
+
+  &__right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+  }
+
+  &__last-login {
+    font-size: 13px;
+    color: $muted;
+    margin: 0;
+  }
+}
+
+/* ══ STATUS BADGE ══ */
+.pf-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 14px;
+  border-radius: 99px;
+  font-size: 13px;
+  font-weight: 700;
+  border: 1.5px solid #D1D5DB;
+  color: $muted;
+  background: transparent;
+
+  &--active {
+    border-color: rgba($green, 0.4);
+    color: $green;
+    background: rgba($green, 0.06);
+  }
+}
+
+/* ══ AVATAR ══ */
+.pf-avatar {
+  position: relative;
+  flex-shrink: 0;
+
+  &__img,
+  &__fallback {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    border: 2.5px solid rgba($gold, 0.6);
+    box-shadow:
+      0 0 0 3px rgba($gold, 0.12),
+      0 4px 14px rgba($navy, 0.15);
+    object-fit: cover;
+  }
+
+  &__fallback {
+    background: linear-gradient(135deg, $gold, color.adjust($gold, $lightness: -15%));
+    color: $navy;
+    font-size: 24px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__dot {
+    position: absolute;
+    bottom: 3px; right: 3px;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: $green;
+    border: 2px solid $white;
+    box-shadow: 0 0 0 1px rgba($green, 0.25);
+  }
+}
+
+/* ══ TWO-COLUMN GRID ══ */
+.pf-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+
+  @media (max-width: 720px) { grid-template-columns: 1fr; }
+}
+
+/* ══ CARD HEADER ══ */
+.pf-card__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 22px 12px;
+  border-bottom: 1.5px solid $border;
+}
+
+.pf-card__icon { font-size: 18px; line-height: 1; }
+
+.pf-card__title {
+  font-size: 15px;
+  font-weight: 700;
+  color: $navy;
+  flex: 1;
+}
+
+/* ══ INFO LIST ══ */
+.info-list {
+  display: flex;
+  flex-direction: column;
+  padding: 0 22px;
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
+  border-bottom: 1px solid $border;
+  gap: 16px;
+
+  &:last-child { border-bottom: none; }
+}
+
+.info-label {
+  font-size: 13px;
+  color: $muted;
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.info-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: $navy;
+  text-align: right;
+  overflow-wrap: anywhere;
+
+  &--mono  { font-family: 'IBM Plex Mono', monospace; font-size: 13.5px; }
+  &--active { color: $green; }
+  &--break  { word-break: break-all; }
+}
+
+/* ══ ROLE PILL ══ */
+.role-pill {
+  display: inline-flex;
+  padding: 3px 12px;
+  border-radius: 99px;
+  border: 1.5px solid rgba($navy, 0.2);
+  color: $navy;
+  font-size: 12.5px;
+  font-weight: 600;
+  background: transparent;
+}
+
+/* ══ SUMMARY RIGHT ══ */
+.pf-summary__right-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* ══ EDIT BUTTON (summary card) ══ */
+.pf-btn-edit-main {
+  padding: 6px 16px;
+  border-radius: 8px;
+  border: 1.5px solid rgba($navy, 0.2);
+  background: transparent;
+  color: $navy;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Sarabun', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+
+  &:hover {
+    border-color: $gold;
+    color: $gold;
+    background: rgba($gold, 0.05);
+  }
+
+  &--cancel {
+    border-color: rgba(192, 57, 43, 0.35);
+    color: #C0392B;
+    background: rgba(192, 57, 43, 0.05);
+
+    &:hover { background: rgba(192, 57, 43, 0.1); }
+  }
+}
+
+/* ══ FULL-WIDTH CARD ══ */
+.pf-card--full { grid-column: 1 / -1; }
+
+/* ══ USAGE GRID ══ */
+.pf-usage-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  padding: 20px 22px 22px;
+  gap: 0;
+
+  @media (max-width: 560px) { grid-template-columns: 1fr; gap: 16px; }
+}
+
+.pf-usage-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 24px;
+
+  &--sep {
+    padding-left: 24px;
+    padding-right: 24px;
+    border-left: 1px solid $border;
+  }
+
+  &__label {
+    font-size: 12.5px;
+    color: $muted;
+    font-weight: 500;
+  }
+
+  &__value {
+    font-size: 15px;
+    font-weight: 700;
+    color: $navy;
+  }
+}
+
+/* ══ EDIT CARD ══ */
+.pf-edit-card {
+  &__header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 20px 22px 16px;
+    border-bottom: 1.5px solid $border;
+  }
+
+  &__note {
+    font-size: 12px;
+    color: $muted;
+    margin-top: 2px;
+  }
+}
+
+.pf-edit-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px 20px;
+  padding: 20px 22px;
+
+  @media (max-width: 720px) { grid-template-columns: 1fr 1fr; }
+  @media (max-width: 480px) { grid-template-columns: 1fr; }
+}
+
+.edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.edit-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba($navy, 0.65);
+}
+
+.edit-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1.5px solid $border;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 14px;
+  font-family: 'Sarabun', sans-serif;
+  color: $navy;
+  background: $white;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  appearance: auto;
+
+  &:focus {
+    border-color: $gold;
+    box-shadow: 0 0 0 3px rgba($gold, 0.12);
+  }
+
+  &::placeholder { color: rgba($navy, 0.25); }
+}
+
+.save-result {
+  padding: 10px 22px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 0;
+
+  &--success { background: rgba($green, 0.08); color: $green; border-top: 1px solid rgba($green, 0.15); }
+  &--error   { background: rgba(192,57,43,.07); color: #C0392B; border-top: 1px solid rgba(192,57,43,.15); }
+}
+
+.btn-save {
+  margin: 0 22px 22px;
+  padding: 13px;
+  background: linear-gradient(135deg, $gold 0%, color.adjust($gold, $lightness: -8%) 100%);
+  color: $navy;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: 'Sarabun', sans-serif;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.22s;
+  box-shadow: 0 3px 12px rgba($gold, 0.28);
+  letter-spacing: 0.01em;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba($gold, 0.38);
+  }
+
+  &:disabled { opacity: 0.55; cursor: not-allowed; }
+
+  &__spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba($navy, 0.2);
+    border-top-color: $navy;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+}
+
+/* ══ RESPONSIVE ══ */
+@media (max-width: 720px) {
+  .profile-page { padding: 16px 14px 40px; }
+
+  /* .pf-summary__right เดิมชิดขวา (align-items:flex-end) พอ __body ห่อบรรทัดใหม่
+     บนจอแคบ จะเหลือ badge+ปุ่มลอยชิดขวาเดี่ยวๆ ไม่สมดุลกับฝั่งซ้ายที่ชิดซ้าย */
+  .pf-summary__right { align-items: flex-start; }
+  .pf-summary__right-top { justify-content: flex-start; }
+}
+
+@media (max-width: 560px) {
+  /* .pf-usage-col--sep ใช้ border-left คั่นคอลัมน์ พอกริดยุบเหลือคอลัมน์เดียว
+     (breakpoint เดียวกับที่ pf-usage-grid เปลี่ยนเป็น 1fr ด้านบน) เส้นขอบซ้ายจะเหลือ
+     ลอยอยู่กลางแถวเต็มความกว้างแทน ต้องเปลี่ยนเป็นคั่นด้วย border-top แทน */
+  .pf-usage-col--sep {
+    padding-left: 0;
+    padding-top: 16px;
+    border-left: none;
+    border-top: 1px solid $border;
+  }
+}

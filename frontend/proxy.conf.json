@@ -1,0 +1,7 @@
+{
+  "/api": {
+    "target": "https://api.farmlnwza007.online",
+    "secure": true,
+    "changeOrigin": true
+  }
+}

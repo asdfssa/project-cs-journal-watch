@@ -1,0 +1,681 @@
+﻿
+$navy:   #1C2744;
+$yellow: #E8A800;
+$border: #E2E6F0;
+$bg:     #F4F6FA;
+$white:  #FFFFFF;
+$muted:  #6B7280;
+$green:  #1A7A42;
+$red:    #C0392B;
+$text:   #374151;
+
+/* ── PAGE SHELL ── */
+.pre-t3-page {
+  padding: 28px 28px 80px;
+  max-width: 1300px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  font-family: 'Sarabun', sans-serif;
+}
+
+/* ── TAB BAR ── */
+.tab-bar {
+  display: flex;
+  gap: 4px;
+  background: $white;
+  border: 1.5px solid $border;
+  border-radius: 14px;
+  padding: 6px;
+  box-shadow: 0 2px 8px rgba(28,39,68,0.06);
+}
+
+.tab-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 10px;
+  text-decoration: none;
+  color: $muted;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+
+  &:hover { background: rgba(232,168,0,0.08); color: $navy; }
+
+  &.tab-active {
+    background: $navy;
+    color: $yellow;
+    box-shadow: 0 3px 10px rgba(28,39,68,0.2);
+  }
+}
+
+.tab-icon { font-size: 16px; }
+
+/* ── ALERT BANNER ── */
+.alert-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  background: #FFF8E1;
+  border: 1.5px solid #F9C836;
+  border-radius: 12px;
+  font-size: 14px;
+  color: #7A5700;
+  flex-wrap: wrap;
+}
+
+.alert-icon { font-size: 18px; flex-shrink: 0; }
+.alert-text { flex: 1; line-height: 1.5; }
+
+.alert-link {
+  color: $navy;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  padding: 6px 14px;
+  background: rgba(28,39,68,0.07);
+  border-radius: 8px;
+  transition: background 0.2s;
+
+  &:hover { background: rgba(28,39,68,0.14); }
+}
+
+/* ── MAIN LAYOUT ── */
+.form-layout {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 20px;
+  align-items: start;
+}
+
+/* ── PAGE HEADER ── */
+.page-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.page-title {
+  font-size: 28px;
+  font-weight: 800;
+  color: $navy;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.page-title-highlight {
+  color: $yellow;
+}
+
+.page-subtitle {
+  font-size: 14px;
+  color: $muted;
+  margin: 0;
+}
+
+/* ── FORM WRAP ── */
+.form-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.form-card {
+  background: $bg;
+  border-radius: 12px;
+  border: 1.5px solid rgba(0,0,0,0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideUp 0.22s ease;
+}
+
+.card-bar {
+  height: 6px;
+  flex-shrink: 0;
+  background: linear-gradient(90deg, #262D40 0%, #E0A100 100%);
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── FORM SECTIONS ── */
+.form-section {
+  padding: 20px 24px;
+  border-bottom: 1px solid $border;
+
+  &:last-child { border-bottom: none; }
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.section-head-icon { font-size: 18px; }
+
+.section-head-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: $navy;
+}
+
+.section-head-note {
+  font-size: 12px;
+  color: $muted;
+}
+
+.section-hint {
+  font-size: 13px;
+  color: $muted;
+  background: rgba(15,29,58,0.04);
+  border-left: 3px solid $yellow;
+  border-radius: 0 8px 8px 0;
+  padding: 10px 14px;
+  margin-bottom: 4px;
+  line-height: 1.6;
+}
+
+.action-btns {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.submit-spinner {
+  width: 15px;
+  height: 15px;
+  border: 2px solid rgba(28,39,68,0.25);
+  border-top-color: $navy;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.submit-result {
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  &.success { background: rgba(26,122,66,0.25); color: #6EE7A0; border: 1px solid rgba(26,122,66,0.4); }
+  &.error   { background: rgba(192,57,43,0.25); color: #FCA5A5; border: 1px solid rgba(192,57,43,0.4); }
+}
+
+.submit-hint {
+  font-size: 12px;
+  color: rgba(255,255,255,0.45);
+  text-align: right;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.section-divider {
+  height: 1.5px;
+  background: linear-gradient(90deg, $yellow 0%, transparent 100%);
+  margin: 10px 0 16px;
+  border-radius: 2px;
+}
+
+/* ── FIELDS ── */
+.field-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+
+  &:last-child { margin-bottom: 0; }
+}
+
+.field-group {
+  flex: 1;
+  min-width: 0;
+
+  &--wide { flex: 2; }
+  &--full { flex: 1 0 100%; }
+}
+
+.field-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: $muted;
+  margin-bottom: 6px;
+}
+
+.field-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1.5px solid $border;
+  border-radius: 9px;
+  padding: 10px 14px;
+  font-size: 13.5px;
+  color: $text;
+  font-family: 'Sarabun', sans-serif;
+  outline: none;
+  transition: border 0.2s;
+  background: $white;
+
+  &:focus { border-color: $yellow; }
+  &::placeholder { color: #C4C9D4; }
+
+  &.readonly {
+    background: #F0F4FF;
+    color: $navy;
+    font-weight: 600;
+    cursor: default;
+  }
+}
+
+.field-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1.5px solid $border;
+  border-radius: 9px;
+  padding: 10px 14px;
+  font-size: 13.5px;
+  color: $text;
+  font-family: 'Sarabun', sans-serif;
+  outline: none;
+  resize: vertical;
+  transition: border 0.2s;
+
+  &:focus { border-color: $yellow; }
+  &::placeholder { color: #C4C9D4; }
+}
+
+/* ── BADGES ── */
+.badge-auto {
+  font-size: 10px;
+  font-weight: 700;
+  color: $green;
+  background: rgba(26,122,66,0.1);
+  border: 1px solid rgba(26,122,66,0.25);
+  border-radius: 99px;
+  padding: 1px 8px;
+}
+
+.badge-refresh {
+  font-size: 10px;
+  font-weight: 700;
+  color: $navy;
+  background: rgba(28,39,68,0.08);
+  border: 1px solid rgba(28,39,68,0.15);
+  border-radius: 99px;
+  padding: 1px 8px;
+  cursor: pointer;
+
+  &:hover { background: rgba(28,39,68,0.15); }
+}
+
+.badge-required {
+  color: $red;
+  font-size: 13px;
+}
+
+.badge-optional {
+  font-size: 10px;
+  color: $muted;
+  background: rgba(107,114,128,0.08);
+  border: 1px solid rgba(107,114,128,0.2);
+  border-radius: 99px;
+  padding: 1px 8px;
+}
+
+/* ── TOGGLE AUTO ── */
+.toggle-auto {
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 99px;
+  padding: 2px 10px;
+  border: 1px solid $border;
+  background: $white;
+  color: $muted;
+  cursor: pointer;
+  transition: all 0.18s;
+  font-family: 'Sarabun', sans-serif;
+
+  &.on {
+    background: $green;
+    color: $white;
+    border-color: $green;
+  }
+}
+
+/* ── ACTION BAR ── */
+.action-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 24px;
+  background: $navy;
+  border-radius: 0 0 16px 16px;
+  margin-top: -1px;
+}
+
+.btn-submit {
+  padding: 12px 28px;
+  background: $yellow;
+  color: $navy;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: 'Sarabun', sans-serif;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  &:hover:not(:disabled) { opacity: 0.88; }
+  &:disabled { opacity: 0.45; cursor: not-allowed; }
+}
+
+/* ═══ CONFIRM DIALOG ═══ */
+.confirm-backdrop {
+  position: fixed; inset: 0; z-index: 1100;
+  background: rgba(0,0,0,0.45);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px 16px;
+}
+
+.confirm-card {
+  background: $white; border-radius: 20px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.22);
+  padding: 0 0 28px;
+  width: 100%; max-width: 440px;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  text-align: center; overflow: hidden;
+  animation: confirm-in 0.18s ease;
+}
+
+.confirm-topbar {
+  width: 100%; height: 7px; flex-shrink: 0;
+  background: linear-gradient(90deg, #262D40 0%, #E0A100 100%);
+  margin-bottom: 8px;
+}
+
+@keyframes confirm-in {
+  from { transform: scale(0.94); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+
+.confirm-title { font-size: 20px; font-weight: 800; color: $navy; margin: 0; padding: 0 32px; }
+.confirm-desc  { font-size: 14px; color: $muted; line-height: 1.7; margin: 0; padding: 0 32px; }
+
+.confirm-summary {
+  width: calc(100% - 64px); background: $bg; border-radius: 12px;
+  padding: 14px 18px; display: flex; flex-direction: column; gap: 8px;
+}
+.cs-row   { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.cs-label { font-size: 12px; color: $muted; font-weight: 600; white-space: nowrap; }
+.cs-val   { font-size: 13px; color: $navy; font-weight: 600; text-align: right; }
+.cs-pass  { color: #065F46; }
+
+.confirm-actions {
+  display: flex; gap: 10px; width: calc(100% - 64px); margin-top: 4px;
+}
+.btn-confirm-cancel {
+  flex: 1; padding: 11px; border: 1.5px solid $border; border-radius: 10px;
+  background: $white; color: $muted; font-size: 14px; font-weight: 700;
+  font-family: 'Sarabun', sans-serif; cursor: pointer; transition: all 0.18s;
+  &:hover { border-color: $navy; color: $navy; }
+}
+.btn-confirm-ok {
+  flex: 2; padding: 11px; border: none; border-radius: 10px;
+  background: $navy; color: $yellow; font-size: 14px; font-weight: 800;
+  font-family: 'Sarabun', sans-serif; cursor: pointer; transition: all 0.18s;
+  &:hover { opacity: 0.88; }
+}
+
+.btn-back {
+  padding: 12px 20px;
+  background: transparent;
+  color: rgba(255,255,255,0.75);
+  border: 1.5px solid rgba(255,255,255,0.2);
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Sarabun', sans-serif;
+  transition: all 0.2s;
+
+  &:hover {
+    background: rgba(255,255,255,0.08);
+    color: $white;
+  }
+}
+
+.action-note {
+  font-size: 12px;
+  color: rgba(255,255,255,0.4);
+  font-family: 'IBM Plex Mono', monospace;
+  margin-left: auto;
+}
+
+/* ── CHECKLIST PANEL ── */
+.checklist-panel {
+  background: $white;
+  border: 1.5px solid $border;
+  border-radius: 16px;
+  overflow: hidden;
+  position: sticky;
+  top: 20px;
+  max-height: calc(100vh - 40px);
+  display: flex;
+  flex-direction: column;
+}
+
+.checklist-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: $navy;
+  color: $white;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.checklist-progress {
+  font-size: 11px;
+  color: rgba(255,255,255,0.6);
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.checklist-warn {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #FFF8E1;
+  border-bottom: 1px solid #F9C836;
+  font-size: 12px;
+  color: #7A5700;
+  line-height: 1.5;
+
+  
+}
+
+.checklist-hint {
+  font-size: 11px;
+  color: $muted;
+  padding: 6px 16px;
+  background: $bg;
+  border-bottom: 1px solid $border;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.checklist-items {
+  overflow-y: auto;
+  flex: 1;
+  padding: 8px 0;
+
+  &::-webkit-scrollbar { width: 3px; }
+  &::-webkit-scrollbar-thumb { background: rgba(28,39,68,0.12); border-radius: 99px; }
+}
+
+.checklist-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(226,230,240,0.5);
+  transition: background 0.15s;
+  user-select: none;
+
+  &:last-child { border-bottom: none; }
+  &:hover { background: $bg; }
+  &.fail { background: rgba(192,57,43,0.04); }
+
+  &.can-toggle {
+    cursor: pointer;
+    &:hover {
+      background: rgba(232,168,0,0.06);
+      .check-icon:not(.pass):not(.fail) { border-color: $yellow; }
+    }
+    &:active { background: rgba(232,168,0,0.12); }
+  }
+}
+
+.check-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  flex-shrink: 0;
+  margin-top: 2px;
+
+  &.pass { background: $green; color: $white; }
+  &.fail { background: $red;   color: $white; }
+}
+
+.check-body { flex: 1; min-width: 0; }
+
+.check-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: $navy;
+  line-height: 1.4;
+  margin-bottom: 3px;
+}
+
+.check-detail {
+  font-size: 11px;
+  color: $muted;
+  line-height: 1.5;
+}
+
+.btn-recheck {
+  font-size: 10px;
+  font-weight: 700;
+  color: $muted;
+  background: $bg;
+  border: 1px solid $border;
+  border-radius: 6px;
+  padding: 3px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-family: 'Sarabun', sans-serif;
+  transition: all 0.15s;
+
+  &:hover { border-color: $navy; color: $navy; }
+}
+
+.checklist-footer {
+  padding: 12px 16px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: $muted;
+  background: $bg;
+  border-top: 1px solid $border;
+  text-align: center;
+  flex-shrink: 0;
+
+  &.all-pass {
+    color: $green;
+    background: rgba(26,122,66,0.06);
+    border-top-color: rgba(26,122,66,0.2);
+  }
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 1000px) {
+  /* .form-layout เป็น grid 1fr 360px เหมือน .main-grid ของ staff dashboard ที่
+     พิสูจน์แล้วด้วย DevTools ว่า track แบบ 1fr เฉยๆ มีพื้นขั้นต่ำ = min-content
+     ของเนื้อหาข้างใน ถ้า checklist-panel มีจุดที่หดไม่ได้ จะดัน grid ทั้งก้อนล้น
+     ออกนอกจอ ต้องใช้ minmax(0, 1fr) แทน พร้อม min-width:0 ที่ตัว grid item เอง
+     (grid item ก็มี min-width:auto เป็นค่าเริ่มต้นเหมือนกัน คนละชั้นกับ track) */
+  .form-layout { grid-template-columns: minmax(0, 1fr); }
+  .form-wrap, .checklist-panel { min-width: 0; }
+  .checklist-panel { position: static; max-height: 500px; }
+}
+
+@media (max-width: 700px) {
+  /* .field-row เดิมใช้ flex-wrap:wrap แต่ .field-group มี min-width:0 ซึ่งทำให้
+     flexbox เลือก "หด" ช่องให้แคบลงเรื่อยๆ แทนที่จะ "ตกบรรทัดใหม่" (min-width:0
+     คือตัวเอาเพดานการหดออกไปเลย) ผลคือ 3 ช่องยังเบียดกันอยู่แถวเดียวบนมือถือ แค่
+     แคบลงจนพิมพ์ลำบาก ไม่ได้เรียงเป็นแนวตั้งจริงๆ ตามที่ตั้งใจ — ใช้ column แทน */
+  .field-row {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .field-group,
+  .field-group--wide,
+  .field-group--full {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+}
+
+@media (max-width: 600px) {
+  .pre-t3-page { padding: 16px 14px 60px; }
+
+  .page-title { font-size: 21px; }
+
+  /* 3 แท็บ (ยื่น Pre-T3/สถานะ/ประวัติ) รวมกันกว้างเกิน 375px แน่นอน ไม่มี wrap
+     หรือ overflow มาก่อนเลย — เพิ่ม scroll แนวนอนไว้เป็นตาข่ายนิรภัย พร้อมลด
+     padding/font ให้พอดีจอมากขึ้นก่อน */
+  .tab-bar {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tab-item {
+    padding: 9px 14px;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+
+  .form-section { padding: 16px 16px; }
+
+  /* ปุ่ม "กลับไปค้นหา" / "ยื่น Pre-T3" เดิมชิดขวาไม่มี wrap เสี่ยงล้นบนจอแคบมากๆ
+     ให้ขึ้นบรรทัดใหม่ได้แทนที่จะบีบ */
+  .action-btns { flex-wrap: wrap; justify-content: stretch; }
+  .btn-back, .btn-submit { flex: 1 1 auto; justify-content: center; }
+
+  /* checklist-hint ("คลิกข้อที่ตรวจสอบแล้ว...") เดิม 11px แบบ monospace ซึ่งยิ่งดู
+     เล็กกว่าฟอนต์ปกติที่ขนาดเท่ากัน อ่านลำบากบนจอมือถือ ขยายให้ชัดเจนขึ้น */
+  .checklist-hint {
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 10px 16px;
+  }
+}

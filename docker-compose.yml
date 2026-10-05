@@ -1,0 +1,62 @@
+name: journal_watch
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: journal_watch_db
+    restart: unless-stopped
+    # ใช้ DB_PASSWORD/DB_NAME จาก backend/.env ไฟล์เดียว (compose interpolate ${} จาก .env ที่ root เท่านั้น)
+    env_file:
+      - ./backend/.env
+    command: sh -c 'MYSQL_ROOT_PASSWORD="$$DB_PASSWORD" MYSQL_DATABASE="$$DB_NAME" exec docker-entrypoint.sh mysqld'
+    ports:
+      - "3310:3306"
+    volumes:
+      - journal_watch_db_data:/var/lib/mysql
+      - ./backend/db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p\"$$DB_PASSWORD\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # backend + frontend (Angular build ถูก copy เข้า image แล้วเสิร์ฟด้วย Express)
+  backend:
+    build:
+      context: ./backend
+      additional_contexts:
+        frontend: ./frontend
+    container_name: journal_watch_backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      PORT: 3000
+      DB_HOST: db
+      DB_PORT: 3306
+    ports:
+      # 13002 ยังต้องเปิดไว้: tunnel backend-gateway (my_app) ยิง api.farmlnwza007.online/api/v3 มาที่นี่
+      - "13002:3000"
+      # noVNC ไม่มีรหัสผ่าน (x11vnc -nopw) — bind แค่ localhost กันเปิดออกอินเทอร์เน็ต
+      - "127.0.0.1:15902:5900"
+      - "127.0.0.1:6082:6080"
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/data:/app/data
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Cloudflare tunnel journal-watch → https://journal.farmlnwza007.online
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: journal_watch_tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --config /etc/cloudflared/config.yml run
+    volumes:
+      - ./cloudflared:/etc/cloudflared:ro
+    depends_on:
+      - backend
+
+volumes:
+  journal_watch_db_data:

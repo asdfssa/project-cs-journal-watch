@@ -1,0 +1,267 @@
+<div class="page-shell">
+
+  <!-- ══ Header ══ -->
+  <div class="page-header">
+    <div class="page-icon-wrap"><span><i class="ti ti-bug"></i></span></div>
+    <div class="page-header-text">
+      <div class="page-breadcrumb">เมนูระบบ</div>
+      <h1 class="page-title">Bug Reports</h1>
+      <p class="page-sub">รายงานปัญหาที่ผู้ใช้แจ้งเข้ามาในระบบ</p>
+    </div>
+  </div>
+
+  <!-- ══ Summary cards ══ -->
+  @if (!isLoading() && !loadError()) {
+    <div class="stat-row">
+      <div class="stat-card">
+        <span class="stat-val">{{ totalItems() }}</span>
+        <span class="stat-label">ทั้งหมด</span>
+      </div>
+      <div class="stat-card stat-card--pending">
+        <span class="stat-val">{{ pendingCount() }}</span>
+        <span class="stat-label">รอดำเนินการ</span>
+      </div>
+      <div class="stat-card stat-card--progress">
+        <span class="stat-val">{{ inProgressCount() }}</span>
+        <span class="stat-label">กำลังดำเนินการ</span>
+      </div>
+      <div class="stat-card stat-card--resolved">
+        <span class="stat-val">{{ resolvedCount() }}</span>
+        <span class="stat-label">แก้ไขแล้ว</span>
+      </div>
+    </div>
+  }
+
+  <!-- ══ Filter bar ══ -->
+  <div class="filter-bar">
+    <div class="search-wrap">
+      <span class="search-icon"><i class="ti ti-search"></i></span>
+      <input class="search-input" type="text" placeholder="ค้นหาหัวข้อ, คำอธิบาย, ผู้รายงาน..."
+             [ngModel]="searchText()" (ngModelChange)="searchText.set($event)" />
+    </div>
+    <div class="status-dropdown" [class.status-dropdown--open]="statusDropdownOpen()">
+      @if (statusDropdownOpen()) {
+        <div class="status-dropdown__backdrop" (click)="statusDropdownOpen.set(false)"></div>
+      }
+      <button class="status-dropdown__trigger" type="button" (click)="statusDropdownOpen.set(!statusDropdownOpen())">
+        <span class="status-dropdown__dot" [class]="'status-dropdown__dot status-dropdown__dot--' + statusFilter()"></span>
+        <span class="status-dropdown__val">{{ statusFilterLabel() }}</span>
+        <svg class="status-dropdown__arrow" width="12" height="7" viewBox="0 0 12 7" fill="none">
+          <path d="M1 1l5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      @if (statusDropdownOpen()) {
+        <div class="status-dropdown__panel">
+          @for (opt of statusFilterOptions; track opt.value) {
+            <button type="button" class="status-dropdown__opt"
+                    [class.status-dropdown__opt--active]="statusFilter() === opt.value"
+                    (click)="selectStatusFilter(opt.value)">
+              <span class="status-dropdown__dot" [class]="'status-dropdown__dot status-dropdown__dot--' + opt.value"></span>
+              {{ opt.label }}
+              @if (statusFilter() === opt.value) { <span class="status-dropdown__check">✓</span> }
+            </button>
+          }
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- ══ Loading ══ -->
+  @if (isLoading()) {
+    <div class="br-loading">
+      <div class="br-spinner"></div>
+      <span>กำลังโหลด...</span>
+    </div>
+  }
+
+  <!-- ══ Error ══ -->
+  @if (loadError(); as err) {
+    <div class="br-error"><i class="ti ti-alert-triangle"></i> {{ err }}</div>
+  }
+
+  <!-- ══ Cards grid ══ -->
+  @if (!isLoading() && !loadError()) {
+    @if (filteredReports().length === 0) {
+      <div class="br-empty">ไม่พบรายการ Bug Reports</div>
+    } @else {
+      <div class="cards-grid">
+        @for (r of filteredReports(); track r.report_id) {
+          <div class="report-card" [class]="'report-card--' + r.status">
+            <div class="rc-top">
+              <div class="rc-badges">
+                <span class="cat-badge">{{ categoryLabel(r.category) }}</span>
+                <span class="status-badge status-badge--{{ r.status }}">{{ statusLabel(r.status) }}</span>
+              </div>
+              <span class="rc-id">#{{ r.report_id }}</span>
+            </div>
+
+            <h3 class="rc-title">{{ r.title }}</h3>
+            <p class="rc-desc">{{ r.description }}</p>
+
+            <div class="rc-meta">
+              <div class="rc-meta-item">
+                <span class="rc-meta-icon"><i class="ti ti-user"></i></span>
+                <span>{{ fullName(r.reporter_first_name, r.reporter_last_name) }}</span>
+              </div>
+              <div class="rc-meta-item">
+                <span class="rc-meta-icon"><i class="ti ti-calendar"></i></span>
+                <span>{{ formatDate(r.created_at) }}</span>
+              </div>
+            </div>
+
+            <button class="rc-btn" (click)="openDetail(r.report_id)">ดูรายละเอียด →</button>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- ══ Pagination ══ -->
+    @if (totalPages() > 1) {
+      <div class="pagination">
+        <span class="page-info">ทั้งหมด {{ totalItems() }} รายการ</span>
+        <div class="page-btns">
+          <button class="page-btn" [disabled]="currentPage() === 1"
+                  (click)="loadReports(currentPage() - 1)">‹</button>
+          @for (p of pageNumbers(); track p) {
+            <button class="page-btn" [class.page-btn--active]="p === currentPage()"
+                    (click)="loadReports(p)">{{ p }}</button>
+          }
+          <button class="page-btn" [disabled]="currentPage() === totalPages()"
+                  (click)="loadReports(currentPage() + 1)">›</button>
+        </div>
+      </div>
+    }
+  }
+
+</div>
+
+<!-- ══ Detail Modal ══ -->
+@if (detailData() || detailLoading() || detailError()) {
+  <div class="modal-overlay" (click)="closeDetail()">
+    <div class="detail-modal" (click)="$event.stopPropagation()">
+
+      <div class="detail-modal__header">
+        <span class="detail-modal__title">
+          @if (detailData(); as d) { รายละเอียด Bug #{{ d.report_id }} }
+          @else { รายละเอียด Bug Report }
+        </span>
+        <button class="detail-modal__close" (click)="closeDetail()">✕</button>
+      </div>
+
+      <div class="detail-modal__body">
+
+        @if (detailLoading()) {
+          <div class="modal-loading">
+            <div class="br-spinner"></div>
+            <span>กำลังโหลด...</span>
+          </div>
+        }
+
+        @if (detailError(); as err) {
+          <div class="br-error"><i class="ti ti-alert-triangle"></i> {{ err }}</div>
+        }
+
+        @if (detailData(); as d) {
+          <!-- Info rows -->
+          <div class="detail-section">
+            <div class="detail-row">
+              <span class="detail-key">สถานะปัจจุบัน</span>
+              <span class="status-badge status-badge--{{ d.status }}">{{ statusLabel(d.status) }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-key">หมวดหมู่</span>
+              <span class="detail-val">{{ categoryLabel(d.category) }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-key">หัวข้อ</span>
+              <span class="detail-val detail-bold">{{ d.title }}</span>
+            </div>
+            <div class="detail-row detail-row--col">
+              <span class="detail-key">คำอธิบาย</span>
+              <span class="detail-val detail-desc">{{ d.description }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-key">URL หน้าที่พบ</span>
+              <span class="detail-val detail-mono">{{ d.page_url || '—' }}</span>
+            </div>
+          </div>
+
+          <div class="detail-divider"></div>
+
+          <div class="detail-section">
+            <div class="detail-section-title">ผู้รายงาน</div>
+            <div class="detail-row">
+              <span class="detail-key">ชื่อ</span>
+              <span class="detail-val">{{ fullName(d.reporter_first_name, d.reporter_last_name) }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-key">อีเมล</span>
+              <span class="detail-val detail-mono">{{ d.reporter_email }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-key">Role</span>
+              <span class="detail-val">{{ d.reporter_role }}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-key">วันที่รายงาน</span>
+              <span class="detail-val">{{ formatDate(d.created_at) }}</span>
+            </div>
+          </div>
+
+          @if (d.resolver_id) {
+            <div class="detail-divider"></div>
+            <div class="detail-section">
+              <div class="detail-section-title">ผู้แก้ไข</div>
+              <div class="detail-row">
+                <span class="detail-key">ชื่อ</span>
+                <span class="detail-val">{{ fullName(d.resolver_first_name, d.resolver_last_name) }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-key">แก้ไขเมื่อ</span>
+                <span class="detail-val">{{ formatDate(d.resolved_at) }}</span>
+              </div>
+            </div>
+          }
+
+          <div class="detail-divider"></div>
+
+          <!-- Edit form -->
+          <div class="detail-section">
+            <div class="detail-section-title">อัปเดตสถานะ</div>
+
+            <div class="edit-form">
+              <div class="edit-field">
+                <label class="edit-label">สถานะ</label>
+                <select class="edit-select" [ngModel]="editStatus()"
+                        (ngModelChange)="editStatus.set($event); editNote.set('')">
+                  <option value="pending">รอดำเนินการ</option>
+                  <option value="in_progress">กำลังดำเนินการ</option>
+                  <option value="resolved">แก้ไขแล้ว</option>
+                </select>
+              </div>
+              @if (editStatus() === 'resolved') {
+                <div class="edit-field">
+                  <label class="edit-label">หมายเหตุการแก้ไข</label>
+                  <textarea class="edit-textarea" rows="3"
+                            placeholder="ระบุรายละเอียดการแก้ไข..."
+                            [ngModel]="editNote()" (ngModelChange)="editNote.set($event)"></textarea>
+                </div>
+              }
+
+              @if (saveSuccess(); as msg) {
+                <div class="save-success"><i class="ti ti-circle-check"></i> {{ msg }}</div>
+              }
+              @if (saveError(); as err) {
+                <div class="save-error"><i class="ti ti-alert-triangle"></i> {{ err }}</div>
+              }
+
+              <button class="save-btn" [disabled]="isSaving()" (click)="saveStatus()">
+                @if (isSaving()) { กำลังบันทึก... } @else { บันทึกการเปลี่ยนแปลง }
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+}

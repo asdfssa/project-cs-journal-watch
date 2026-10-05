@@ -1,0 +1,33 @@
+<app-global-error-toast></app-global-error-toast>
+
+@if (isAdmin) {
+  <app-header-admin [sidebarOpen]="sidebarOpen" [showToggle]="(authService.isLoggedIn || isAdmin) && !isLoginPage" (menuClick)="toggleSidebar()"></app-header-admin>
+} @else {
+  <app-header [sidebarOpen]="sidebarOpen" [showToggle]="authService.isLoggedIn && !isLoginPage" (menuClick)="toggleSidebar()"></app-header>
+}
+
+<div class="app-layout">
+
+  @if ((authService.isLoggedIn || isAdmin) && !isLoginPage) {
+    @if (isAdmin) {
+      <app-sidebar-admin [isOpen]="sidebarOpen"></app-sidebar-admin>
+    } @else if (isAdvisor) {
+      <app-sidebar-advisor [isOpen]="sidebarOpen"></app-sidebar-advisor>
+    } @else if (isStaff) {
+      <app-sidebar-staff [isOpen]="sidebarOpen"></app-sidebar-staff>
+    } @else {
+      <app-sidebar [isOpen]="sidebarOpen"></app-sidebar>
+    }
+
+    @if (sidebarOpen) {
+      <div class="sidebar-backdrop" (click)="sidebarOpen = false"></div>
+    }
+  }
+
+  <main class="main-content">
+    <router-outlet></router-outlet>
+  </main>
+
+</div>
+
+<app-footer></app-footer>

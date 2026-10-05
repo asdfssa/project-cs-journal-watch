@@ -1,0 +1,428 @@
+@use 'sass:color';
+
+$navy:   #1C2744;
+$yellow: #E8A800;
+$white:  #ffffff;
+
+:host {
+  display: block;
+  font-family: 'Sarabun', sans-serif;
+  position: sticky;
+  top: 90px;
+  max-height: calc(100vh - 90px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  align-self: flex-start;
+  flex-shrink: 0;
+  border-radius: 0 0 20px 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(28,39,68,0.15) transparent;
+  &::-webkit-scrollbar { width: 4px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { background: rgba(28,39,68,0.15); border-radius: 4px; }
+
+  /* :host เป็น position:sticky อยู่แล้ว ซึ่งสร้าง stacking context ใหม่ให้ตัวเอง
+     ทำให้ z-index:100 ของ .sidebar ข้างในมีผลแค่ในกรอบของ host เท่านั้น ไม่ได้ไปแข่งกับ
+     <main> ที่อยู่นอก host โดยตรง — พอ .sidebar เปลี่ยนเป็น fixed overlay ตอนจอเล็ก
+     ต้องยก z-index ของ host เองด้วย ไม่งั้น <main> จะวาดทับ sidebar ทั้งก้อนเพราะอยู่
+     หลังมันใน DOM — จำกัดไว้แค่ breakpoint นี้ ไม่กระทบขนาดโน้ตบุ๊ค */
+  @media (max-width: 1024px) {
+    z-index: 100;
+  }
+}
+
+/* ══ SIDEBAR SHELL ══ */
+.sidebar {
+  width: 280px;
+  background: $white;
+  border-right: 1px solid rgba(0,0,0,0.07);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 2px 0 20px rgba(28,39,68,0.08);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 0 0 20px 0;
+  position: relative;
+  min-height: 100%;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: linear-gradient(to bottom, $navy 0%, $yellow 50%, $navy 100%);
+    z-index: 1;
+  }
+
+  &.collapsed { width: 0; }
+
+  /* ขยาย breakpoint จาก 768 เป็น 1024 ให้ครอบคลุม iPad portrait/landscape ด้วย
+     (iPad Air/Pro portrait กว้าง 810-834px ซึ่งเกิน 768 แต่ถ้ายังปักหลักแบบ desktop
+     จะไปแย่งพื้นที่แนวนอนจากเนื้อหาหลัก ทำให้ดูเบียดกัน) — ให้ทำงานเป็น
+     overlay เลื่อนเข้า-ออกเหมือนมือถือแทนตั้งแต่ tablet ขึ้นไปจนถึง 1024px */
+  @media (max-width: 1024px) {
+    position: fixed;
+    /* เต็มความสูงจอจริง (top:0, height:100vh) แล้วเว้นที่ด้านในด้วย padding-top แทน
+       การลด height ด้วย calc() — กัน bug 100vh บนมือถือที่ address bar ทำให้ viewport
+       ขยับขนาดได้ ซึ่งเคยทำให้กล่องเตี้ยเกินจริงจนเลื่อนไปสุดไม่ถึงปุ่มออกจากระบบ */
+    top: 0; left: 0;
+    height: 100vh;
+    /* app-header เป็น position:sticky; top:0; z-index:1000 (สูงกว่า sidebar มาก)
+       ถ้าไม่เว้น padding-top ตรงนี้ หัวสิดบาร์ (.user-card) จะโดน header บังทับ
+       (~112px = ความสูง header ปกติ) */
+    padding-top: 112px;
+    box-sizing: border-box;
+    z-index: 100;
+    width: 280px !important;
+    transform: translateX(0);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    /* base rule มี overflow:hidden ซึ่งตัดเนื้อหาที่ล้นทิ้งไปเลย (เช่นปุ่มออกจากระบบ
+       ตอนเปิดเมนูย่อยค้างไว้หลายอัน) — เปลี่ยนเป็นเลื่อนดูได้แทนตอนเป็น overlay */
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    &.collapsed {
+      transform: translateX(-100%);
+      width: 280px !important;
+    }
+  }
+
+  /* จอ ≤480px header หดเหลือสั้นลง (top-bar min-height 60px แทน 80px)
+     ต้องลด padding-top ให้ตามด้วย ไม่งั้นจะเหลือช่องว่างเกินจำเป็นด้านบน */
+  @media (max-width: 480px) {
+    padding-top: 92px !important;
+  }
+}
+
+/* ══ USER CARD ══ */
+.user-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 24px 20px 20px;
+  background: $white;
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 8px;
+    background: linear-gradient(90deg, #262D40 0%, #E0A100 100%);
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 16px; right: 16px;
+    height: 1px;
+    background: rgba(28,39,68,0.08);
+  }
+}
+
+.user-avatar { position: relative; flex-shrink: 0; }
+
+.avatar-ring {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 2px solid rgba(232,168,0,0.6);
+  overflow: hidden;
+  box-shadow: 0 0 0 3px rgba(232,168,0,0.12), 0 4px 14px rgba(28,39,68,0.15);
+  transition: box-shadow 0.3s ease;
+
+  .user-card:hover & {
+    box-shadow: 0 0 0 3px rgba(232,168,0,0.28), 0 6px 18px rgba(28,39,68,0.2);
+  }
+}
+
+.avatar-img { width: 100%; height: 100%; object-fit: cover; }
+
+.avatar-fallback {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, $yellow, color.adjust($yellow, $lightness: -15%));
+  color: $navy;
+  font-size: 20px;
+  font-weight: 700;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-info { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+
+.user-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: $navy;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.01em;
+}
+
+.user-role { display: flex; align-items: center; gap: 5px; }
+.role-icon  { font-size: 11px; color: darken($yellow, 10%); }
+.role-text  {
+  font-size: 11px;
+  font-weight: 700;
+  color: darken($yellow, 10%);
+  letter-spacing: 0.02em;
+  background: rgba(232,168,0,0.1);
+  padding: 1px 7px;
+  border-radius: 99px;
+  border: 1px solid rgba(232,168,0,0.3);
+}
+
+.user-email {
+  font-size: 11px;
+  color: #6B7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.01em;
+}
+
+/* ══ PROFILE BUTTON ══ */
+.profile-btn-wrap { padding: 10px 14px 6px; flex-shrink: 0; }
+
+.profile-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: transparent;
+  color: $navy;
+  border-radius: 10px;
+  text-decoration: none;
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  transition: all 0.22s ease;
+  border: 1.5px solid rgba(28,39,68,0.18);
+
+  &:hover {
+    background: rgba(28,39,68,0.05);
+    border-color: $yellow;
+    color: darken($yellow, 10%);
+    transform: translateX(3px);
+
+    .profile-arrow { transform: translateX(4px); color: $yellow; }
+  }
+}
+
+.profile-arrow {
+  font-size: 15px;
+  color: rgba(28,39,68,0.4);
+  transition: transform 0.22s ease, color 0.22s ease;
+}
+
+/* ══ NAV ══ */
+.nav-wrap {
+  padding: 6px 10px;
+  overflow-x: hidden;
+}
+
+.nav-group-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: rgba(28,39,68,0.35);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 14px 8px 6px;
+
+  &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(28,39,68,0.08);
+  }
+}
+
+.nav-list { list-style: none; padding: 0; margin: 0 0 4px; }
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 10px;
+  border-radius: 10px;
+  text-decoration: none;
+  color: rgba(28,39,68,0.65);
+  font-size: 14.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  margin-bottom: 2px;
+  position: relative;
+  white-space: nowrap;
+
+  &:hover {
+    background: rgba(232,168,0,0.07);
+    color: $navy;
+    transform: translateX(3px);
+
+    .nav-icon { background: rgba(232,168,0,0.12); transform: scale(1.08); }
+  }
+
+  &.active {
+    background: linear-gradient(90deg, rgba(232,168,0,0.13) 0%, rgba(232,168,0,0.05) 100%);
+    color: $navy;
+    font-weight: 700;
+    box-shadow: inset 3px 0 0 $yellow;
+
+    .nav-icon { background: rgba(232,168,0,0.18); transform: scale(1.1); }
+  }
+}
+
+.nav-icon {
+  font-size: 20px;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: rgba(28,39,68,0.04);
+  flex-shrink: 0;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.nav-label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+
+.nav-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: $yellow;
+  box-shadow: 0 0 6px rgba(232,168,0,0.6);
+  flex-shrink: 0;
+}
+
+/* ══ NAV PARENT (expandable) ══ */
+.nav-parent {
+  width: 100%;
+  background: none;
+  border: none;
+  font-family: 'Sarabun', sans-serif;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nav-chevron {
+  font-size: 11px;
+  flex-shrink: 0;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  color: rgba(28,39,68,0.4);
+
+  &.open { transform: rotate(180deg); }
+}
+
+/* ══ SUB-MENU SLIDE ANIMATION ══ */
+.sub-menu-wrap {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &.expanded { max-height: 240px; }
+}
+
+/* ══ SUB-ITEMS + TREE LINES ══ */
+.nav-sub-list { list-style: none; padding: 4px 0 6px 0; margin: 0; }
+
+.sub-item-li {
+  position: relative;
+  padding-left: 32px;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 14px; top: 0; bottom: 0;
+    width: 1.5px;
+    background: rgba(28,39,68,0.13);
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: 14px; top: 50%;
+    width: 12px; height: 1.5px;
+    background: rgba(28,39,68,0.13);
+  }
+
+  &.last::before { bottom: 50%; }
+}
+
+.nav-sub-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: rgba(28,39,68,0.6);
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+
+  &:hover {
+    background: rgba(232,168,0,0.07);
+    color: $navy;
+    transform: translateX(2px);
+  }
+
+  &.active {
+    background: linear-gradient(90deg, rgba(232,168,0,0.13) 0%, rgba(232,168,0,0.05) 100%);
+    color: $navy;
+    font-weight: 700;
+    box-shadow: inset 3px 0 0 $yellow;
+  }
+}
+
+/* ══ LOGOUT ══ */
+.logout-wrap {
+  padding: 10px 14px 18px;
+  border-top: 1px solid rgba(28,39,68,0.07);
+  flex-shrink: 0;
+}
+
+.logout-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 13px;
+  background: linear-gradient(135deg, $yellow 0%, color.adjust($yellow, $lightness: -8%) 100%);
+  color: $navy;
+  border: none;
+  border-radius: 10px;
+  font-family: 'Sarabun', sans-serif;
+  font-size: 14.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.22s ease;
+  box-shadow: 0 3px 12px rgba(232,168,0,0.28);
+  letter-spacing: 0.01em;
+
+  &:hover {
+    background: linear-gradient(135deg, color.adjust($yellow, $lightness: 5%) 0%, $yellow 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 7px 20px rgba(232,168,0,0.38);
+  }
+
+  &:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(232,168,0,0.3);
+  }
+}
+
+.logout-icon { font-size: 17px; color: $navy; }

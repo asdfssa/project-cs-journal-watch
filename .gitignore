@@ -1,0 +1,5 @@
+# secrets — ห้ามขึ้น git
+.env
+cloudflared/credentials.json
+
+node_modules/

@@ -1,0 +1,7 @@
+@if (notification.message(); as msg) {
+  <div class="global-toast" role="alert">
+    <span class="global-toast-icon"><i class="ti ti-alert-triangle"></i></span>
+    <span class="global-toast-text">{{ msg }}</span>
+    <button class="global-toast-close" (click)="notification.dismiss()">✕</button>
+  </div>
+}

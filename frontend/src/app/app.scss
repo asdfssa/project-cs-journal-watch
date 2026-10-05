@@ -1,0 +1,39 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.app-layout {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  min-height: calc(100vh - 90px);
+  position: relative;
+}
+
+.main-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-backdrop {
+  display: none;
+
+  /* ต้องตรงกับ breakpoint ที่ sidebar เปลี่ยนเป็นโหมด overlay (1024px)
+     ไม่งั้นบน iPad จะมี sidebar เลื่อนทับเนื้อหาแต่ไม่มี backdrop ให้แตะปิด */
+  @media (max-width: 1024px) {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 99;
+    animation: fadeIn 0.2s ease;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}

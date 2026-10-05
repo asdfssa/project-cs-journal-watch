@@ -1,0 +1,616 @@
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+$navy:        #1C2744;
+$gold:        #E8A800;
+$red:         #C0392B;
+$teal:        #0F766E;
+$bg:          #F5F7FB;
+$card-border: #E4E8F0;
+$text:        #1C2744;
+$muted:       #6B7280;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  font-family: 'Sarabun', sans-serif;
+  background: $bg;
+}
+
+/* ══ Root container (no padding — hero breaks to full width) ══ */
+.dashboard {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ══ Loading ══ */
+.db-loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 80px 48px;
+  justify-content: center;
+  color: $muted;
+  font-size: 14px;
+}
+
+.db-spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid rgba($navy, .15);
+  border-top-color: $navy;
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.db-error {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fff3f3;
+  border: 1px solid #f5c6c6;
+  border-radius: 12px;
+  padding: 14px 18px;
+  color: $red;
+  font-size: 13px;
+  font-weight: 600;
+
+  i { font-size: 16px; flex-shrink: 0; }
+}
+
+/* ══════════════════════════════════════════════
+   HERO BANNER
+═══════════════════════════════════════════════ */
+.db-hero {
+  position: relative;
+  width: 100%;
+  background-image: url('/img_journal/20181129090211_2.jpg');
+  background-size: cover;
+  background-position: center 30%;
+  padding: 52px 32px 44px;
+  box-sizing: border-box;
+  overflow: hidden;
+
+  &__overlay {
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(100deg, rgba(28, 39, 68, 0.90) 0%, rgba(28, 39, 68, 0.65) 55%, rgba(28, 39, 68, 0.45) 100%),
+      radial-gradient(ellipse at 25% 60%, rgba(232, 168, 0, 0.12) 0%, transparent 55%);
+    z-index: 0;
+  }
+
+  &__inner {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 32px;
+    flex-wrap: wrap;
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  &__profile {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+
+  &__avatar {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    border: 3px solid rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 34px;
+    font-weight: 800;
+    color: #fff;
+    flex-shrink: 0;
+    letter-spacing: -1px;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  }
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 4px 0;
+  }
+
+  &__greeting {
+    font-size: 13px;
+    font-weight: 600;
+    color: $gold;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    line-height: 1.2;
+    margin: 0;
+    padding: 0;
+  }
+
+  &__name {
+    font-size: 36px;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1.15;
+    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6), 0 0 40px rgba(232, 168, 0, 0.15);
+    margin: 0;
+    padding: 0;
+    display: block;
+  }
+
+  &__date {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.65);
+    font-family: 'Sarabun', sans-serif;
+    line-height: 1.2;
+    margin: 0;
+    padding: 0;
+  }
+
+  &__cards {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+}
+
+/* ── Glass meta cards inside hero ── */
+.db-meta-card {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 14px;
+  padding: 14px 20px;
+  backdrop-filter: blur(4px);
+  min-width: 110px;
+
+  &__label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: rgba(255, 255, 255, 0.75);
+    margin-bottom: 6px;
+  }
+
+  &__value {
+    font-size: 26px;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+}
+
+/* ══════════════════════════════════════════════
+   CONTENT AREA
+═══════════════════════════════════════════════ */
+.db-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 32px;
+  max-width: 1400px;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 auto;
+}
+
+/* ══ Section wrapper ══ */
+.dash-section {
+  background: #fff;
+  border-radius: 14px;
+  border: 1.5px solid $card-border;
+  box-shadow: 0 2px 8px rgba($navy, .05);
+  padding: 22px 20px;
+
+  &--no-mb { margin-bottom: 0; }
+
+  &__title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: $muted;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+    margin-bottom: 18px;
+    padding-bottom: 10px;
+    border-bottom: 1.5px solid $card-border;
+
+    i { font-size: 14px; color: $navy; }
+  }
+}
+
+/* ══════════════════════════════════════════════
+   OVERVIEW CARDS (Section 1)
+═══════════════════════════════════════════════ */
+.ov-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  align-items: start;
+  gap: 16px;
+}
+
+.ov-card {
+  background: #fff;
+  border-radius: 14px;
+  border: 1.5px solid $card-border;
+  border-left-width: 4px;
+  box-shadow: 0 2px 8px rgba($navy, .05);
+  padding: 20px;
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  transition: box-shadow .2s, transform .2s, border-color .2s;
+
+  &:hover {
+    box-shadow: 0 6px 20px rgba($navy, .1);
+    transform: translateY(-2px);
+  }
+
+  &--navy { border-left-color: $navy; }
+  &--gold { border-left-color: $gold; }
+  &--red  { border-left-color: $red; }
+  &--teal { border-left-color: $teal; }
+
+  &__badge {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: $navy;
+    color: $gold;
+    font-size: 13px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-family: 'IBM Plex Mono', monospace;
+
+    &--gold  { background: #c98f00; color: #fff; }
+    &--red   { background: $red;  color: #fff; }
+    &--teal  { background: $teal; color: #fff; }
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__label {
+    font-size: 12px;
+    font-weight: 600;
+    color: $muted;
+    letter-spacing: .3px;
+  }
+
+  &__value {
+    font-size: 34px;
+    font-weight: 800;
+    color: $text;
+    line-height: 1.1;
+    font-family: 'IBM Plex Mono', monospace;
+
+    &--gold { color: #c98f00; }
+    &--red  { color: $red; }
+    &--teal { color: $teal; }
+  }
+
+  &__unit {
+    font-size: 15px;
+    font-weight: 600;
+    color: $muted;
+    margin-left: 4px;
+    font-family: 'Sarabun', sans-serif;
+  }
+
+  &__meta {
+    font-size: 12px;
+    color: $muted;
+  }
+
+  &__pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 2px;
+  }
+}
+
+.ov-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 20px;
+
+  &--active {
+    background: rgba(#15803d, .1);
+    color: #15803d;
+  }
+
+  &--sus {
+    background: rgba($red, .1);
+    color: $red;
+  }
+}
+
+/* ══════════════════════════════════════════════
+   REQUEST CARDS (Section 2)
+═══════════════════════════════════════════════ */
+.req-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+
+  @media (max-width: 640px) { grid-template-columns: 1fr; }
+}
+
+.req-card {
+  background: $bg;
+  border-radius: 12px;
+  border: 1.5px solid $card-border;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition: box-shadow .2s, border-color .2s;
+
+  &:hover {
+    border-color: rgba($navy, .2);
+    box-shadow: 0 4px 14px rgba($navy, .07);
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  &__total {
+    font-size: 13px;
+    color: $muted;
+  }
+}
+
+.req-badge {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 14px;
+  border-radius: 20px;
+  letter-spacing: .3px;
+
+  &--navy {
+    background: rgba($navy, .1);
+    color: $navy;
+  }
+
+  &--gold {
+    background: rgba($gold, .15);
+    color: #b07a00;
+  }
+}
+
+.req-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.req-bar-row {
+  display: grid;
+  grid-template-columns: 90px 1fr 36px;
+  align-items: center;
+  gap: 10px;
+}
+
+.req-bar-label {
+  font-size: 12.5px;
+  color: $muted;
+  white-space: nowrap;
+}
+
+.req-bar-num {
+  font-size: 13px;
+  font-weight: 700;
+  color: $text;
+  text-align: right;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+/* ══ Progress bar ══ */
+.req-progress {
+  height: 8px;
+  background: rgba($text, .08);
+  border-radius: 20px;
+  overflow: hidden;
+
+  &--thin { height: 6px; }
+
+  &__fill {
+    height: 100%;
+    border-radius: 20px;
+    transition: width .5s ease;
+
+    &--pending  { background: $gold; }
+    &--approved { background: #15803d; }
+    &--rejected { background: $red; }
+    &--scopus   { background: $navy; }
+    &--tci      { background: #2E86C1; }
+    &--api      { background: #8E44AD; }
+    &--scraping { background: $teal; }
+    &--ok       { background: #15803d; }
+    &--warn     { background: $gold; }
+    &--full     { background: $red; }
+  }
+}
+
+/* ══ Bottom grid ══ */
+.bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+
+  @media (max-width: 800px) { grid-template-columns: 1fr; }
+}
+
+/* ══ Journal Cache ══ */
+.cache-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cache-row {
+  display: grid;
+  grid-template-columns: 12px 90px 1fr 40px;
+  align-items: center;
+  gap: 10px;
+}
+
+.cache-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+
+  &--scopus   { background: $navy; }
+  &--tci      { background: #2E86C1; }
+  &--api      { background: #8E44AD; }
+  &--scraping { background: $teal; }
+}
+
+.cache-label {
+  font-size: 12.5px;
+  color: $muted;
+  white-space: nowrap;
+}
+
+.cache-num {
+  font-size: 13px;
+  font-weight: 700;
+  color: $text;
+  text-align: right;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+/* ══ API Keys ══ */
+.api-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.api-key-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  transition: background .18s;
+
+  &:hover { background: rgba($navy, .03); }
+
+  &__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  &__preview {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    color: $text;
+    background: rgba($text, .06);
+    padding: 2px 8px;
+    border-radius: 6px;
+    overflow-wrap: anywhere;
+  }
+
+  &__status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 2px 10px;
+    border-radius: 20px;
+
+    &--ok  { background: rgba(#15803d, .1); color: #15803d; }
+    &--off { background: rgba($red, .1);    color: $red; }
+  }
+
+  &__meta {
+    font-size: 12px;
+    color: $muted;
+    text-align: right;
+  }
+}
+
+/* ══ Responsive ══ */
+@media (max-width: 900px) {
+  .db-hero {
+    padding: 40px 24px 36px;
+
+    &__name { font-size: 28px; }
+    &__avatar { width: 80px; height: 80px; font-size: 26px; }
+  }
+}
+
+@media (max-width: 640px) {
+  .db-hero {
+    padding: 32px 20px 28px;
+
+    &__inner { flex-direction: column; align-items: flex-start; }
+    &__name  { font-size: 24px; }
+    &__cards { width: 100%; }
+  }
+
+  .db-meta-card { flex: 1; min-width: 0; }
+  .db-content   { padding: 20px 16px; }
+}
+
+@media (max-width: 480px) {
+  /* 4 การ์ด flex:1 บนจอแคบมากจะถูกบีบแคบลงเรื่อยๆ จนป้ายชื่อ (เช่น "คำร้องทั้งหมด")
+     อ่านลำบาก แทนที่จะตกบรรทัดใหม่ (เพราะ min-width:0 เอาเพดานล่างออกไปแล้ว) —
+     บังคับเป็น grid 2x2 แทนให้แต่ละการ์ดมีพื้นที่พออ่านง่าย */
+  .db-hero__cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .db-meta-card { min-width: 0; }
+
+  /* คอลัมน์ label/number ของแถบ progress กว้างตายตัว (90px/36px หรือ 12px/90px/40px)
+     บนจอแคบมากจะเหลือพื้นที่ให้แถบ progress จริงน้อยมาก ลดคอลัมน์ label ลงอีกหน่อย */
+  .req-bar-row { grid-template-columns: 72px 1fr 30px; gap: 6px; }
+  .cache-row   { grid-template-columns: 10px 72px 1fr 34px; gap: 6px; }
+
+  /* white-space:nowrap เดิมกับคอลัมน์ label ที่เพิ่งลดความกว้างลงด้านบน จะทำให้
+     ป้ายยาวๆ เช่น "รอดำเนินการ" หรือ "Via Scraping" ล้นทับแถบ progress แทนที่จะ
+     ตัดบรรทัด */
+  .req-bar-label,
+  .cache-label { white-space: normal; line-height: 1.2; }
+}

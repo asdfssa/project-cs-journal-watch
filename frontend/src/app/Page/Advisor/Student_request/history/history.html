@@ -1,0 +1,456 @@
+<div class="page">
+
+  <!-- TAB BAR -->
+  <div class="tab-bar">
+    <a class="tab-item" routerLink="/advisor/pre-t3-request" routerLinkActive="tab-active" [routerLinkActiveOptions]="{ exact: true }">
+      <span class="tab-icon"><i class="ti ti-clipboard-check"></i></span>
+      <span class="tab-label">Pre-T3 ที่รอลงนาม</span>
+    </a>
+    <a class="tab-item" routerLink="/advisor/t3-request" routerLinkActive="tab-active" [routerLinkActiveOptions]="{ exact: true }">
+      <span class="tab-icon"><i class="ti ti-chart-bar"></i></span>
+      <span class="tab-label">T3 ที่รอลงนาม</span>
+    </a>
+    <a class="tab-item" routerLink="/advisor/history" routerLinkActive="tab-active" [routerLinkActiveOptions]="{ exact: true }">
+      <span class="tab-icon"><i class="ti ti-clipboard-text"></i></span>
+      <span class="tab-label">ประวัติทั้งหมด</span>
+    </a>
+  </div>
+
+  <!-- HEADER -->
+  <div class="page-title-row">
+    <span class="page-icon"><i class="ti ti-clipboard-text"></i></span>
+    <div class="page-title-group">
+      <h1 class="page-title">ประวัติทั้งหมด</h1>
+      <p class="page-sub">คำร้อง Pre-T3 และ T3 ที่ดำเนินการเสร็จสิ้นแล้ว</p>
+    </div>
+    <button class="btn-refresh" (click)="loadHistory()" [disabled]="isLoading()">
+      <span class="refresh-icon" [class.spinning]="isLoading()">↻</span>
+      @if (isLoading()) { กำลังโหลด... } @else { รีเฟรช }
+    </button>
+  </div>
+
+  <!-- FILTER ROW -->
+  <div class="filter-row">
+    <button class="filter-btn" [class.active]="typeFilter() === 'all' && statusFilter() === 'all'"
+            (click)="resetFilters()">
+      ทั้งหมด
+      <span class="filter-count">{{ countAll }}</span>
+    </button>
+    <button class="filter-btn filter-btn--pret3" [class.active]="typeFilter() === 'pre-t3'"
+            (click)="setTypeFilter('pre-t3')">
+      Pre-T3
+      <span class="filter-count">{{ countPreT3 }}</span>
+    </button>
+    <button class="filter-btn filter-btn--t3" [class.active]="typeFilter() === 't3'"
+            (click)="setTypeFilter('t3')">
+      T3
+      <span class="filter-count">{{ countT3 }}</span>
+    </button>
+
+    <span class="filter-divider"></span>
+
+    <button class="filter-btn filter-btn--approved" [class.active]="statusFilter() === 'approved'"
+            (click)="setStatusFilter('approved')">
+      <i class="ti ti-circle-check"></i> อนุมัติแล้ว
+      <span class="filter-count">{{ countApproved }}</span>
+    </button>
+    <button class="filter-btn filter-btn--rejected" [class.active]="statusFilter() === 'rejected'"
+            (click)="setStatusFilter('rejected')">
+      <i class="ti ti-circle-x"></i> ไม่อนุมัติ
+      <span class="filter-count">{{ countRejected }}</span>
+    </button>
+  </div>
+
+  <!-- CARD LIST -->
+  <div class="card-list">
+
+    @if (isLoading()) {
+      <div class="empty-state">
+        <div class="loading-spinner"></div>
+        <div class="empty-text">กำลังโหลดข้อมูล...</div>
+      </div>
+    } @else if (filtered().length === 0) {
+      <div class="empty-state">
+        <div class="empty-icon"><i class="ti ti-inbox"></i></div>
+        <div class="empty-text">ไม่มีข้อมูลในประวัติ</div>
+      </div>
+    } @else {
+      @for (card of filtered(); track card.id) {
+        <div class="req-card" (click)="openDetail(card)" style="cursor:pointer">
+
+          <!-- BODY -->
+          <div class="card-body">
+            <div class="card-meta">
+              <span class="card-id">{{ card.id }}</span>
+              <span class="meta-sep">·</span>
+              <span class="card-submitted">ยื่นเมื่อ {{ card.submittedDate }}</span>
+              <span class="meta-sep">·</span>
+              <span [class]="card.itemType === 'T3' ? 'type-badge type-badge--t3' : 'type-badge type-badge--pret3'">
+                {{ card.itemType === 'T3' ? 'T3' : 'Pre-T3' }}
+              </span>
+            </div>
+
+            <div class="card-title">{{ card.articleTitle }}</div>
+
+            <div class="card-tags">
+              @if (card.isDiscontinued) {
+                <span class="tag-discontinued"><i class="ti ti-ban"></i> {{ card.database }} Discontinued</span>
+              } @else {
+                <span class="tag-db"><i class="ti ti-database"></i> {{ card.database }}</span>
+              }
+              @if (card.quartile) {
+                <span class="tag-quartile">{{ card.quartile }}</span>
+              }
+              @if (card.pubType) {
+                <span class="tag-type">{{ card.pubType }}</span>
+              }
+              <span class="tag-issn">ISSN: {{ card.issn }}</span>
+              <span class="tag-student"><i class="ti ti-user"></i> {{ card.studentName }}</span>
+            </div>
+          </div>
+
+          <!-- RIGHT -->
+          <div class="card-right">
+            <span [class]="statusBadgeClass(card)">
+              @if (card.advisorStatus === 'Approved') { <i class="ti ti-circle-check"></i> }
+              {{ statusLabel(card) }}
+            </span>
+            @if (actionDateLabel(card)) {
+              <span class="action-date">{{ actionDateLabel(card) }}</span>
+            }
+          </div>
+
+          <span class="card-arrow">›</span>
+        </div>
+      }
+    }
+
+  </div>
+
+</div>
+
+<!-- ═══ DETAIL MODAL ═══ -->
+@if (selectedCard(); as card) {
+  <div class="modal-backdrop" (click)="closeDetail()">
+    <div class="modal" (click)="$event.stopPropagation()">
+
+      <!-- Modal Header -->
+      <div class="modal-header">
+        <div class="modal-header-left">
+          <div class="modal-title">
+            {{ card.itemType === 'T3' ? 'ใบคำร้อง T3 — ขออนุมัติผลงานตีพิมพ์' : 'ใบคำร้อง Pre-T3' }}
+          </div>
+          <div class="modal-meta">
+            {{ card.id }} · ยื่น {{ card.submittedDate }}
+            <span class="modal-status-badge"
+              [class.badge-approved]="card.advisorStatus === 'Approved'"
+              [class.badge-rejected]="card.advisorStatus === 'Rejected'"
+              [class.badge-pending]="card.advisorStatus === 'Pending'">
+              @if (card.advisorStatus === 'Approved') { <i class="ti ti-circle-check"></i> อนุมัติแล้ว }
+              @if (card.advisorStatus === 'Rejected') { <i class="ti ti-circle-x"></i> ไม่อนุมัติ }
+              @if (card.advisorStatus === 'Pending')  { <i class="ti ti-bell"></i> รอดำเนินการ }
+            </span>
+          </div>
+        </div>
+        <button class="modal-close" (click)="closeDetail()">✕</button>
+      </div>
+
+      <div class="modal-body">
+
+        <!-- ── SECTION 1: นิสิต ── -->
+        <div class="detail-section">
+          <div class="detail-section-head">
+            <span class="section-num">1</span>
+            <span class="section-title">ข้อมูลนิสิต</span>
+          </div>
+          @if (isDetailLoading()) {
+            <div class="detail-loading"><div class="loading-spinner"></div><span>กำลังโหลดข้อมูล...</span></div>
+          } @else if (card.itemType === 'T3' && detailDataT3(); as d) {
+            <div class="detail-grid">
+              <div class="detail-field">
+                <div class="detail-label">ชื่อ-นามสกุล</div>
+                <div class="detail-value">{{ d.student_name }}</div>
+              </div>
+              <div class="detail-field">
+                <div class="detail-label">รหัสนิสิต</div>
+                <div class="detail-value">{{ d.student_email.replace('@msu.ac.th','') }}</div>
+              </div>
+              <div class="detail-field">
+                <div class="detail-label">อีเมล</div>
+                <div class="detail-value">{{ d.student_email }}</div>
+              </div>
+              <div class="detail-field">
+                <div class="detail-label">ระดับการศึกษา</div>
+                <div class="detail-value">{{ d.student_snapshot.degree_level || '—' }}</div>
+              </div>
+            </div>
+          } @else if (card.itemType === 'PreT3' && detailDataPreT3(); as d) {
+            <div class="detail-grid">
+              <div class="detail-field">
+                <div class="detail-label">ชื่อ-นามสกุล</div>
+                <div class="detail-value">{{ d.student_info?.full_name || card.studentName }}</div>
+              </div>
+              <div class="detail-field">
+                <div class="detail-label">รหัสนิสิต</div>
+                <div class="detail-value">{{ d.student_info?.student_id || card.studentId }}</div>
+              </div>
+              <div class="detail-field">
+                <div class="detail-label">อีเมล</div>
+                <div class="detail-value">{{ d.student_info?.msu_mail || card.email }}</div>
+              </div>
+              <div class="detail-field">
+                <div class="detail-label">เบอร์โทร</div>
+                <div class="detail-value">{{ d.student_info?.phone || '—' }}</div>
+              </div>
+              <div class="detail-field">
+                <div class="detail-label">คณะ</div>
+                <div class="detail-value">{{ d.student_info?.faculty || '—' }}</div>
+              </div>
+              <div class="detail-field">
+                <div class="detail-label">สาขาวิชา</div>
+                <div class="detail-value">{{ d.student_info?.department || '—' }}</div>
+              </div>
+              <div class="detail-field">
+                <div class="detail-label">ระดับการศึกษา</div>
+                <div class="detail-value">{{ d.student_info?.degree_level || '—' }}</div>
+              </div>
+            </div>
+          } @else {
+            <div class="detail-grid">
+              <div class="detail-field">
+                <div class="detail-label">ชื่อ-นามสกุล</div>
+                <div class="detail-value">{{ card.studentName }}</div>
+              </div>
+              <div class="detail-field">
+                <div class="detail-label">รหัสนิสิต</div>
+                <div class="detail-value">{{ card.studentId }}</div>
+              </div>
+              <div class="detail-field detail-field--wide">
+                <div class="detail-label">อีเมล</div>
+                <div class="detail-value">{{ card.email }}</div>
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- ── SECTION 2: วารสาร ── -->
+        <div class="detail-section">
+          <div class="detail-section-head">
+            <span class="section-num">2</span>
+            <span class="section-title">ข้อมูลวารสาร</span>
+          </div>
+          <div class="detail-grid">
+            <div class="detail-field detail-field--wide">
+              <div class="detail-label">ชื่อวารสาร</div>
+              <div class="detail-value fw-bold">{{ card.journalName }}</div>
+            </div>
+            <div class="detail-field">
+              <div class="detail-label">ISSN</div>
+              <div class="detail-value">{{ card.issn || '—' }}</div>
+            </div>
+            <div class="detail-field">
+              <div class="detail-label">ฐานข้อมูล</div>
+              <div class="detail-value"><span class="badge-db">{{ card.database }}</span></div>
+            </div>
+            @if (card.quartile) {
+              <div class="detail-field">
+                <div class="detail-label">Quartile</div>
+                <div class="detail-value"><span class="badge-q-green">{{ card.quartile }}</span></div>
+              </div>
+            }
+            @if (card.pubType) {
+              <div class="detail-field">
+                <div class="detail-label">ประเภทวารสาร</div>
+                <div class="detail-value">{{ card.pubType }}</div>
+              </div>
+            }
+            @if (card.itemType === 'T3' && detailDataT3(); as d) {
+              <div class="detail-field">
+                <div class="detail-label">CITESCORE</div>
+                <div class="detail-value">{{ d.journal_metrics.citescore || '—' }}</div>
+              </div>
+              <div class="detail-field">
+                <div class="detail-label">Impact Factor</div>
+                <div class="detail-value">{{ d.journal_metrics.has_impact_score ? d.journal_metrics.impact_factor : 'ไม่มี' }}</div>
+              </div>
+            }
+            @if (card.isDiscontinued) {
+              <div class="detail-field">
+                <div class="detail-label">สถานะวารสาร</div>
+                <div class="detail-value"><span class="badge-disc"><i class="ti ti-ban"></i> Discontinued</span></div>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- ── SECTION 3: บทความ ── -->
+        <div class="detail-section">
+          <div class="detail-section-head">
+            <span class="section-num">3</span>
+            <span class="section-title">ข้อมูลบทความ</span>
+          </div>
+
+          @if (card.itemType === 'T3') {
+            <div class="detail-grid">
+              <div class="detail-field detail-field--wide">
+                <div class="detail-label">ชื่อบทความ (ภาษาไทย)</div>
+                <div class="detail-value">{{ detailDataT3()?.paper_and_research_details?.title_thai || card.articleTitle || '—' }}</div>
+              </div>
+              <div class="detail-field detail-field--wide">
+                <div class="detail-label">ชื่อบทความ (English)</div>
+                <div class="detail-value">{{ detailDataT3()?.paper_and_research_details?.title_english || '—' }}</div>
+              </div>
+              <div class="detail-field">
+                <div class="detail-label">ผู้แต่งหลัก (First Author)</div>
+                <div class="detail-value">{{ detailDataT3()?.paper_and_research_details?.first_author || '—' }}</div>
+              </div>
+              <div class="detail-field">
+                <div class="detail-label">Corresponding Author</div>
+                <div class="detail-value">{{ detailDataT3()?.paper_and_research_details?.corresponding_author || '—' }}</div>
+              </div>
+              @if (detailDataT3()?.paper_and_research_details?.innovation_type) {
+                <div class="detail-field detail-field--wide">
+                  <div class="detail-label">การนำไปใช้ประโยชน์</div>
+                  <div class="detail-value">{{ detailDataT3()?.paper_and_research_details?.innovation_type }}</div>
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="detail-grid">
+              <div class="detail-field">
+                <div class="detail-label">ชื่อบทความ (ภาษาไทย)</div>
+                <div class="detail-value">{{ detailDataPreT3()?.article_info?.title_th || '—' }}</div>
+              </div>
+              <div class="detail-field">
+                <div class="detail-label">ชื่อบทความ (English)</div>
+                <div class="detail-value">{{ detailDataPreT3()?.article_info?.title_en || '—' }}</div>
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- ── SECTION 4: รายละเอียดการตีพิมพ์ (T3 only) ── -->
+        @if (card.itemType === 'T3') {
+          <div class="detail-section">
+            <div class="detail-section-head">
+              <span class="section-num">4</span>
+              <span class="section-title">รายละเอียดการตีพิมพ์</span>
+            </div>
+            <div class="detail-grid">
+              <div class="detail-field">
+                <div class="detail-label">สถานะบทความ</div>
+                <div class="detail-value">
+                  <span class="badge-pub-status"
+                    [class.pub-accepted]="card.pubStatus === 'accepted'"
+                    [class.pub-published]="card.pubStatus === 'published'">
+                    @if (card.pubStatus === 'published') { <i class="ti ti-news"></i> ตีพิมพ์แล้ว (Published) } @else { <i class="ti ti-mail"></i> ได้รับการตอบรับ (Accepted) }
+                  </span>
+                </div>
+              </div>
+              @if (detailDataT3(); as d) {
+                <div class="detail-field">
+                  <div class="detail-label">Volume</div>
+                  <div class="detail-value">{{ d.publication_details.volume || '—' }}</div>
+                </div>
+                <div class="detail-field">
+                  <div class="detail-label">Issue</div>
+                  <div class="detail-value">{{ d.publication_details.issue || '—' }}</div>
+                </div>
+                <div class="detail-field">
+                  <div class="detail-label">ปีที่ตีพิมพ์</div>
+                  <div class="detail-value">{{ d.publication_details.publish_year || '—' }}</div>
+                </div>
+              }
+            </div>
+          </div>
+
+          <!-- ── SECTION 5: เอกสารหลักฐาน (T3 only) ── -->
+          <div class="detail-section">
+            <div class="detail-section-head">
+              <span class="section-num">5</span>
+              <span class="section-title">เอกสารหลักฐานประกอบ</span>
+            </div>
+            <div class="evidence-grid">
+              @for (f of evidenceFiles; track f.key) {
+                <div class="evidence-card">
+                  <div class="evidence-icon"><i [class]="f.icon"></i></div>
+                  <div class="evidence-info">
+                    <div class="evidence-name">{{ f.label }}</div>
+                    <div class="evidence-key mono">{{ f.key }}</div>
+                  </div>
+                  <div class="evidence-actions">
+                    <button class="btn-evidence-view"
+                            [disabled]="fileViewing[f.key]"
+                            (click)="viewFile(card.rawId, f.key); $event.stopPropagation()">
+                      @if (fileViewing[f.key]) { <span class="spinner-sm"></span> } @else { <i class="ti ti-eye"></i> ดูไฟล์ }
+                    </button>
+                    <button class="btn-evidence-download"
+                            [disabled]="fileLoading[f.key]"
+                            (click)="downloadFile(card.rawId, f.key); $event.stopPropagation()">
+                      @if (fileLoading[f.key]) { <span class="spinner-sm"></span> } @else { <i class="ti ti-download"></i> ดาวน์โหลด }
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- ── SECTION 4: Checklist (Pre-T3 only) ── -->
+        @if (card.itemType === 'PreT3' && checklistItems().length > 0) {
+          <div class="detail-section">
+            <div class="detail-section-head">
+              <span class="section-num">4</span>
+              <span class="section-title">Pre-T3 Checklist — ผลตรวจสอบอัตโนมัติ 9 ข้อ</span>
+            </div>
+            <div class="checklist-items">
+              @for (item of checklistItems(); track item.id) {
+                <div class="checklist-item" [class.pass]="item.status === 'pass'" [class.fail]="item.status === 'fail'">
+                  <div class="check-icon" [class.pass]="item.status === 'pass'" [class.fail]="item.status === 'fail'">
+                    {{ item.status === 'pass' ? '✓' : '✗' }}
+                  </div>
+                  <div class="check-body">
+                    <div class="check-title">{{ item.id }}. {{ item.title }}</div>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- ── ผลการพิจารณา ── -->
+        <div class="result-section"
+          [class.result-approved]="card.advisorStatus === 'Approved'"
+          [class.result-rejected]="card.advisorStatus === 'Rejected'"
+          [class.result-pending]="card.advisorStatus === 'Pending'">
+          <div class="result-icon">
+            @if (card.advisorStatus === 'Approved') { <i class="ti ti-circle-check"></i> }
+            @else if (card.advisorStatus === 'Rejected') { <i class="ti ti-circle-x"></i> }
+            @else { <i class="ti ti-hourglass"></i> }
+          </div>
+          <div class="result-body">
+            <div class="result-title">
+              @if (card.advisorStatus === 'Approved') { อนุมัติแล้ว }
+              @else if (card.advisorStatus === 'Rejected') { ไม่ผ่านการอนุมัติ }
+              @else { รอดำเนินการ }
+            </div>
+            @if (card.actionDate) {
+              <div class="result-date">
+                {{ card.advisorStatus === 'Approved' ? 'วันที่ลงนาม' : 'วันที่ปฏิเสธ' }}: {{ card.actionDate }}
+              </div>
+            }
+            @if (card.advisorRemark) {
+              <div class="result-remark">หมายเหตุ: {{ card.advisorRemark }}</div>
+            }
+          </div>
+        </div>
+
+      </div><!-- /modal-body -->
+
+      <!-- ══ MODAL FOOTER ══ -->
+      <div class="modal-footer">
+        <button class="btn-mf btn-mf-print" (click)="printDetail()"><i class="ti ti-printer"></i> พิมพ์ใบคำร้อง</button>
+      </div>
+    </div><!-- /modal -->
+  </div><!-- /modal-backdrop -->
+}

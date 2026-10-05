@@ -1,0 +1,704 @@
+<div class="send-t3-page">
+
+  <!-- TAB BAR -->
+  <div class="tab-bar">
+    <a class="tab-item" routerLink="/send-t3" routerLinkActive="tab-active" [routerLinkActiveOptions]="{ exact: true }">
+      <span class="tab-icon"><i class="ti ti-clipboard-text"></i></span><span class="tab-label">ยื่น T3</span>
+    </a>
+    <a class="tab-item" routerLink="/status-t3" routerLinkActive="tab-active">
+      <span class="tab-icon"><i class="ti ti-chart-bar"></i></span><span class="tab-label">สถานะ T3</span>
+    </a>
+    <a class="tab-item" routerLink="/t3-history" routerLinkActive="tab-active">
+      <span class="tab-icon"><i class="ti ti-folder"></i></span><span class="tab-label">ประวัติทั้งหมด</span>
+    </a>
+  </div>
+
+  <!-- PAGE HEADER -->
+  <div class="page-header">
+    <h1 class="page-title">ยื่นแบบฟอร์ม T3: <span class="page-title-highlight">ขออนุมัติผลงานตีพิมพ์</span></h1>
+    <p class="page-subtitle">แบบส่งผลงานวิทยานิพนธ์ (T3/I3) — บัณฑิตวิทยาลัย มหาวิทยาลัยมหาสารคาม</p>
+  </div>
+
+  <!-- SINGLE FORM CARD -->
+  <div class="form-card">
+    <div class="card-bar"></div>
+
+    <!-- ═══ SECTION 1: ข้อมูลนิสิต ═══ -->
+    <div class="form-section">
+      <div class="section-head">
+        <span class="section-head-icon"><i class="ti ti-user"></i></span>
+        <span class="section-head-title">ข้อมูลนิสิต</span>
+        <span class="section-head-note">(ดึงจาก MSU Account อัตโนมัติ)</span>
+      </div>
+      <div class="section-divider"></div>
+
+      <div class="field-row">
+        <div class="field-group">
+          <label class="field-label">ชื่อ-นามสกุล <span class="badge-auto">อัตโนมัติ</span></label>
+          <input class="field-input readonly" [value]="fullName()" readonly placeholder="—" />
+        </div>
+        <div class="field-group">
+          <label class="field-label">รหัสนิสิต <span class="badge-auto">อัตโนมัติ</span></label>
+          <input class="field-input readonly" [value]="studentId()" readonly placeholder="—" />
+        </div>
+        <div class="field-group">
+          <label class="field-label">เบอร์โทรศัพท์ <span class="badge-auto">อัตโนมัติ</span></label>
+          <input class="field-input readonly" [value]="phone()" readonly placeholder="—" />
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field-group">
+          <label class="field-label">คณะ <span class="badge-auto">อัตโนมัติ</span></label>
+          <input class="field-input readonly" [value]="faculty()" readonly placeholder="—" />
+        </div>
+        <div class="field-group">
+          <label class="field-label">สาขาวิชา <span class="badge-auto">อัตโนมัติ</span></label>
+          <input class="field-input readonly" [value]="department()" readonly placeholder="—" />
+        </div>
+        <div class="field-group">
+          <label class="field-label">ระดับ/แผน <span class="badge-auto">อัตโนมัติ</span></label>
+          <input class="field-input readonly" [value]="degreeLevel()" readonly placeholder="—" />
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field-group field-group--full">
+          <label class="field-label">MSU Mail <span class="badge-auto">Auto</span></label>
+          <input class="field-input readonly" [value]="authMail()" readonly placeholder="—" />
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ SECTION 2: เลือก PRE-T3 ═══ -->
+    <div class="form-section">
+      <div class="section-head section-head--spaced">
+        <div class="section-head-left">
+          <span class="section-head-icon"><i class="ti ti-clipboard-check"></i></span>
+          <span class="section-head-title">เลือก PRE-T3 ที่อนุมัติแล้ว</span>
+        </div>
+        <span class="section-head-hint">กรุณาเลือก Pre-T3 ที่อนุมัติแล้ว</span>
+      </div>
+
+      <div class="sub-section-head">
+        
+        <span class="sub-title">PRE-T3 ที่ผ่านการอนุมัติ — เลือก 1 ฉบับเพื่อใช้เป็นหลักฐานใน T3</span>
+      </div>
+      <div class="section-divider"></div>
+
+      <p class="section-desc">เจ้าหน้าที่จะใช้ Pre-T3 ที่เลือกเพื่อยืนยันว่าวารสารผ่านการตรวจสอบและได้รับอนุมัติแล้ว</p>
+
+      @if (isLoading()) {
+        <div class="pre-t3-empty"><i class="ti ti-hourglass"></i> กำลังโหลดข้อมูล...</div>
+      } @else if (preT3List.length === 0) {
+        <div class="pre-t3-empty"><i class="ti ti-inbox"></i> ยังไม่มี Pre-T3 ที่อนุมัติแล้ว — กรุณายื่น Pre-T3 และรอการอนุมัติก่อน</div>
+      } @else {
+        <div class="pre-t3-list">
+          @for (item of preT3List; track item.id) {
+            <div class="pre-t3-card" [class.selected]="selectedPreT3 === item.id" (click)="selectedPreT3 = item.id">
+              <div class="pre-t3-radio">
+                @if (selectedPreT3 === item.id) {
+                  <div class="radio-checked">✓</div>
+                } @else {
+                  <div class="radio-empty"></div>
+                }
+              </div>
+              <div class="pre-t3-body">
+                <div class="pre-t3-meta">{{ item.id }} · ยื่น {{ item.submittedDate }} · อนุมัติ {{ item.approvedDate }}</div>
+                <div class="pre-t3-title">{{ item.title }}</div>
+                <div class="pre-t3-tags">
+                  <span class="db-badge"><i class="ti ti-database"></i> {{ item.database }} {{ item.quartile }}</span>
+                  <span class="issn-tag">ISSN: {{ item.issn }}</span>
+                </div>
+              </div>
+              <div class="pre-t3-status">
+                <button class="btn-pre-t3-detail" (click)="openPreT3Detail(item, $event)" title="ดูรายละเอียด">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                  </svg>
+                  <span>ดูรายละเอียด</span>
+                </button>
+                <span class="approved-badge"><i class="ti ti-circle-check"></i> อนุมัติแล้ว</span>
+                <span class="approved-date">{{ item.approvedDate }}</span>
+              </div>
+            </div>
+          }
+        </div>
+
+        @if (selectedPreT3Data) {
+          <div class="selected-paper-box">
+            <div class="selected-paper-header"><i class="ti ti-circle-check"></i> ข้อมูลวารสารจาก Pre-T3 ที่เลือก</div>
+            <div class="selected-paper-body">
+              <div class="selected-paper-title">{{ selectedPreT3Data.title }}</div>
+              <div class="selected-paper-grid">
+                <div class="paper-info-item">
+                  <div class="paper-info-label">ISSN</div>
+                  <div class="paper-info-value">{{ selectedPreT3Data.issn }}</div>
+                </div>
+                <div class="paper-info-item">
+                  <div class="paper-info-label">ฐานข้อมูล</div>
+                  <div class="paper-info-value link">{{ selectedPreT3Data.database }}</div>
+                </div>
+                <div class="paper-info-item">
+                  <div class="paper-info-label">QUARTILE</div>
+                  <div class="paper-info-value">{{ selectedPreT3Data.quartile }}</div>
+                </div>
+                <div class="paper-info-item">
+                  <div class="paper-info-label">SJR / CITESCORE</div>
+                  <div class="paper-info-value">{{ selectedPreT3Data.sjr }} / {{ selectedPreT3Data.citeScore }}</div>
+                </div>
+              </div>
+              <div class="selected-paper-note"><i class="ti ti-lock"></i> ข้อมูลวารสารอ่านอย่างเดียว — ดึงจาก Pre-T3 ที่อนุมัติแล้ว</div>
+            </div>
+          </div>
+        }
+      }
+    </div>
+
+    <!-- ═══ SECTION 3: ข้อมูลบทความ ═══ -->
+    <div class="form-section">
+      <div class="section-head section-head--spaced">
+        <div class="section-head-left">
+          <span class="section-head-icon"><i class="ti ti-pencil"></i></span>
+          <span class="section-head-title">ข้อมูลบทความ</span>
+        </div>
+      </div>
+
+      <div class="sub-section-head" style="margin-top: 16px;">
+        <span class="sub-icon"><i class="ti ti-pencil"></i></span>
+        <span class="sub-title">ชื่อเรื่องผู้แต่ง</span>
+      </div>
+      <div class="section-divider"></div>
+
+      <div class="field-row">
+        <div class="field-group field-group--full">
+          <label class="field-label">ชื่อเรื่องภาษาไทย <span class="badge-required">*</span></label>
+          <input id="field-titleTh" class="field-input field-input--highlight" [class.field-input--error]="fieldWithError() === 'field-titleTh'" [(ngModel)]="titleTh" (ngModelChange)="fieldWithError.set('')" placeholder="ชื่อเรื่องภาษาไทย" />
+          @if (fieldWithError() === 'field-titleTh') {
+            <div class="field-error-msg">กรุณากรอก ชื่อเรื่องภาษาไทย</div>
+          }
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field-group field-group--full">
+          <label class="field-label">ชื่อเรื่องภาษาอังกฤษ <span class="badge-required">*</span></label>
+          <input id="field-titleEn" class="field-input field-input--highlight" [class.field-input--error]="fieldWithError() === 'field-titleEn'" [(ngModel)]="titleEn" (ngModelChange)="fieldWithError.set('')" placeholder="Article title in English" />
+          @if (fieldWithError() === 'field-titleEn') {
+            <div class="field-error-msg">กรุณากรอก ชื่อเรื่องภาษาอังกฤษ</div>
+          }
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field-group">
+          <label class="field-label">ชื่อผู้แต่ง (First Author) <span class="badge-auto">อัตโนมัติ</span></label>
+          <input class="field-input readonly" [value]="fullName()" readonly placeholder="—" />
+        </div>
+        <div class="field-group">
+          <label class="field-label">Corresponding Author <span class="badge-required">*</span></label>
+          <input id="field-correspondingAuthor" class="field-input" [class.field-input--error]="fieldWithError() === 'field-correspondingAuthor'" [(ngModel)]="correspondingAuthor" (ngModelChange)="fieldWithError.set('')" placeholder="ชื่อ Corresponding Author" />
+          @if (fieldWithError() === 'field-correspondingAuthor') {
+            <div class="field-error-msg">กรุณากรอก Corresponding Author</div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ SECTION 4: ประเภทการดำเนินการ ═══ -->
+    <div class="form-section">
+      <div class="section-head section-head--spaced">
+        <div class="section-head-left">
+          <span class="section-head-icon"><i class="ti ti-list-details"></i></span>
+          <span class="section-head-title">ประเภทการดำเนินการ</span>
+        </div>
+      </div>
+      <div class="section-divider"></div>
+
+      <div class="field-row">
+        <div class="field-group field-group--wide">
+          <label class="field-label">ประเภทวารสาร/ฐานข้อมูล <span class="badge-required">*</span></label>
+          <select class="field-select" [(ngModel)]="journalType">
+            <option value="วารสารวิชาการระดับนานาชาติ">วารสารวิชาการระดับนานาชาติ (weight 1.0)</option>
+            <option value="วารสารวิชาการระดับชาติ">วารสารวิชาการระดับชาติ (weight 0.5)</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label class="field-label">ฐานข้อมูล <span class="badge-required">*</span></label>
+          <input class="field-input field-input--db" [value]="selectedPreT3Data?.database ?? '—'" readonly />
+        </div>
+      </div>
+
+      <div class="score-cards">
+        <div class="score-card">
+          <div class="score-label">CITESCORE</div>
+          <div class="score-value score-value--orange">{{ selectedPreT3Data?.citeScore ?? '—' }}</div>
+          <div class="score-source">{{ selectedPreT3Data?.database ?? '' }}</div>
+        </div>
+        <div class="score-card">
+          <div class="score-label">SJR SCORE</div>
+          <div class="score-value score-value--navy">{{ selectedPreT3Data?.sjr ?? '—' }}</div>
+          <div class="score-source">{{ selectedPreT3Data?.database ?? '' }}</div>
+        </div>
+        <div class="score-card">
+          <div class="score-label">ค่าน้ำหนัก</div>
+          <div class="score-value score-value--green">{{ journalType === 'วารสารวิชาการระดับนานาชาติ' ? '1.0' : '0.5' }}</div>
+          <div class="score-source">weight</div>
+        </div>
+      </div>
+
+      <!-- journal_metrics -->
+      <div class="sub-section-head sub-section-head--mt">
+        <span class="sub-icon"><i class="ti ti-chart-line"></i></span>
+        <span class="sub-title">Journal Metrics</span>
+      </div>
+      <div class="section-divider"></div>
+
+      <div class="field-row">
+        <div class="field-group">
+          <label class="field-label">Impact Factor <span class="badge-optional">อ้าง</span></label>
+          <div class="toggle-row">
+            <label class="toggle-label">
+              <input type="checkbox" [(ngModel)]="hasImpactScore" />
+              <span class="toggle-text">วารสารมี Impact Factor</span>
+            </label>
+          </div>
+        </div>
+        @if (hasImpactScore) {
+          <div class="field-group">
+            <label class="field-label">Impact Factor <span class="badge-required">*</span></label>
+            <input class="field-input" [(ngModel)]="impactFactor" placeholder="เช่น 2.45" type="number" step="0.01" />
+          </div>
+        }
+        <div class="field-group">
+          <label class="field-label">ปีของ Score <span class="badge-required">*</span></label>
+          <input class="field-input" [(ngModel)]="scoreYear" placeholder="เช่น 2024" maxlength="4" />
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ SECTION 5: การนำไปใช้ประโยชน์ ═══ -->
+    <div class="form-section">
+      <div class="section-head section-head--spaced">
+        <div class="section-head-left">
+          <span class="section-head-icon"><i class="ti ti-target-arrow"></i></span>
+          <span class="section-head-title">การนำไปใช้ประโยชน์</span>
+        </div>
+      </div>
+      <div class="section-divider"></div>
+
+      <div class="util-list">
+        <label class="util-item" [class.util-item--checked]="innovationType === 'การนำไปใช้ประโยชน์เชิงพาณิชย์ (Commercial)'"
+               (click)="innovationType = 'การนำไปใช้ประโยชน์เชิงพาณิชย์ (Commercial)'">
+          <div class="util-radio" [class.util-radio--active]="innovationType === 'การนำไปใช้ประโยชน์เชิงพาณิชย์ (Commercial)'"></div>
+          <span class="util-icon"><i class="ti ti-package"></i></span>
+          <span class="util-label">การนำไปใช้ประโยชน์เชิงพาณิชย์ (Commercial)</span>
+        </label>
+        <label class="util-item" [class.util-item--checked]="innovationType === 'การนำไปใช้ประโยชน์เชิงสังคมทิศทางเศรษฐกิจ (Social/Economic)'"
+               (click)="innovationType = 'การนำไปใช้ประโยชน์เชิงสังคมทิศทางเศรษฐกิจ (Social/Economic)'">
+          <div class="util-radio" [class.util-radio--active]="innovationType === 'การนำไปใช้ประโยชน์เชิงสังคมทิศทางเศรษฐกิจ (Social/Economic)'"></div>
+          <span class="util-icon"><i class="ti ti-world"></i></span>
+          <span class="util-label">การนำไปใช้ประโยชน์เชิงสังคมทิศทางเศรษฐกิจ (Social/Economic)</span>
+        </label>
+        <label class="util-item" [class.util-item--checked]="innovationType === 'การนำไปใช้ประโยชน์เชิงนโยบายสาธารณะ (Policy/Public)'"
+               (click)="innovationType = 'การนำไปใช้ประโยชน์เชิงนโยบายสาธารณะ (Policy/Public)'">
+          <div class="util-radio" [class.util-radio--active]="innovationType === 'การนำไปใช้ประโยชน์เชิงนโยบายสาธารณะ (Policy/Public)'"></div>
+          <span class="util-icon"><i class="ti ti-building-bank"></i></span>
+          <span class="util-label">การนำไปใช้ประโยชน์เชิงนโยบายสาธารณะ (Policy/Public)</span>
+        </label>
+      </div>
+
+      <div class="field-row" style="margin-top:12px">
+        <div class="field-group field-group--full">
+          <label class="field-label">รายละเอียด <span class="badge-optional">อ้าง</span></label>
+          <textarea class="field-textarea" [(ngModel)]="innovationDetail" rows="3"
+                    placeholder="อธิบายการนำผลการวิจัยไปใช้ประโยชน์..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ SECTION 6: สถานะการตีพิมพ์ ═══ -->
+    <div class="form-section">
+      <div class="section-head section-head--spaced">
+        <div class="section-head-left">
+          <span class="section-head-icon"><i class="ti ti-news"></i></span>
+          <span class="section-head-title">สถานะการตีพิมพ์</span>
+        </div>
+        <span class="section-head-hint">Publication Status</span>
+      </div>
+
+      <div class="sub-section-head">
+        <span class="sub-icon"><i class="ti ti-file-description"></i></span>
+        <span class="sub-title">สถานะบทความวิจัยฉบับนี้</span>
+      </div>
+      <div class="section-divider"></div>
+
+      <div class="pub-status-cards">
+        <div class="pub-card" [class.pub-card--selected]="pubStatus === 'accepted'" (click)="pubStatus = 'accepted'">
+          <div class="pub-card-radio">
+            <div class="pub-radio" [class.pub-radio--active]="pubStatus === 'accepted'"></div>
+          </div>
+          <div class="pub-card-body">
+            <div class="pub-card-title">
+              ได้รับการตอบรับ (Accepted)
+            </div>
+            <div class="pub-card-desc">วารสารตอบรับแล้ว ต้องแนบ Letter of Acceptance + Full Paper</div>
+          </div>
+        </div>
+        <div class="pub-card" [class.pub-card--selected]="pubStatus === 'published'" (click)="pubStatus = 'published'">
+          <div class="pub-card-radio">
+            <div class="pub-radio" [class.pub-radio--active]="pubStatus === 'published'"></div>
+          </div>
+          <div class="pub-card-body">
+            <div class="pub-card-title">
+              ตีพิมพ์แล้ว (Published)
+            </div>
+            <div class="pub-card-desc">ตีพิมพ์เผยแพร่แล้ว - แนบประกาศสาร สำเนา + Full Paper + ต้อง DOI จริง</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="field-row" style="margin-top:16px">
+        <div class="field-group">
+          <label class="field-label">Volume <span class="badge-optional">อ้าง</span></label>
+          <input class="field-input" [(ngModel)]="volume" placeholder="เช่น 12" />
+        </div>
+        <div class="field-group">
+          <label class="field-label">Issue <span class="badge-optional">อ้าง</span></label>
+          <input class="field-input" [(ngModel)]="issue" placeholder="เช่น 3" />
+        </div>
+        <div class="field-group">
+          <label class="field-label">ปีที่ตีพิมพ์ (Publish Year) <span class="badge-optional">อ้าง</span></label>
+          <input class="field-input" [(ngModel)]="publishYear" placeholder="เช่น 2025" maxlength="4" />
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ SECTION 7: เอกสารประกอบ T3 ═══ -->
+    <div class="form-section">
+      <div class="section-head section-head--spaced">
+        <div class="section-head-left">
+          <span class="section-head-icon"><i class="ti ti-paperclip"></i></span>
+          <span class="section-head-title">เอกสารประกอบ T3</span>
+        </div>
+        <span class="section-head-hint">POST /upload/t3/:id/files · max 10MB</span>
+      </div>
+
+      <!-- หลักฐานหลัก -->
+      <div class="sub-section-head" style="margin-top:8px">
+        <span class="sub-icon"><i class="ti ti-pin"></i></span>
+        <span class="sub-title">หลักฐานหลัก</span>
+      </div>
+      <div class="section-divider"></div>
+
+      <div class="upload-grid">
+        <div class="upload-card">
+          <div class="upload-required-tag">* จำเป็น</div>
+          <div class="upload-icon"><i class="ti ti-file-check"></i></div>
+          <div class="upload-name">acceptance_letter</div>
+          <div class="upload-desc">หนังสือตอบรับ (PDF/JPG/PNG, max 10MB)</div>
+          <label class="upload-btn">
+            อัปโหลด
+            <input type="file" accept=".pdf,.jpg,.png" hidden (change)="onFileChange('acceptance_letter', $event)" />
+          </label>
+          <div class="upload-hint">PDF / JPG / PNG ไม่เกิน 10MB</div>
+          @if (getFileName('acceptance_letter')) {
+            <div class="upload-filename">{{ getFileName('acceptance_letter') }}</div>
+          }
+        </div>
+
+        <div class="upload-card">
+          <div class="upload-required-tag">* จำเป็น</div>
+          <div class="upload-icon"><i class="ti ti-files"></i></div>
+          <div class="upload-name">full_paper</div>
+          <div class="upload-desc">บทความฉบับสมบูรณ์</div>
+          <label class="upload-btn">
+            อัปโหลด
+            <input type="file" accept=".pdf,.jpg,.png" hidden (change)="onFileChange('full_paper', $event)" />
+          </label>
+          <div class="upload-hint">PDF / JPG / PNG ไม่เกิน 10MB</div>
+          @if (getFileName('full_paper')) {
+            <div class="upload-filename">{{ getFileName('full_paper') }}</div>
+          }
+        </div>
+      </div>
+
+      <!-- เอกสารประกอบเพิ่มเติม -->
+      <div class="sub-section-head sub-section-head--mt">
+        <span class="sub-icon"><i class="ti ti-folder"></i></span>
+        <span class="sub-title">เอกสารประกอบเพิ่มเติม</span>
+        <span class="badge-optional">อ้าง</span>
+      </div>
+      <div class="section-divider"></div>
+
+      <div class="upload-grid upload-grid--4">
+        <div class="upload-card upload-card--optional">
+          <div class="upload-icon"><i class="ti ti-news"></i></div>
+          <div class="upload-name">journal_cover</div>
+          <div class="upload-desc">ปกวารสาร</div>
+          <label class="upload-btn upload-btn--secondary">
+            อัปโหลด
+            <input type="file" accept=".pdf,.jpg,.png" hidden (change)="onFileChange('journal_cover', $event)" />
+          </label>
+          @if (getFileName('journal_cover')) {
+            <div class="upload-filename">{{ getFileName('journal_cover') }}</div>
+          }
+        </div>
+
+        <div class="upload-card upload-card--optional">
+          <div class="upload-icon"><i class="ti ti-database-search"></i></div>
+          <div class="upload-name">database_evidence</div>
+          <div class="upload-desc">หลักฐานฐานข้อมูล</div>
+          <label class="upload-btn upload-btn--secondary">
+            อัปโหลด
+            <input type="file" accept=".pdf,.jpg,.png" hidden (change)="onFileChange('database_evidence', $event)" />
+          </label>
+          @if (getFileName('database_evidence')) {
+            <div class="upload-filename">{{ getFileName('database_evidence') }}</div>
+          }
+        </div>
+
+        <div class="upload-card upload-card--optional">
+          <div class="upload-icon"><i class="ti ti-notes"></i></div>
+          <div class="upload-name">peer_review_result</div>
+          <div class="upload-desc">ผล Peer Review</div>
+          <label class="upload-btn upload-btn--secondary">
+            อัปโหลด
+            <input type="file" accept=".pdf,.jpg,.png" hidden (change)="onFileChange('peer_review_result', $event)" />
+          </label>
+          @if (getFileName('peer_review_result')) {
+            <div class="upload-filename">{{ getFileName('peer_review_result') }}</div>
+          }
+        </div>
+
+        <div class="upload-card upload-card--optional">
+          <div class="upload-icon"><i class="ti ti-list-details"></i></div>
+          <div class="upload-name">table_of_contents</div>
+          <div class="upload-desc">สารบัญวารสาร</div>
+          <label class="upload-btn upload-btn--secondary">
+            อัปโหลด
+            <input type="file" accept=".pdf,.jpg,.png" hidden (change)="onFileChange('table_of_contents', $event)" />
+          </label>
+          @if (getFileName('table_of_contents')) {
+            <div class="upload-filename">{{ getFileName('table_of_contents') }}</div>
+          }
+        </div>
+      </div>
+
+    </div>
+
+    <!-- SUCCESS BANNER -->
+    @if (submitSuccess()) {
+      <div class="submit-success-banner">
+        <span class="submit-success-icon"><i class="ti ti-circle-check"></i></span>
+        <div class="submit-success-body">
+          <div class="submit-success-title">ยื่น T3 สำเร็จแล้ว</div>
+          <div class="submit-success-desc">ระบบได้รับคำร้องของคุณแล้ว กรุณารอการพิจารณาจากอาจารย์ที่ปรึกษา</div>
+        </div>
+      </div>
+    }
+
+    <!-- ═══ ACTION BAR ═══ -->
+    <div class="action-bar">
+      <div class="action-bar-spacer"></div>
+      @if (submitError()) {
+        <span class="action-bar-error">✗ {{ submitError() }}</span>
+      }
+      @if (submitSuccess()) {
+        <span class="action-bar-success">✓ ยื่น T3 สำเร็จแล้ว</span>
+      }
+      <button class="btn-confirm"
+              (click)="openConfirm()"
+              [disabled]="isSubmitting() || !selectedPreT3 || submitSuccess()">
+        @if (isSubmitting()) {
+          <span class="submit-spinner"></span> กำลังยื่น...
+        } @else {
+          <i class="ti ti-lock"></i> ยืนยันการส่งมอบฟอร์ม T3
+        }
+      </button>
+    </div>
+
+  </div><!-- /form-card -->
+
+</div>
+
+<!-- ═══ PRE-T3 DETAIL MODAL ═══ -->
+@if (selectedDetailId()) {
+  <div class="modal-backdrop" (click)="closePreT3Detail()">
+    <div class="modal-panel" (click)="$event.stopPropagation()">
+
+      @if (detailLoading()) {
+        <div class="modal-loading"><i class="ti ti-hourglass"></i> กำลังโหลดรายละเอียด...</div>
+      } @else if (selectedDetail; as d) {
+
+        <!-- ══ MODAL HEADER ══ -->
+        <div class="mh">
+          <div class="mh-row1">
+            <div class="mh-icon-title">
+              <span class="mh-file-icon"><i class="ti ti-file-text"></i></span>
+              <span class="mh-title">ข้อมูลคำร้องและวารสาร</span>
+            </div>
+            <div class="mh-row1-right">
+              <span class="mh-id-chip">{{ d.id }}</span>
+              <button class="modal-close" (click)="closePreT3Detail()">✕</button>
+            </div>
+          </div>
+
+          <div class="mh-meta">
+            เลขที่คำร้อง: <strong>{{ d.id }}</strong>
+            <span class="mh-sep">·</span>
+            นิสิต: <strong>{{ d.studentName }}</strong>
+            <span class="mh-sep">·</span>
+            รหัส: <strong>{{ d.studentId }}</strong>
+          </div>
+
+          <div class="mh-content">
+            <div class="mh-left">
+              <div class="mh-journal-row">
+                <span class="mh-journal">{{ d.journalName }}</span>
+              </div>
+            </div>
+            <div class="mh-right">
+              <div class="mh-date-box">
+                <div class="mh-date-val">{{ d.submittedDate }}</div>
+                <div class="mh-date-lbl">วันที่ยื่น</div>
+              </div>
+              <div class="mh-status-pill" [class]="'mh-status-pill mh-status-pill--' + d.cardStatus">{{ d.statusPillText }}</div>
+            </div>
+          </div>
+
+          <div class="mh-badges">
+            <span class="sbadge sbadge-blue">{{ d.database }}</span>
+            <span class="sbadge sbadge-yellow">{{ d.quartile }}</span>
+            @if (d.scopusStatus === 'Active') {
+              <span class="sbadge sbadge-green">✔ Active</span>
+            } @else {
+              <span class="sbadge sbadge-red"><i class="ti ti-circle-x"></i> Discontinued</span>
+            }
+          </div>
+
+          <div class="mh-grid">
+            <div class="mh-cell"><span class="mh-lbl">ISSN</span><span class="mh-val mono">{{ d.issn }}</span></div>
+            <div class="mh-cell"><span class="mh-lbl">Quartile</span><span class="mh-val">{{ d.quartile }}</span></div>
+            <div class="mh-cell"><span class="mh-lbl">SJR</span><span class="mh-val mono">{{ d.sjr }}</span></div>
+            <div class="mh-cell"><span class="mh-lbl">ฐานข้อมูล</span><span class="mh-val">{{ d.database }}</span></div>
+            <div class="mh-cell"><span class="mh-lbl">ระดับ</span><span class="mh-val">{{ d.degree }}</span></div>
+            <div class="mh-cell"><span class="mh-lbl">อาจารย์ที่ปรึกษา</span><span class="mh-val">{{ d.advisor }}</span></div>
+          </div>
+        </div>
+
+        <!-- ══ MODAL BODY ══ -->
+        <div class="modal-body">
+
+          <div class="ms-card">
+            <div class="ms-head"><i class="ti ti-refresh"></i> ขั้นตอนการอนุมัติ Pre-T3</div>
+            <div class="stepper-wrap">
+              @for (step of d.steps; track step.label) {
+                <div [class]="'step-item ' + step.status">
+                  <div class="step-circle" [class]="step.status">
+                    @if (step.icon.startsWith('ti ')) { <i [class]="step.icon"></i> } @else { {{ step.icon }} }
+                  </div>
+                  <div class="step-label" [class]="step.status">{{ step.label }}</div>
+                  <div class="step-sub" [class]="step.status">{{ step.sub }}</div>
+                  <div class="step-date">{{ step.date }}</div>
+                </div>
+              }
+            </div>
+          </div>
+
+          <div class="ms-current" [class]="'ms-current ms-current--' + d.cardStatus">
+            <div class="ms-current-icon">
+              @if (d.currentStatusIcon.startsWith('ti ')) { <i [class]="d.currentStatusIcon"></i> } @else { {{ d.currentStatusIcon }} }
+            </div>
+            <div class="ms-current-body">
+              <div class="ms-current-title">{{ d.currentStatusTitle }}</div>
+              <div class="ms-current-desc">{{ d.currentStatusDesc }}</div>
+            </div>
+          </div>
+
+          <div class="ms-log-wrap">
+            <div class="ms-log-head"><span><i class="ti ti-clipboard-list"></i></span><span>ประวัติการดำเนินการ (Status Log)</span></div>
+            <div class="ms-log-body">
+              <div class="timeline">
+                @for (item of d.timeline; track item.actor; let last = $last) {
+                  <div class="tl-item">
+                    <div class="tl-left">
+                      <div class="tl-icon" [class]="'tl-' + item.badgeType">{{ item.icon }}</div>
+                      @if (!last) { <div class="tl-line"></div> }
+                    </div>
+                    <div class="tl-body">
+                      <div class="tl-actor-row">
+                        <span class="tl-actor">{{ item.actor }}</span>
+                        <span class="tl-badge" [class]="'tb-' + item.badgeType">{{ item.badge }}</span>
+                        @if (item.time) { <span class="tl-time">{{ item.time }}</span> }
+                      </div>
+                      <div class="tl-message">{{ item.message }}</div>
+                      @if (item.detail) { <div class="tl-detail">{{ item.detail }}</div> }
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+
+          <div class="ms-card">
+            <div class="ms-head"><i class="ti ti-paperclip"></i> เอกสารประกอบ</div>
+            <div class="attach-list">
+              @for (a of d.attachments; track a.name) {
+                <div class="attach-item">
+                  <span class="attach-icon">{{ a.icon }}</span>
+                  <div class="attach-body">
+                    <div class="attach-name">{{ a.name }}</div>
+                    <div class="attach-meta">{{ a.meta }} · {{ a.size }}</div>
+                  </div>
+                  <button class="btn-download"><i class="ti ti-download"></i> ดาวน์โหลด</button>
+                </div>
+              }
+            </div>
+          </div>
+
+        </div><!-- /modal-body -->
+
+        <!-- ══ MODAL FOOTER ══ -->
+        <div class="modal-footer">
+          <button class="btn-mf btn-mf-print"><i class="ti ti-printer"></i> พิมพ์ใบคำร้อง</button>
+          <button class="btn-mf btn-mf-close" (click)="closePreT3Detail()">ปิด</button>
+        </div>
+
+      }
+    </div><!-- /modal-panel -->
+  </div><!-- /modal-backdrop -->
+}
+
+<!-- ═══ CONFIRM DIALOG ═══ -->
+@if (showConfirm()) {
+  <div class="confirm-backdrop" (click)="closeConfirm()">
+    <div class="confirm-card" (click)="$event.stopPropagation()">
+
+      <div class="confirm-topbar"></div>
+      <h2 class="confirm-title">ยืนยันการยื่น T3?</h2>
+      <p class="confirm-desc">ระบบจะส่งคำร้องนี้ไปยังอาจารย์ที่ปรึกษาเพื่อพิจารณาลงนาม<br>คุณแน่ใจที่จะยื่นคำร้องใช่ไหม?</p>
+
+      <div class="confirm-summary">
+        <div class="cs-row">
+          <span class="cs-label">วารสาร</span>
+          <span class="cs-val">{{ selectedPreT3Data?.title || '—' }}</span>
+        </div>
+        <div class="cs-row">
+          <span class="cs-label">ฐานข้อมูล</span>
+          <span class="cs-val">{{ selectedPreT3Data?.database || '—' }}</span>
+        </div>
+        <div class="cs-row">
+          <span class="cs-label">Pre-T3 อ้างอิง</span>
+          <span class="cs-val">{{ selectedPreT3Data?.id || '—' }}</span>
+        </div>
+      </div>
+
+      <div class="confirm-actions">
+        <button class="btn-confirm-cancel" (click)="closeConfirm()">ยกเลิก</button>
+        <button class="btn-confirm-ok" (click)="submit()">ยืนยัน ยื่น T3</button>
+      </div>
+
+    </div>
+  </div>
+}

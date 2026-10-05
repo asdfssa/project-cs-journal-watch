@@ -1,0 +1,160 @@
+<div class="login-page">
+  <div class="login-card">
+
+    <!-- Gradient top bar -->
+    <div class="card-topbar"></div>
+
+    <div class="card-body">
+
+      <!-- ── LEFT ── -->
+      <div class="card-left">
+
+        <div class="logo-wrap">
+          <div class="logo-pulse"></div>
+          <div class="logo-ring">
+            <svg class="jw-logo-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="50" cy="50" r="48" fill="#1C2744" stroke="#E8A800" stroke-width="3"/>
+              <rect x="28" y="26" width="36" height="44" rx="4" fill="none" stroke="#E8A800" stroke-width="2.5"/>
+              <rect x="28" y="26" width="18" height="44" rx="4" fill="#E8A800" opacity="0.15"/>
+              <line x1="38" y1="26" x2="38" y2="70" stroke="#E8A800" stroke-width="2.5"/>
+              <line x1="32" y1="36" x2="36" y2="36" stroke="#E8A800" stroke-width="2"/>
+              <line x1="32" y1="42" x2="36" y2="42" stroke="#E8A800" stroke-width="2"/>
+              <line x1="32" y1="48" x2="36" y2="48" stroke="#E8A800" stroke-width="2"/>
+              <line x1="42" y1="36" x2="60" y2="36" stroke="#E8A800" stroke-width="2"/>
+              <line x1="42" y1="42" x2="60" y2="42" stroke="#E8A800" stroke-width="2"/>
+              <line x1="42" y1="48" x2="58" y2="48" stroke="#E8A800" stroke-width="2"/>
+              <line x1="42" y1="54" x2="56" y2="54" stroke="#E8A800" stroke-width="2"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="brand-block">
+          <div class="jw-title">
+            <span class="title-jw">Journal</span>
+            <span class="title-watch">Watch</span>
+          </div>
+          <span class="jw-badge">มหาวิทยาลัยมหาสารคาม</span>
+          <p class="jw-sub">ระบบบริหารจัดการวารสารวิชาการ<br>สำหรับเจ้าหน้าที่ผู้ดูแลระบบ</p>
+        </div>
+
+      </div>
+
+      <!-- ── Divider ── -->
+      <div class="card-divider"></div>
+
+      <!-- ── RIGHT ── -->
+      <div class="card-right">
+
+        <h2 class="right-title">เข้าสู่ระบบ</h2>
+
+        <!-- Info box -->
+        <div class="info-box">
+          <div class="info-item">
+            <span class="info-icon">🔐</span>
+            <span>สำหรับผู้ดูแลระบบที่ได้รับสิทธิ์เท่านั้น</span>
+          </div>
+          <div class="info-divider"></div>
+          <div class="info-item">
+            <span class="info-icon">📋</span>
+            <span>ใช้อีเมลและรหัสผ่านที่ได้รับการลงทะเบียน</span>
+          </div>
+        </div>
+
+        <!-- Login form -->
+        <form [formGroup]="form" (ngSubmit)="onSubmit()" autocomplete="off" novalidate>
+          <div class="field-group">
+            <label class="field-label" for="username">Username</label>
+            <div class="input-wrap">
+              <span class="input-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
+              </span>
+              <input
+                id="username"
+                type="text"
+                formControlName="username"
+                class="field-input"
+                [class.error]="form.get('username')?.invalid && form.get('username')?.touched"
+                placeholder="กรอก Username"
+                autocomplete="username"
+              />
+            </div>
+            @if (form.get('username')?.invalid && form.get('username')?.touched) {
+              <span class="field-error">กรุณากรอก Username</span>
+            }
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="password">รหัสผ่าน</label>
+            <div class="input-wrap">
+              <span class="input-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+              </span>
+              <input
+                id="password"
+                [type]="showPassword() ? 'text' : 'password'"
+                formControlName="password"
+                class="field-input"
+                [class.error]="form.get('password')?.invalid && form.get('password')?.touched"
+                placeholder="••••••••"
+                autocomplete="current-password"
+              />
+              <button type="button" class="toggle-pw" (click)="togglePassword()" tabindex="-1">
+                @if (showPassword()) {
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                    <line x1="1" y1="1" x2="23" y2="23"/>
+                  </svg>
+                } @else {
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                }
+              </button>
+            </div>
+            @if (form.get('password')?.invalid && form.get('password')?.touched) {
+              <span class="field-error">กรุณากรอกรหัสผ่าน</span>
+            }
+          </div>
+
+          @if (errorMsg()) {
+            <div class="alert-error">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              {{ errorMsg() }}
+            </div>
+          }
+
+          <button type="submit" class="btn-login" [disabled]="loading()">
+            @if (loading()) {
+              <span class="spinner"></span>
+              <span>กำลังตรวจสอบ...</span>
+            } @else {
+              <span>เข้าสู่ระบบ</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="5" y1="12" x2="19" y2="12"/>
+                <polyline points="12 5 19 12 12 19"/>
+              </svg>
+            }
+          </button>
+        </form>
+
+        <p class="login-note">
+          <span class="note-dot"></span>
+          การเข้าสู่ระบบถือว่ายอมรับนโยบายการใช้งานและความเป็นส่วนตัว
+        </p>
+
+      </div>
+    </div>
+  </div>
+</div>

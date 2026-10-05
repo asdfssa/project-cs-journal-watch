@@ -1,0 +1,8 @@
+tunnel: 8cb0dc84-82d1-488b-886e-ae4531410c4c
+credentials-file: /etc/cloudflared/credentials.json
+
+ingress:
+  # หน้าเว็บ + /api/v3 (frontend อยู่ใน backend container เดียวกัน)
+  - hostname: journal.farmlnwza007.online
+    service: http://backend:3000
+  - service: http_status:404

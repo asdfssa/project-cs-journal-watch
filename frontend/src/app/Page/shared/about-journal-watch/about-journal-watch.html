@@ -1,0 +1,104 @@
+<div class="about-page">
+
+  <!-- ═══ HERO + STATS ═══ -->
+  <section class="hero">
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+      <span class="hero-badge">ABOUT JOURNAL WATCH</span>
+      <h1 class="hero-title">
+        ศูนย์กลางการสืบค้นและตรวจสอบ<br>
+        คุณภาพวารสารระดับชาติ
+      </h1>
+      <p class="hero-sub">
+        ระบบตรวจสอบข้อมูลวารสารเชิงลึก สำหรับนิสิตระดับบัณฑิตศึกษา และอาจารย์<br>
+        มหาวิทยาลัยมหาสารคาม เพื่อช่วยกรองวารสารที่ไม่ได้มาตรฐาน
+        หรือวารสารปลอม (Hijacked Journals) ได้อย่างแม่นยำ
+      </p>
+      @if (!authService.isLoggedIn) {
+        <a class="btn-cta" routerLink="/login">เข้าสู่ระบบสืบค้นวารสาร</a>
+      }
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-number">15,420+</div>
+        <div class="stat-label">วารสารในฐานข้อมูล</div>
+        <div class="stat-desc">เชื่อมข้อมูล TCI และ Scopus</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">100%</div>
+        <div class="stat-label">ดึงข้อมูลอัตโนมัติ (Scraper)</div>
+        <div class="stat-desc">อัปเดตตรงตามเวลาจริงเสมอ</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">10 นาที</div>
+        <div class="stat-label">เวลาที่ใช้ในการประเมิน</div>
+        <div class="stat-desc">กรอก ISSN แล้วรู้ผลทันที</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="wrapper">
+
+    <!-- ═══ FEATURES ═══ -->
+    <section class="features">
+
+      <div class="feature-row animate animate--left">
+        <div class="feature-text">
+          <h2 class="feature-title">ระบบค้นหาและ Scraper อัจฉริยะ</h2>
+          <p class="feature-desc">
+            ไม่ต้องเสียเวลาเปิดหาจากหลายเว็บไซต์หรือคลิกลุ้มดูมือหนัก
+            เพียงระบุหมายเลข ISSN ระบบส่องวารสารจะทำการดึงข้อมูล (Scrape)
+            คุณภาพ และประวัติของวารสารทั้งหมด แสดงบนหน้าเดียวในเวลาไม่กี่วินาที
+          </p>
+        </div>
+        <div class="feature-visual">⚡</div>
+      </div>
+
+      <div class="feature-row feature-row--reverse animate animate--right">
+        <div class="feature-text">
+          <h2 class="feature-title">ตรวจสอบตามมาตรฐานแบบฟอร์ม Pre-T3</h2>
+          <p class="feature-desc">
+            สถาบันบัณฑิตวิทยาลัยออกแบบมาเพื่อรองรับการกรอกเอกสาร
+            "แบบฟอร์มตรวจสอบคุณภาพวารสารวิชาการระดับชาติ เพื่อการยื่นของนิสิต"
+            ของ มมส. โดยเฉพาะ ช่วยให้นิสิตกรอกข้อมูลลงเอกสารยื่นเรื่องต่ออาจารย์
+            ที่ปรึกษาและคณะกรรมการบอร์ดวิจัยได้อย่างราบรื่นและถูกต้องตามระเบียบสากล
+          </p>
+        </div>
+        <div class="feature-visual">📋</div>
+      </div>
+
+      <div class="feature-row animate animate--left">
+        <div class="feature-text">
+          <h2 class="feature-title">ระบบรายงานตั้งแต่ต้นถึงจบปัญหา</h2>
+          <p class="feature-desc">
+            หากนิสิตหรือผู้ใช้งานพบข้อมูลคลาดเคลื่อน ลิงก์เสีย หรือตัวสครปต์ส่งผลิตอบคลาด
+            สามารถส่งเรื่องแจ้ง Bug Report เข้าสู่ระบบได้โดยตรง พร้อมทั้งฟังก์ชัน
+            สำหรับเจ้าหน้าที่ (Admin Panel) ในการเปิดอ่านรายละเอียด
+            ติดตามวิธีแก้ปัญหา และอัปเดตสถานะการทำงานเพื่อความโปร่งใสของระบบ
+          </p>
+        </div>
+        <div class="feature-visual">🛡️</div>
+      </div>
+
+    </section>
+
+    <!-- ═══ PLATFORM ═══ -->
+    <section class="platform animate animate--up">
+      <div class="platform-title">รองรับการเข้าใช้งานและแสดงผลสมบูรณ์แบบ</div>
+      <div class="platform-badges">
+        <div class="platform-item">💻 คอมพิวเตอร์ตั้งโต๊ะ (Desktop)</div>
+        <div class="platform-item">📱 แท็บเล็ต (Tablet Layout)</div>
+        <div class="platform-item">📲 สมาร์ทโฟน (Responsive Mobile)</div>
+      </div>
+    </section>
+
+    <!-- ═══ BACK BUTTON ═══ -->
+    @if (!authService.isLoggedIn) {
+      <div class="back-wrap animate animate--up">
+        <a class="btn-back" routerLink="/login">← กลับหน้าเข้าสู่ระบบ</a>
+      </div>
+    }
+
+  </div>
+</div>

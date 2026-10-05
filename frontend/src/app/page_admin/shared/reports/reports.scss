@@ -1,0 +1,89 @@
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700;800&display=swap');
+
+:host {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  font-family: 'Sarabun', sans-serif;
+  background: #f4f6fb;
+}
+
+.page-shell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 28px 32px;
+  gap: 24px;
+  max-width: 1400px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px 28px;
+  box-shadow: 0 2px 12px rgba(28,39,68,0.06);
+  border: 1px solid rgba(28,39,68,0.06);
+}
+
+.page-icon-wrap {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  flex-shrink: 0;
+  &[data-color=gold] { background: rgba(232,168,0,0.12); }
+}
+
+.page-breadcrumb {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #E8A800;
+  margin-bottom: 4px;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+  color: #1C2744;
+  line-height: 1.2;
+}
+
+.page-sub {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: rgba(28,39,68,0.45);
+}
+
+.page-body {
+  flex: 1;
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid rgba(28,39,68,0.06);
+  box-shadow: 0 2px 12px rgba(28,39,68,0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 280px;
+}
+
+.coming-soon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: rgba(28,39,68,0.3);
+}
+
+.cs-icon { font-size: 52px; }
+.cs-text { font-size: 14px; margin: 0; }

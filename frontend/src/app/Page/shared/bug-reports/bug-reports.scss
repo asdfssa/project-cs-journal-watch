@@ -1,0 +1,429 @@
+@use 'sass:color';
+
+// ── Palette ───────────────────────────────────────────
+$navy:    #1C2744;
+$yellow:  #E8A800;
+$bg:      #F4F6FA;
+$white:   #FFFFFF;
+$border:  #E2E6F0;
+$text:    #1C2744;
+$muted:   #6B7280;
+$green:   #1A7A42;
+$green-l: #E6F5EE;
+$red:     #C0392B;
+$red-l:   #FDECEA;
+$blue:    #1A5FAB;
+$blue-l:  #EAF1FB;
+$gray-l:  #F3F4F6;
+
+// ── Host ──────────────────────────────────────────────
+:host {
+  display: block;
+  width: 100%;
+  min-height: 100vh;
+  background: $bg;
+  font-family: 'Sarabun', sans-serif;
+}
+
+// ── Page layout ───────────────────────────────────────
+.page {
+  padding: 28px 28px 80px;
+  max-width: 860px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+// ── Page Header ───────────────────────────────────────
+.page-header     { margin-bottom: 4px; }
+.page-title-row  { display: flex; align-items: center; gap: 14px; }
+.page-title-icon { font-size: 32px; }
+.page-title      { font-size: 22px; font-weight: 800; color: $navy; margin: 0; }
+.page-subtitle   { font-size: 13px; color: $muted; margin: 4px 0 0; }
+
+// ── pcard ─────────────────────────────────────────────
+.pcard {
+  background: $white;
+  border-radius: 14px;
+  box-shadow: 0 2px 12px rgba(28,39,68,.07);
+  overflow: hidden;
+}
+
+.pcard-topbar {
+  height: 5px;
+  background: linear-gradient(90deg, $navy 0%, $yellow 100%);
+}
+
+.pcard-body {
+  padding: 24px 28px 28px;
+}
+
+// ── Card title ────────────────────────────────────────
+.card-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: $navy;
+  margin: 0 0 20px;
+}
+
+// ── Form ──────────────────────────────────────────────
+.form-grid { display: flex; flex-direction: column; gap: 16px; }
+
+.field       { display: flex; flex-direction: column; gap: 6px; }
+.field--full { width: 100%; }
+
+.field-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: $navy;
+}
+
+.req { color: $red; margin-left: 2px; }
+
+.field-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  border: 1.5px solid $border;
+  border-radius: 8px;
+  font-family: 'Sarabun', sans-serif;
+  font-size: 14px;
+  color: $text;
+  background: $white;
+  outline: none;
+  transition: border-color 0.2s;
+
+  &:focus { border-color: $navy; }
+  &::placeholder { color: #B0B8C8; }
+}
+
+.field-textarea { resize: vertical; min-height: 96px; }
+
+.field-input--url {
+  font-size: 12px;
+  color: $muted;
+  background: $gray-l;
+}
+
+.char-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: -2px;
+}
+
+.char-hint {
+  font-size: 11px;
+  color: $red;
+  font-weight: 500;
+}
+
+.char-count {
+  font-size: 11px;
+  color: $muted;
+  text-align: right;
+  &.char-ok { color: $green; }
+}
+
+// ── Category chips ────────────────────────────────────
+.category-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cat-chip {
+  padding: 7px 16px;
+  border-radius: 999px;
+  border: 1.5px solid $border;
+  background: $white;
+  font-family: 'Sarabun', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: $muted;
+  cursor: pointer;
+  transition: all 0.18s;
+
+  &:hover { border-color: $navy; color: $navy; }
+
+  &.active {
+    border-color: $navy;
+    background: $navy;
+    color: $white;
+    font-weight: 600;
+  }
+}
+
+// ── Submit result ─────────────────────────────────────
+.submit-result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  margin-top: 4px;
+
+  &--success { background: $green-l; color: $green; border: 1px solid color.adjust($green, $lightness: 30%); }
+  &--error   { background: $red-l;   color: $red;   border: 1px solid color.adjust($red,   $lightness: 30%); }
+}
+
+// ── Form actions ──────────────────────────────────────
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.btn-submit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 28px;
+  background: $navy;
+  color: $white;
+  border: none;
+  border-radius: 8px;
+  font-family: 'Sarabun', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover:not(:disabled) { background: color.adjust($navy, $lightness: 8%); }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.btn-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: $white;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+// ── List header ───────────────────────────────────────
+.list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.list-meta { display: flex; align-items: center; gap: 10px; }
+
+.total-badge {
+  font-size: 12px;
+  color: $muted;
+  background: $gray-l;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.btn-refresh-list {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1.5px solid $border;
+  background: $white;
+  color: $navy;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+
+  &:hover:not(:disabled) { border-color: $yellow; color: $yellow; }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .spinning { display: inline-block; animation: spin 0.8s linear infinite; }
+}
+
+// ── Loading / Empty ───────────────────────────────────
+.list-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 48px 0;
+  color: $muted;
+  font-size: 14px;
+}
+
+.loading-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid $border;
+  border-top-color: $navy;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.list-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 48px 0;
+  text-align: center;
+}
+
+.empty-icon { font-size: 40px; color: $muted; }
+.empty-text { font-size: 15px; font-weight: 600; color: $navy; }
+.empty-sub  { font-size: 13px; color: $muted; }
+
+// ── Report list ───────────────────────────────────────
+.report-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.report-item {
+  border: 1.5px solid $border;
+  border-radius: 10px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 0.18s;
+
+  &:hover { border-color: color.adjust($navy, $lightness: 40%); }
+}
+
+.report-item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.report-cat {
+  font-size: 11px;
+  font-weight: 600;
+  color: $navy;
+  background: rgba(28,39,68,0.08);
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.report-status {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  margin-left: auto;
+
+  &.status--open     { background: rgba(232,168,0,0.15); color: #8B6200; }
+  &.status--progress { background: $blue-l;  color: $blue;  }
+  &.status--resolved { background: $green-l; color: $green; }
+  &.status--rejected { background: $red-l;   color: $red;   }
+}
+
+.report-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: $navy;
+}
+
+.report-desc {
+  font-size: 13px;
+  color: $muted;
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.report-footer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.report-url {
+  font-size: 11px;
+  color: $blue;
+  max-width: 340px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.report-date {
+  font-size: 11px;
+  color: $muted;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+// ── Pagination ────────────────────────────────────────
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  margin-top: 20px;
+}
+
+.pg-btn {
+  min-width: 34px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1.5px solid $border;
+  border-radius: 8px;
+  background: $white;
+  font-family: 'Sarabun', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: $navy;
+  cursor: pointer;
+  transition: all 0.18s;
+
+  &:hover:not(:disabled):not(.active) { border-color: $navy; }
+
+  &.active {
+    background: $navy;
+    border-color: $navy;
+    color: $white;
+    font-weight: 700;
+  }
+
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+}
+
+// ── RESPONSIVE ──────────────────────────────────────────
+@media (max-width: 900px) {
+  .page { padding: 20px 20px 60px; }
+}
+
+@media (max-width: 600px) {
+  .page { padding: 16px 14px 48px; }
+  .pcard-body { padding: 18px 16px 20px; }
+
+  .page-title-icon { font-size: 26px; }
+  .page-title { font-size: 19px; }
+
+  /* .list-header, .report-item-header, .pagination ไม่มี flex-wrap เลยมาก่อน
+     เสี่ยงล้นบนจอแคบมากๆ ถ้าข้อความยาว (เช่น "ทั้งหมด X รายการ" + ปุ่มรีเฟรช
+     หรือมีหลายปุ่มเลขหน้า) เพิ่มไว้เป็นตัวกันชน ไม่กระทบจอกว้าง */
+  .list-header  { flex-wrap: wrap; gap: 10px; }
+  .report-item-header { flex-wrap: wrap; }
+  .pagination   { flex-wrap: wrap; }
+
+  /* ปุ่มส่งรายงาน เดิมชิดขวาขนาดตามเนื้อหา กดยากบนมือถือ ให้เต็มความกว้างแทน
+     เพื่อเป็นเป้าหมายกดที่ใหญ่และเข้าถึงง่ายขึ้น (ตามหลัก touch target) */
+  .form-actions { justify-content: stretch; }
+  .btn-submit   { width: 100%; justify-content: center; }
+
+  .report-url { max-width: 100%; }
+}

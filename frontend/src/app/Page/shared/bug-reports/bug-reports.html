@@ -1,0 +1,178 @@
+<div class="page">
+
+  <!-- ── PAGE HEADER ── -->
+  <div class="page-header">
+    <div class="page-title-row">
+      <span class="page-title-icon"><i class="ti ti-bug"></i></span>
+      <div>
+        <h1 class="page-title">รายงานปัญหา</h1>
+        <p class="page-subtitle">แจ้งปัญหาหรือข้อผิดพลาดที่พบในระบบ</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SUBMIT FORM CARD ── -->
+  <div class="pcard">
+    <div class="pcard-topbar"></div>
+    <div class="pcard-body">
+      <h2 class="card-title">แจ้งปัญหาใหม่</h2>
+
+      <div class="form-grid">
+
+        <!-- Category -->
+        <div class="field field--full">
+          <label class="field-label">ประเภทปัญหา <span class="req">*</span></label>
+          <div class="category-chips">
+            @for (cat of categories; track cat.value) {
+              <button
+                type="button"
+                class="cat-chip"
+                [class.active]="form.category === cat.value"
+                (click)="form.category = cat.value">
+                {{ cat.label }}
+              </button>
+            }
+          </div>
+        </div>
+
+        <!-- Title -->
+        <div class="field field--full">
+          <label class="field-label">หัวข้อปัญหา <span class="req">*</span></label>
+          <input
+            class="field-input"
+            type="text"
+            placeholder="ระบุหัวข้อปัญหาที่พบ"
+            [(ngModel)]="form.title"
+            maxlength="200" />
+        </div>
+
+        <!-- Description -->
+        <div class="field field--full">
+          <label class="field-label">รายละเอียดปัญหา <span class="req">*</span></label>
+          <textarea
+            class="field-input field-textarea"
+            placeholder="อธิบายขั้นตอนที่ทำให้เกิดปัญหา อาการที่พบ หรือข้อมูลเพิ่มเติม..."
+            [(ngModel)]="form.description"
+            rows="4"
+            maxlength="2000"></textarea>
+          <div class="char-row">
+            @if (form.description.trim().length > 0 && form.description.trim().length < 10) {
+              <span class="char-hint">ต้องการอีก {{ 10 - form.description.trim().length }} ตัวอักษร</span>
+            } @else {
+              <span></span>
+            }
+            <span class="char-count" [class.char-ok]="form.description.trim().length >= 10">
+              {{ form.description.length }} / 2000
+            </span>
+          </div>
+        </div>
+
+        <!-- Page URL -->
+        <div class="field field--full">
+          <label class="field-label">URL หน้าที่เกิดปัญหา</label>
+          <input
+            class="field-input field-input--url"
+            type="text"
+            [(ngModel)]="form.page_url" />
+        </div>
+
+      </div>
+
+      <!-- Submit result -->
+      @if (submitResult() === 'success') {
+        <div class="submit-result submit-result--success">
+          <span>✅</span> ส่งรายงานปัญหาเรียบร้อยแล้ว ขอบคุณที่ช่วยพัฒนาระบบ
+        </div>
+      } @else if (submitResult() === 'error') {
+        <div class="submit-result submit-result--error">
+          <span>❌</span> เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง
+        </div>
+      }
+
+      <div class="form-actions">
+        <button
+          class="btn-submit"
+          [disabled]="!canSubmit || isSubmitting()"
+          (click)="submit()">
+          @if (isSubmitting()) {
+            <span class="btn-spinner"></span>
+            <span>กำลังส่ง...</span>
+          } @else {
+            <span>📤</span>
+            <span>ส่งรายงานปัญหา</span>
+          }
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── MY REPORTS LIST CARD ── -->
+  <div class="pcard">
+    <div class="pcard-topbar"></div>
+    <div class="pcard-body">
+
+      <div class="list-header">
+        <h2 class="card-title">รายงานของฉัน</h2>
+        <div class="list-meta">
+          @if (!isLoading()) {
+            <span class="total-badge">ทั้งหมด {{ total() }} รายการ</span>
+          }
+          <button class="btn-refresh-list" (click)="loadList(currentPage())" [disabled]="isLoading()">
+            <span [class.spinning]="isLoading()">↻</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Loading -->
+      @if (isLoading()) {
+        <div class="list-loading">
+          <div class="loading-spinner"></div>
+          <span>กำลังโหลด...</span>
+        </div>
+
+      <!-- Empty -->
+      } @else if (rows().length === 0) {
+        <div class="list-empty">
+          <div class="empty-icon"><i class="ti ti-inbox"></i></div>
+          <div class="empty-text">ยังไม่มีรายงานปัญหา</div>
+          <div class="empty-sub">กรอกฟอร์มด้านบนเพื่อส่งรายงานปัญหาแรก</div>
+        </div>
+
+      <!-- List -->
+      } @else {
+        <div class="report-list">
+          @for (row of rows(); track row.id) {
+            <div class="report-item">
+              <div class="report-item-header">
+                <span class="report-cat">{{ categoryLabel(row.category) }}</span>
+                <span class="report-status" [class]="statusClass(row.status)">
+                  {{ statusLabel(row.status) }}
+                </span>
+              </div>
+              <div class="report-title">{{ row.title }}</div>
+              <div class="report-desc">{{ row.description }}</div>
+              <div class="report-footer">
+                <span class="report-url" [title]="row.page_url">🔗 {{ row.page_url }}</span>
+                <span class="report-date">🕐 {{ formatDate(row.created_at) }}</span>
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Pagination -->
+        @if (totalPages() > 1) {
+          <div class="pagination">
+            <button class="pg-btn" [disabled]="currentPage() === 1" (click)="loadList(currentPage() - 1)">‹</button>
+            @for (p of pageNumbers(); track p) {
+              <button class="pg-btn" [class.active]="p === currentPage()" (click)="loadList(p)">{{ p }}</button>
+            }
+            <button class="pg-btn" [disabled]="currentPage() === totalPages()" (click)="loadList(currentPage() + 1)">›</button>
+          </div>
+        }
+      }
+
+    </div>
+  </div>
+
+</div>

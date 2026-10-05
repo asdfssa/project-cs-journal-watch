@@ -1,0 +1,82 @@
+<div class="otp-page">
+  <div class="otp-card">
+
+    <div class="otp-topbar"></div>
+
+    <div class="otp-content">
+
+      <!-- Icon -->
+      <div class="otp-icon-wrap">
+        <span class="otp-icon">🔐</span>
+      </div>
+
+      <!-- Title -->
+      <h2 class="otp-title">กรอกรหัสยืนยัน OTP</h2>
+      <p class="otp-sub">
+        ระบบส่งรหัส OTP ไปที่<br>
+        <strong>{{ maskedEmail() || 'email MSU ของคุณ' }}</strong>
+      </p>
+
+      <!-- OTP Boxes -->
+      <div class="otp-boxes" (paste)="onPaste($event)">
+        @for (digit of digits(); track $index) {
+          <input
+            #otpInput
+            class="otp-box"
+            [class.filled]="digit !== ''"
+            type="text"
+            inputmode="numeric"
+            maxlength="1"
+            [value]="digit"
+            (input)="onInput($event, $index)"
+            (keydown)="onKeyDown($event, $index)"
+            autocomplete="one-time-code"
+          />
+        }
+      </div>
+
+      <!-- Error -->
+      @if (errorMsg()) {
+        <div class="otp-error">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          {{ errorMsg() }}
+        </div>
+      }
+
+      <!-- Submit button -->
+      <button
+        class="otp-btn"
+        [disabled]="!isComplete || loading()"
+        (click)="onSubmit()">
+        @if (loading()) {
+          <span class="otp-spinner"></span>
+          <span>กำลังตรวจสอบ...</span>
+        } @else {
+          ยืนยันรหัสผ่าน
+        }
+      </button>
+
+      <!-- Resend -->
+      <div class="otp-resend">
+        @if (resendCooldown() > 0) {
+          <span class="resend-wait">ส่งรหัสอีกครั้งใน {{ resendCooldown() }} วินาที</span>
+        } @else {
+          <button class="resend-btn" (click)="resendOtp()">ส่งรหัสอีกครั้ง</button>
+        }
+      </div>
+
+      <!-- Cancel -->
+      <button class="cancel-btn" routerLink="/login">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+        ยกเลิก / กลับหน้าเข้าสู่ระบบ
+      </button>
+
+    </div><!-- /otp-content -->
+  </div>
+</div>

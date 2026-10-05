@@ -1,0 +1,270 @@
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap');
+
+:host {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  font-family: 'Sarabun', sans-serif;
+}
+
+/* ── PAGE ── */
+.otp-page {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 16px;
+  background: #F5F5F0;
+  box-sizing: border-box;
+}
+
+/* ── CARD ── */
+.otp-card {
+  background: #ffffff;
+  border-radius: 24px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.04), 0 16px 32px rgba(0,0,0,0.08);
+  padding: 0 0 40px;
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* ── GRADIENT TOP BAR ── */
+.otp-topbar {
+  width: 100%;
+  height: 6px;
+  flex-shrink: 0;
+  background: linear-gradient(90deg, #262D40 0%, #E0A100 100%);
+  margin-bottom: 12px;
+}
+
+/* ── CONTENT WRAPPER ── */
+.otp-content {
+  width: 100%;
+  padding: 0 52px 8px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+
+  @media (max-width: 520px) { padding: 0 24px 8px; }
+  @media (max-width: 380px) { padding: 0 16px 8px; }
+}
+
+/* ── ICON ── */
+.otp-icon-wrap {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: #FFF4E0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.otp-icon {
+  font-size: 32px;
+  line-height: 1;
+}
+
+/* ── TEXT ── */
+.otp-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1C2744;
+  margin: 0;
+  text-align: center;
+}
+
+.otp-sub {
+  font-size: 15px;
+  color: #888;
+  text-align: center;
+  line-height: 1.7;
+  margin: 0;
+  overflow-wrap: anywhere;
+
+  strong {
+    color: #1C2744;
+    font-weight: 700;
+  }
+}
+
+/* ── OTP BOXES ── */
+.otp-boxes {
+  display: flex;
+  gap: 10px;
+  margin: 8px 0 4px;
+}
+
+.otp-box {
+  /* เดิม width:56px แบบ content-box (ไม่มี box-sizing:border-box) บวก border
+     1.5px ทั้งสองฝั่ง = กว้างจริง 59px/กล่อง — 6 กล่อง + gap 10px รวมกว้าง 404px
+     ขณะที่ .otp-content กว้างสูงสุดแค่ 376px (card 480px ลบ padding 52px*2) ล้น
+     กล่องสุดท้ายออกไป 28px แล้วโดน .otp-card ที่ overflow:hidden ตัดทิ้งเลย เกิดบน
+     จอทุกขนาดที่ยังไม่ชน breakpoint มือถือ ไม่ใช่แค่จอแคบ ลดความกว้างลงเล็กน้อย
+     พร้อมเปลี่ยนเป็น border-box ให้คำนวณพอดีจริง */
+  width: 54px;
+  height: 64px;
+  box-sizing: border-box;
+  border: 1.5px solid #E0DDD8;
+  border-radius: 12px;
+  font-size: 24px;
+  font-weight: 700;
+  color: #1C2744;
+  text-align: center;
+  background: #FAFAF8;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  caret-color: #E8A800;
+  font-family: 'Sarabun', sans-serif;
+
+  &:focus {
+    border-color: #E8A800;
+    box-shadow: 0 0 0 3px rgba(232,168,0,0.18);
+    background: #fff;
+  }
+
+  &.filled {
+    border-color: #E8A800;
+    background: #FFFBEF;
+  }
+}
+
+/* ── ERROR ── */
+.otp-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff5f5;
+  border: 1px solid #ffcdd2;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #c62828;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ── SUBMIT BUTTON ── */
+.otp-btn {
+  width: 100%;
+  padding: 15px 24px;
+  border: none;
+  border-radius: 14px;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: 'Sarabun', sans-serif;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  background: #D5D0C8;
+  color: #fff;
+
+  &:not(:disabled) {
+    background: #1C2744;
+    color: #fff;
+
+    &:hover {
+      background: #E8A800;
+      color: #1C2744;
+      box-shadow: 0 4px 16px rgba(232,168,0,0.3);
+      transform: translateY(-1px);
+    }
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.otp-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255,255,255,0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* ── RESEND ── */
+.otp-resend {
+  font-size: 14px;
+}
+
+.resend-btn {
+  background: none;
+  border: none;
+  color: #E8A800;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'Sarabun', sans-serif;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 0;
+  transition: color 0.15s;
+
+  &:hover { color: #b88200; }
+}
+
+.resend-wait {
+  color: #aaa;
+  font-size: 13px;
+}
+
+/* ── CANCEL ── */
+.cancel-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: rgba(0,0,0,0.35);
+  font-size: 13px;
+  font-family: 'Sarabun', sans-serif;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.15s;
+
+  &:hover { color: #1C2744; }
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 520px) {
+  .otp-card {
+    padding: 36px 24px 32px;
+  }
+
+  .otp-box {
+    width: 44px;
+    height: 54px;
+    font-size: 20px;
+  }
+
+  .otp-boxes { gap: 8px; }
+}
+
+@media (max-width: 380px) {
+  .otp-box {
+    width: 38px;
+    height: 48px;
+    font-size: 18px;
+  }
+
+  .otp-boxes { gap: 6px; }
+}

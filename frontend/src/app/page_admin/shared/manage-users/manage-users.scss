@@ -1,0 +1,1079 @@
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+:host {
+  display: block;
+  font-family: 'Sarabun', sans-serif;
+}
+
+$navy:   #1B3A6B;
+$gold:   #E8B84B;
+$green:  #1A7A4A;
+$red:    #C0392B;
+$border: #e2e8f0;
+$bg:     #f4f6fa;
+$text:   #1e293b;
+$muted:  #64748b;
+
+// ─── PAGE ──────────────────────────────────────────────────────────
+.mu-page {
+  padding: 28px 36px;
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+// ─── HEADER ────────────────────────────────────────────────────────
+.mu-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  &__icon { font-size: 28px; }
+
+  &__title {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 800;
+    color: $navy;
+  }
+
+  &__sub {
+    font-size: 13px;
+    color: $muted;
+    margin-top: 2px;
+  }
+}
+
+// ─── TABS ──────────────────────────────────────────────────────────
+// ─── TABS (segmented pill — เหมือน tab-bar ของ staff/manage-users) ──────
+.mu-tabs {
+  display: flex;
+  gap: 4px;
+  width: fit-content;
+  background: $bg;
+  border: 1.5px solid $border;
+  border-radius: 14px;
+  padding: 6px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.06);
+}
+
+.mu-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  color: $muted;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: all .2s ease;
+
+  &:hover { background: rgba($gold, .12); color: $navy; }
+
+  &--active {
+    background: $navy;
+    color: $gold;
+    font-weight: 700;
+    box-shadow: 0 3px 10px rgba(0,0,0,.2);
+  }
+}
+
+.mu-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: $border;
+  color: $muted;
+  font-size: 11px;
+  font-weight: 700;
+
+  .mu-tab--active & {
+    background: rgba($gold, .22);
+    color: $gold;
+  }
+}
+
+// ─── TOOLBAR ───────────────────────────────────────────────────────
+.mu-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  &__actions {
+    display: flex;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+}
+
+.btn-add-user {
+  padding: 11px 22px;
+  border-radius: 10px;
+  border: none;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: inherit;
+  transition: filter .15s;
+
+  &--gold {
+    background: $gold;
+    color: #1a1a00;
+    &:hover { filter: brightness(1.08); }
+  }
+
+  &--navy {
+    background: $navy;
+    color: #fff;
+    &:hover { filter: brightness(1.15); }
+  }
+}
+
+.btn-import-csv {
+  padding: 11px 22px;
+  border-radius: 10px;
+  border: none;
+  background: #111;
+  color: $gold;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: inherit;
+  transition: filter .15s;
+
+  &:hover { filter: brightness(1.2); }
+}
+
+// ─── CUSTOM DROPDOWN ───────────────────────────────────────────────
+.mu-dropdown {
+  position: relative;
+  flex-shrink: 0;
+
+  &__trigger {
+    height: 42px;
+    padding: 0 14px;
+    border: 1.5px solid $border;
+    border-radius: 30px;
+    background: #fff;
+    font-size: 13.5px;
+    font-family: inherit;
+    color: $text;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    min-width: 158px;
+    transition: border .2s, box-shadow .2s;
+
+    &:hover { border-color: $navy; }
+  }
+
+  &--open &__trigger {
+    border-color: $navy;
+    box-shadow: 0 0 0 3px rgba($navy, .08);
+  }
+
+  &__val { flex: 1; text-align: left; }
+
+  &__arrow {
+    color: $muted;
+    flex-shrink: 0;
+    transition: transform .2s;
+  }
+
+  &--open &__arrow { transform: rotate(180deg); }
+
+  &__backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 99;
+  }
+
+  &__panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    min-width: 100%;
+    background: #fff;
+    border: 1.5px solid $border;
+    border-radius: 14px;
+    box-shadow: 0 8px 28px rgba(0,0,0,.13);
+    z-index: 100;
+    overflow: hidden;
+    animation: mu-dd-in .15s ease;
+  }
+
+  &__opt {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 10px 16px;
+    border: none;
+    background: none;
+    font-size: 13.5px;
+    font-family: inherit;
+    color: $text;
+    cursor: pointer;
+    text-align: left;
+    transition: background .12s;
+
+    &:hover { background: $bg; }
+
+    &--active {
+      color: $navy;
+      font-weight: 700;
+      background: rgba($navy, .05);
+    }
+  }
+}
+
+.mu-dd-dot {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+
+  &--all      { background: #94a3b8; }
+  &--active   { background: $green; }
+  &--suspended { background: $red; }
+}
+
+.mu-dd-check {
+  margin-left: auto;
+  color: $navy;
+  font-weight: 800;
+  font-size: 13px;
+}
+
+// ─── IMPORT MODAL EXTRAS ───────────────────────────────────────────
+.mu-edit-modal--narrow { max-width: 480px; }
+
+.mu-edit-modal__avatar--import {
+  background: linear-gradient(135deg, #262D40, #3d4f70);
+  font-size: 20px;
+  box-shadow: 0 2px 8px rgba(#262D40, .35);
+}
+
+.mu-edit-modal__avatar--admin {
+  background: linear-gradient(135deg, $navy, #2E3A5C);
+  font-size: 20px;
+  box-shadow: 0 2px 8px rgba($navy, .35);
+}
+
+.mu-edit-modal__avatar--staff {
+  background: linear-gradient(135deg, #0F766E, #0d9488);
+  font-size: 20px;
+  box-shadow: 0 2px 8px rgba(15, 118, 110, .35);
+}
+
+.mu-edit-modal__accent--navy {
+  background: linear-gradient(90deg, $navy 0%, #2E3A5C 100%);
+}
+
+.mu-table-head.mu-table-head--admin {
+  grid-template-columns: 2fr 1fr 1.5fr 1fr 1fr 1fr 1.2fr;
+}
+
+.mu-file-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 2px dashed $border;
+  border-radius: 14px;
+  padding: 32px 24px;
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+  background: $bg;
+  text-align: center;
+
+  &:hover        { border-color: $navy; background: #f0f4ff; }
+  &--selected    { border-color: $green; background: rgba($green,.05); border-style: solid; }
+}
+
+.mu-file-input {
+  display: none;
+}
+
+.mu-file-icon   { font-size: 32px; line-height: 1; }
+.mu-file-prompt { font-size: 14px; font-weight: 700; color: $navy; }
+.mu-file-hint   { font-size: 12px; color: $muted; }
+.mu-file-name   { font-size: 13.5px; font-weight: 700; color: $green; }
+.mu-file-size   { font-size: 11px; color: $muted; }
+
+.mu-csv-hint {
+  background: #f8faff;
+  border: 1.5px solid $border;
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  &__title {
+    font-size: 12px;
+    font-weight: 700;
+    color: $navy;
+  }
+
+  &__cols {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+
+    code {
+      background: rgba($navy,.08);
+      color: $navy;
+      border-radius: 5px;
+      padding: 2px 7px;
+      font-size: 11px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-weight: 600;
+    }
+  }
+
+  &__note {
+    font-size: 11.5px;
+    color: $muted;
+  }
+}
+
+@keyframes mu-dd-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.mu-search-wrap {
+  flex: 1;
+  position: relative;
+}
+
+.mu-search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 15px;
+  pointer-events: none;
+}
+
+.mu-search {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1.5px solid $border;
+  border-radius: 30px;
+  padding: 0 18px 0 40px;
+  height: 42px;
+  font-size: 14px;
+  color: $text;
+  font-family: inherit;
+  outline: none;
+  transition: border .2s;
+  background: #fff;
+
+  &:focus { border-color: $navy; }
+  &::placeholder { color: #94a3b8; }
+}
+
+// ─── LOADING ───────────────────────────────────────────────────────
+.mu-loading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 48px;
+  justify-content: center;
+  font-size: 14px;
+  color: $muted;
+  font-weight: 600;
+}
+
+.mu-spinner {
+  width: 32px; height: 32px;
+  border: 3px solid $border;
+  border-top-color: $navy;
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+// ─── TABLE WRAP ────────────────────────────────────────────────────
+$table-cols: 2fr 2fr 0.85fr 0.95fr 1.1fr 3fr;
+
+.mu-table-wrap {
+  background: #fff;
+  border: 1.5px solid $border;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0,0,0,.05);
+}
+
+/* ซ่อนไว้บนเดสก์ท็อป (ตารางไม่ต้อง scroll) โชว์เฉพาะตอนที่ .mu-table-wrap เปิด
+   overflow-x:auto ใน media query ด้านล่าง ไม่งั้นผู้ใช้มือถือจะไม่รู้ว่าเลื่อนดู
+   คอลัมน์ที่เหลือได้ เพราะกริดคอลัมน์ถูกตัดไปแค่ส่วนที่พอดีจอ */
+.mu-scroll-hint {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: $muted;
+  margin-bottom: -8px;
+
+  i { font-size: 14px; }
+}
+
+.mu-table-head {
+  display: grid;
+  grid-template-columns: $table-cols;
+  align-items: center;
+  background:
+    linear-gradient(90deg, #262D40 0%, #E0A100 100%) top left / 100% 4px no-repeat,
+    $bg;
+  border-bottom: 1.5px solid $border;
+}
+
+.mu-th {
+  padding: 14px 18px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: $navy;
+  letter-spacing: .3px;
+  white-space: nowrap;
+
+  &--actions { text-align: center; }
+}
+
+.mu-table-row {
+  display: grid;
+  grid-template-columns: $table-cols;
+  align-items: center;
+  border-bottom: 1px solid #f0f4f8;
+  background: #fff;
+  transition: background .12s;
+
+  &:last-child { border-bottom: none; }
+  &:hover { background: #f8faff; }
+}
+
+.mu-table-row.mu-table-row--admin {
+  grid-template-columns: 2fr 1fr 1.5fr 1fr 1fr 1fr 1.2fr;
+}
+
+.mu-empty {
+  text-align: center;
+  padding: 48px;
+  color: $muted;
+  font-size: 14px;
+}
+
+.mu-td {
+  padding: 14px 18px;
+  font-size: 13px;
+  color: $text;
+
+  &--name {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  &--id {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  &--date {
+    font-size: 12px;
+    color: $muted;
+  }
+
+  &--actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+}
+
+// ─── ROW AVATAR ────────────────────────────────────────────────────
+.mu-row-avatar {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: $navy;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  letter-spacing: .5px;
+
+  &--advisor { background: #1A5FAB; }
+  &--staff   { background: #0F766E; }
+  &--admin   { background: $navy; }
+}
+
+.mu-row-name-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.mu-row-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: $text;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mu-row-sub {
+  font-size: 11px;
+  color: $muted;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mu-row-id {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: $navy;
+  white-space: nowrap;
+}
+
+.mu-row-mail {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  color: $muted;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// ─── TYPE BADGE ────────────────────────────────────────────────────
+.mu-type-badge {
+  display: inline-flex;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+
+  &--phd {
+    background: rgba($navy, .1);
+    color: $navy;
+    border: 1px solid rgba($navy, .2);
+  }
+
+  &--master {
+    background: rgba(26, 95, 171, .1);
+    color: #1A5FAB;
+    border: 1px solid rgba(26, 95, 171, .2);
+  }
+
+  &--advisor {
+    background: rgba(109, 40, 217, .1);
+    color: #6d28d9;
+    border: 1px solid rgba(109, 40, 217, .2);
+  }
+
+  &--admin {
+    background: rgba($navy, .1);
+    color: $navy;
+    border: 1px solid rgba($navy, .25);
+  }
+
+  &--superadmin {
+    background: rgba(#E8B84B, .15);
+    color: #a07000;
+    border: 1px solid rgba(#E8B84B, .4);
+  }
+
+  &--staff {
+    background: rgba(15, 118, 110, .1);
+    color: #0F766E;
+    border: 1px solid rgba(15, 118, 110, .25);
+  }
+}
+
+// ─── STATUS BADGE ──────────────────────────────────────────────────
+.mu-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba($green, .12);
+  color: $green;
+  border: 1px solid rgba($green, .3);
+  white-space: nowrap;
+
+  &--suspended {
+    background: rgba($red, .1);
+    color: $red;
+    border-color: rgba($red, .3);
+  }
+
+  &--pending {
+    background: rgba(245, 158, 11, .12);
+    color: #b45309;
+    border-color: rgba(245, 158, 11, .35);
+  }
+}
+
+// ─── TOAST (fixed — ไม่ดัน layout) ────────────────────────────────
+.mu-toast {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2000;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(0,0,0,.15);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: mu-toast-in .22s ease;
+
+  &--ok  { background: #1a7a4a; color: #fff; }
+  &--err { background: $red;    color: #fff; }
+}
+
+@keyframes mu-toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(12px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+@keyframes mu-fade-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+
+// ─── ROW ACTION BUTTONS ────────────────────────────────────────────
+.mu-row-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1.5px solid $border;
+  background: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all .15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  &__label {
+    font-size: 12.5px;
+    font-weight: 700;
+  }
+
+  &:hover { background: #f1f5f9; border-color: #b0bec5; }
+
+  &--edit {
+    border-color: rgba($navy, .25);
+    background: rgba($navy, .04);
+    &:hover { background: $navy; border-color: $navy; }
+  }
+
+  &--suspend {
+    border-color: rgba($red, .3);
+    background: rgba($red, .04);
+    min-width: 120px;
+    justify-content: center;
+    &:hover { background: $red; border-color: $red; }
+  }
+
+  &--activate {
+    border-color: rgba($green, .3);
+    background: rgba($green, .05);
+    min-width: 120px;
+    justify-content: center;
+    &:hover { background: $green; border-color: $green; }
+  }
+
+  &--loading {
+    min-width: 120px;
+    justify-content: center;
+  }
+
+  &--approve {
+    border-color: rgba(245, 158, 11, .4);
+    background: rgba(245, 158, 11, .08);
+    min-width: 120px;
+    justify-content: center;
+    color: #b45309;
+    font-weight: 700;
+    &:hover { background: #f59e0b; border-color: #f59e0b; color: #fff; }
+  }
+
+  &--advisor {
+    border-color: rgba(26,95,171,.3);
+    background: rgba(26,95,171,.05);
+    &:hover { background: #1A5FAB; border-color: #1A5FAB; }
+  }
+
+  &--loading { opacity: .7; cursor: not-allowed; }
+  &:disabled  { cursor: not-allowed; opacity: .55; }
+}
+
+.mu-row-spin {
+  display: inline-block;
+  width: 13px; height: 13px;
+  border: 2px solid #cbd5e1;
+  border-top-color: $navy;
+  border-radius: 50%;
+  animation: mu-spin .7s linear infinite;
+}
+
+// ─── PAGINATION ────────────────────────────────────────────────────
+.mu-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+.mu-page-info { font-size: 13px; color: $muted; font-weight: 600; }
+
+.mu-page-btns { display: flex; gap: 6px; }
+
+.mu-page-btn {
+  width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 8px;
+  border: 1.5px solid $border;
+  background: #fff;
+  color: $navy;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all .15s;
+
+  &:hover:not(:disabled) { border-color: $navy; background: $navy; color: #fff; }
+  &:disabled { opacity: .35; cursor: not-allowed; }
+  &.mu-page-active { background: $navy; color: #fff; border-color: $navy; }
+}
+
+@media (max-width: 900px) {
+  /* .mu-table-head/.mu-table-row เป็น grid คอลัมน์สัดส่วนตายตัว (รวมคอลัมน์
+     "จัดการ" ที่มีปุ่มพร้อมข้อความ) ไม่มีทางยุบพอดีจอมือถือได้เลยโดยไม่บีบ
+     จนอ่านไม่ออก — ให้ scroll แนวนอนแทน พร้อมกำหนด min-width ของแถวให้คอลัมน์
+     ไม่ถูกบีบต่ำกว่าที่อ่านได้ (ครอบคลุมทั้งตาราง นิสิต/อาจารย์/staff ปกติ และ
+     ตาราง admin ที่ใช้ modifier --admin เป็น grid 7 คอลัมน์แยกต่างหาก) */
+  .mu-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .mu-table-head, .mu-table-row { min-width: 900px; }
+  .mu-scroll-hint { display: flex; }
+}
+
+@media (max-width: 700px) {
+  .mu-page { padding: 16px; }
+  .mu-toolbar { flex-wrap: wrap; }
+
+  /* มี 4 แท็บ (นิสิต/อาจารย์/Staff/Admin) พร้อม badge ตัวเลข รวมกันกว้างเกินจอ
+     มือถือได้ง่ายกว่าตอน 2 แท็บ — กันไว้ด้วย scroll แนวนอนแทนที่จะให้ล้น/บีบจนอ่านยาก */
+  .mu-tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+  .mu-tab { flex-shrink: 0; }
+
+  /* .mu-toolbar__actions (flex-shrink:0) + .mu-dropdown (min-width:158px,
+     flex-shrink:0) รวมกันกว้างเกินจอมือถือตั้งแต่แรกแล้ว ก่อนจะถึงคิว .mu-search-wrap
+     ด้วยซ้ำ — ให้แต่ละกลุ่มตกเป็นคนละแถวเต็มความกว้างแทนที่จะเบียดกันครึ่งๆ กลางๆ */
+  .mu-toolbar__actions { width: 100%; }
+  .btn-add-user, .btn-import-csv { flex: 1; text-align: center; }
+  .mu-dropdown { width: 100%; }
+  .mu-dropdown__trigger { width: 100%; box-sizing: border-box; }
+  .mu-search-wrap { width: 100%; }
+
+  .mu-pagination { flex-wrap: wrap; gap: 10px 14px; }
+  .mu-page-btns { flex-wrap: wrap; }
+
+  .mu-modal-overlay { padding: 16px; }
+  .mu-edit-grid--2,
+  .mu-edit-grid--3 { grid-template-columns: 1fr; }
+  .mu-edit-modal__header { padding: 16px 18px 14px; }
+  .mu-edit-modal__body { padding: 18px; }
+  .mu-edit-modal__footer { padding: 12px 18px; flex-wrap: wrap; }
+  .mu-btn-cancel, .mu-btn-save { flex: 1; justify-content: center; }
+}
+
+@media (max-width: 480px) {
+  /* .mu-toast เดิม white-space:nowrap ไม่มี max-width — ข้อความแจ้งเตือนยาวๆ
+     (เช่น error message จาก backend) จะล้นออกนอกจอทั้งสองฝั่งบนมือถือจริง */
+  .mu-toast {
+    max-width: calc(100vw - 32px);
+    white-space: normal;
+    text-align: center;
+  }
+}
+
+// ─── EDIT MODAL ──────────────────────────────────────────────────────
+.mu-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15,23,42,.55);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.mu-edit-modal {
+  background: #fff;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 16px rgba(0,0,0,.08), 0 32px 72px rgba(0,0,0,.18);
+  overflow: hidden;
+
+  &__accent {
+    height: 5px;
+    flex-shrink: 0;
+    background: linear-gradient(90deg, #262D40 0%, #E0A100 100%);
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px 16px;
+    background: #fff;
+    border-bottom: 1px solid $border;
+    gap: 16px;
+  }
+
+  &__header-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  &__avatar {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: $navy;
+    border: 2px solid rgba($navy, .15);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 800; color: #fff;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba($navy, .25);
+
+    &--add {
+      background: linear-gradient(135deg, #E0A100, #f0b429);
+      color: $navy;
+      font-size: 22px;
+      box-shadow: 0 2px 8px rgba(#E0A100, .35);
+    }
+
+    &--advisor-add {
+      background: linear-gradient(135deg, #1A5FAB, #2176cc);
+      font-size: 20px;
+      box-shadow: 0 2px 8px rgba(#1A5FAB, .35);
+    }
+  }
+
+  &__title {
+    font-size: 15px;
+    font-weight: 800;
+    color: $text;
+  }
+
+  &__sub {
+    font-size: 12px;
+    color: $muted;
+    margin-top: 2px;
+    font-family: inherit;
+  }
+
+  &__close {
+    background: $bg;
+    border: 1.5px solid $border;
+    border-radius: 8px;
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700;
+    color: $muted; cursor: pointer;
+    transition: all .15s;
+    flex-shrink: 0;
+    &:hover { background: #e2e8f0; color: $text; border-color: #b0bec5; }
+  }
+
+  &__body {
+    padding: 24px;
+    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  &__footer {
+    padding: 14px 24px;
+    border-top: 1px solid $border;
+    background: $bg;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+}
+
+// ─── EDIT FORM ───────────────────────────────────────────────────────
+.mu-edit-grid {
+  display: grid;
+  gap: 14px;
+
+  &--2 { grid-template-columns: 1fr 1fr; }
+  &--3 { grid-template-columns: 1fr 1fr 1fr; }
+}
+
+.mu-edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mu-edit-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: $navy;
+}
+
+.mu-req { color: $red; }
+
+
+.mu-edit-input {
+  border: 1.5px solid $border;
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 13.5px;
+  color: #1e293b;
+  font-family: inherit;
+  outline: none;
+  background: #fff;
+  transition: border .2s;
+  width: 100%;
+  box-sizing: border-box;
+
+  &:focus { border-color: $navy; box-shadow: 0 0 0 3px rgba($navy,.08); }
+
+  option, optgroup { font-size: 13px; font-family: inherit; }
+}
+
+select.mu-edit-input {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' viewBox='0 0 12 7' fill='none'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+  cursor: pointer;
+}
+
+// ─── RESULT BANNER ───────────────────────────────────────────────────
+.mu-save-banner {
+  border-radius: 10px;
+  padding: 11px 14px;
+  font-size: 13px;
+  font-weight: 600;
+
+  &--ok  { background: #e8f8ef; border: 1px solid #a8ddb9; color: #145f33; }
+  &--err { background: #fdecea; border: 1px solid rgba($red,.3); color: $red; }
+}
+
+// ─── FOOTER BUTTONS ──────────────────────────────────────────────────
+.mu-btn-cancel {
+  padding: 10px 22px;
+  border-radius: 10px;
+  border: 1.5px solid $border;
+  background: #fff;
+  color: $navy;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background .15s;
+
+  &:hover:not(:disabled) { background: #f1f5f9; }
+  &:disabled { opacity: .5; cursor: not-allowed; }
+}
+
+.mu-advisor-role-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(26,95,171,.05);
+  border: 1px solid rgba(26,95,171,.15);
+  border-radius: 10px;
+  font-size: 13px;
+  color: $muted;
+
+  strong { color: #1A5FAB; }
+}
+
+.mu-btn-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  border-radius: 10px;
+  border: none;
+  background: $navy;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: filter .15s;
+
+  &:hover:not(:disabled) { filter: brightness(1.15); }
+  &:disabled { opacity: .55; cursor: not-allowed; }
+
+  &--advisor {
+    background: #1A5FAB;
+  }
+
+  &--navy {
+    background: $navy;
+  }
+}
+
+.mu-btn-spinner {
+  width: 14px; height: 14px;
+  border: 2px solid rgba(255,255,255,.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: mu-spin .8s linear infinite;
+  display: inline-block;
+}
+
+@keyframes mu-spin { to { transform: rotate(360deg); } }

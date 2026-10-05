@@ -1,0 +1,275 @@
+<div class="dashboard">
+
+  <!-- ══ Loading ══ -->
+  @if (isLoading()) {
+    <div class="db-loading">
+      <div class="db-spinner"></div>
+      <span>กำลังโหลดข้อมูล...</span>
+    </div>
+  }
+
+  @if (!isLoading()) {
+
+    @if (statsData(); as s) {
+
+      <!-- ══ HERO BANNER ══ -->
+      <div class="db-hero">
+        <div class="db-hero__overlay"></div>
+        <div class="db-hero__inner">
+
+          <div class="db-hero__profile">
+            <div class="db-hero__info">
+              <div class="db-hero__greeting">ยินดีต้อนรับกลับมา</div>
+              <h1 class="db-hero__name">{{ userName }}</h1>
+              <div class="db-hero__date">{{ currentDate() }}</div>
+            </div>
+          </div>
+
+          <div class="db-hero__cards">
+            <div class="db-meta-card">
+              <div class="db-meta-card__label">ผู้ใช้งาน</div>
+              <div class="db-meta-card__value">{{ s.users.total }}</div>
+            </div>
+            <div class="db-meta-card">
+              <div class="db-meta-card__label">คำร้องทั้งหมด</div>
+              <div class="db-meta-card__value">{{ totalRequests() }}</div>
+            </div>
+            <div class="db-meta-card">
+              <div class="db-meta-card__label">รอดำเนินการ</div>
+              <div class="db-meta-card__value">{{ pendingAll() }}</div>
+            </div>
+            <div class="db-meta-card">
+              <div class="db-meta-card__label">แคชวารสาร</div>
+              <div class="db-meta-card__value">{{ s.journal_cache.total }}</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ══ CONTENT ══ -->
+      <div class="db-content">
+
+        @if (loadError(); as err) {
+          <div class="db-error"><i class="ti ti-alert-triangle"></i> {{ err }}</div>
+        }
+
+        <!-- ── Section 1: สถิติภาพรวม ── -->
+        <div class="dash-section">
+          <div class="dash-section__title"><i class="ti ti-layout-dashboard"></i> สถิติภาพรวมระบบ</div>
+          <div class="ov-grid">
+
+            <div class="ov-card">
+              <div class="ov-card__badge">01</div>
+              <div class="ov-card__body">
+                <div class="ov-card__label">ผู้ใช้งานทั้งหมด</div>
+                <div class="ov-card__value">{{ s.users.total }}</div>
+                <div class="ov-card__meta">
+                  นิสิต {{ s.users.students }} · อาจารย์ {{ s.users.supervisors }} · Admin {{ s.users.admins }}
+                </div>
+                <div class="ov-card__pills">
+                  <span class="ov-pill ov-pill--active">● Active {{ s.users.active }}</span>
+                  <span class="ov-pill ov-pill--sus"><i class="ti ti-ban"></i> Suspended {{ s.users.suspended }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="ov-card">
+              <div class="ov-card__badge ov-card__badge--gold">02</div>
+              <div class="ov-card__body">
+                <div class="ov-card__label">คำร้องทั้งหมด</div>
+                <div class="ov-card__value ov-card__value--gold">{{ totalRequests() }}</div>
+                <div class="ov-card__meta">
+                  รอ {{ pendingAll() }} · อนุมัติ {{ approvedAll() }} · ไม่อนุมัติ {{ rejectedAll() }}
+                </div>
+              </div>
+            </div>
+
+            <div class="ov-card">
+              <div class="ov-card__badge ov-card__badge--red">03</div>
+              <div class="ov-card__body">
+                <div class="ov-card__label">MSU Unwanted Journals</div>
+                <div class="ov-card__value ov-card__value--red">
+                  {{ s.msu_unwanted.total }}<span class="ov-card__unit">รายการ</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="ov-card">
+              <div class="ov-card__badge ov-card__badge--teal">04</div>
+              <div class="ov-card__body">
+                <div class="ov-card__label">แคชวารสาร</div>
+                <div class="ov-card__value ov-card__value--teal">{{ s.journal_cache.total }}</div>
+                <div class="ov-card__meta">
+                  Scopus {{ s.journal_cache.scopus }} · TCI {{ s.journal_cache.tci }}
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ── Section 2: รายละเอียดคำร้อง ── -->
+        <div class="dash-section">
+          <div class="dash-section__title"><i class="ti ti-file-text"></i> รายละเอียดคำร้อง</div>
+          <div class="req-grid">
+
+            <div class="req-card">
+              <div class="req-card__header">
+                <span class="req-badge req-badge--navy">Pre-T3</span>
+                <span class="req-card__total">ทั้งหมด <strong>{{ s.pre_t3.total }}</strong> ฉบับ</span>
+              </div>
+              <div class="req-bars">
+                <div class="req-bar-row">
+                  <span class="req-bar-label">รอดำเนินการ</span>
+                  <div class="req-progress">
+                    <div class="req-progress__fill req-progress__fill--pending"
+                         [style.width.%]="pct(s.pre_t3.pending, s.pre_t3.total)"></div>
+                  </div>
+                  <span class="req-bar-num">{{ s.pre_t3.pending }}</span>
+                </div>
+                <div class="req-bar-row">
+                  <span class="req-bar-label">อนุมัติ</span>
+                  <div class="req-progress">
+                    <div class="req-progress__fill req-progress__fill--approved"
+                         [style.width.%]="pct(s.pre_t3.approved, s.pre_t3.total)"></div>
+                  </div>
+                  <span class="req-bar-num">{{ s.pre_t3.approved }}</span>
+                </div>
+                <div class="req-bar-row">
+                  <span class="req-bar-label">ไม่อนุมัติ</span>
+                  <div class="req-progress">
+                    <div class="req-progress__fill req-progress__fill--rejected"
+                         [style.width.%]="pct(s.pre_t3.rejected, s.pre_t3.total)"></div>
+                  </div>
+                  <span class="req-bar-num">{{ s.pre_t3.rejected }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="req-card">
+              <div class="req-card__header">
+                <span class="req-badge req-badge--gold">T3</span>
+                <span class="req-card__total">ทั้งหมด <strong>{{ s.t3.total }}</strong> ฉบับ</span>
+              </div>
+              <div class="req-bars">
+                <div class="req-bar-row">
+                  <span class="req-bar-label">รอดำเนินการ</span>
+                  <div class="req-progress">
+                    <div class="req-progress__fill req-progress__fill--pending"
+                         [style.width.%]="pct(s.t3.pending, s.t3.total)"></div>
+                  </div>
+                  <span class="req-bar-num">{{ s.t3.pending }}</span>
+                </div>
+                <div class="req-bar-row">
+                  <span class="req-bar-label">อนุมัติ</span>
+                  <div class="req-progress">
+                    <div class="req-progress__fill req-progress__fill--approved"
+                         [style.width.%]="pct(s.t3.approved, s.t3.total)"></div>
+                  </div>
+                  <span class="req-bar-num">{{ s.t3.approved }}</span>
+                </div>
+                <div class="req-bar-row">
+                  <span class="req-bar-label">ไม่อนุมัติ</span>
+                  <div class="req-progress">
+                    <div class="req-progress__fill req-progress__fill--rejected"
+                         [style.width.%]="pct(s.t3.rejected, s.t3.total)"></div>
+                  </div>
+                  <span class="req-bar-num">{{ s.t3.rejected }}</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ── Section 3: แคช + API Keys ── -->
+        <div class="bottom-grid">
+
+          <div class="dash-section dash-section--no-mb">
+            <div class="dash-section__title"><i class="ti ti-database"></i> แหล่งที่มาของแคชวารสาร</div>
+            <div class="cache-list">
+              <div class="cache-row">
+                <span class="cache-dot cache-dot--scopus"></span>
+                <span class="cache-label">Scopus</span>
+                <div class="req-progress">
+                  <div class="req-progress__fill req-progress__fill--scopus"
+                       [style.width.%]="pct(s.journal_cache.scopus, s.journal_cache.total)"></div>
+                </div>
+                <span class="cache-num">{{ s.journal_cache.scopus }}</span>
+              </div>
+              <div class="cache-row">
+                <span class="cache-dot cache-dot--tci"></span>
+                <span class="cache-label">TCI</span>
+                <div class="req-progress">
+                  <div class="req-progress__fill req-progress__fill--tci"
+                       [style.width.%]="pct(s.journal_cache.tci, s.journal_cache.total)"></div>
+                </div>
+                <span class="cache-num">{{ s.journal_cache.tci }}</span>
+              </div>
+              <div class="cache-row">
+                <span class="cache-dot cache-dot--api"></span>
+                <span class="cache-label">Via API</span>
+                <div class="req-progress">
+                  <div class="req-progress__fill req-progress__fill--api"
+                       [style.width.%]="pct(s.journal_cache.via_api, s.journal_cache.total)"></div>
+                </div>
+                <span class="cache-num">{{ s.journal_cache.via_api }}</span>
+              </div>
+              <div class="cache-row">
+                <span class="cache-dot cache-dot--scraping"></span>
+                <span class="cache-label">Via Scraping</span>
+                <div class="req-progress">
+                  <div class="req-progress__fill req-progress__fill--scraping"
+                       [style.width.%]="pct(s.journal_cache.via_scraping, s.journal_cache.total)"></div>
+                </div>
+                <span class="cache-num">{{ s.journal_cache.via_scraping }}</span>
+              </div>
+            </div>
+          </div>
+
+          @if (s.api_keys.length > 0) {
+            <div class="dash-section dash-section--no-mb">
+              <div class="dash-section__title"><i class="ti ti-key"></i> API Keys (รายสัปดาห์)</div>
+              <div class="api-list">
+                @for (k of s.api_keys; track k.index) {
+                  <div class="api-key-row">
+                    <div class="api-key-row__top">
+                      <span class="api-key-row__preview">{{ k.keyPreview }}</span>
+                      <span class="api-key-row__status"
+                            [class.api-key-row__status--ok]="k.isAvailable"
+                            [class.api-key-row__status--off]="!k.isAvailable">
+                        @if (k.isAvailable) { ● ใช้งานได้ } @else { <i class="ti ti-ban"></i> เต็ม }
+                      </span>
+                    </div>
+                    <div class="req-progress req-progress--thin">
+                      <div class="req-progress__fill"
+                           [class.req-progress__fill--ok]="k.isAvailable && pct(k.weeklyUsage, k.weeklyLimit) < 80"
+                           [class.req-progress__fill--warn]="k.isAvailable && pct(k.weeklyUsage, k.weeklyLimit) >= 80"
+                           [class.req-progress__fill--full]="!k.isAvailable"
+                           [style.width.%]="pct(k.weeklyUsage, k.weeklyLimit)"></div>
+                    </div>
+                    <div class="api-key-row__meta">
+                      {{ k.weeklyUsage }} / {{ k.weeklyLimit }} ครั้ง &nbsp;·&nbsp; คงเหลือ <strong>{{ k.remaining }}</strong>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+
+        </div>
+
+      </div>
+
+    } @else {
+      @if (loadError(); as err) {
+        <div class="db-content">
+          <div class="db-error"><i class="ti ti-alert-triangle"></i> {{ err }}</div>
+        </div>
+      }
+    }
+
+  }
+
+</div>

@@ -1,0 +1,351 @@
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="page-header">
+    <div class="page-title-row">
+      <span class="page-title-icon"><i class="ti ti-chart-bar"></i></span>
+      <h1 class="page-title">T3 คำร้อง</h1>
+      <button class="btn-refresh" (click)="loadCards()" [disabled]="isLoading()">
+        <span class="refresh-icon" [class.spinning]="isLoading()">↻</span>
+        <span>รีเฟรช</span>
+      </button>
+    </div>
+    <p class="page-subtitle">ตรวจสอบและดำเนินการคำร้อง T3 ของนิสิต</p>
+  </div>
+
+
+  <!-- TAB BAR -->
+  <div class="tab-bar">
+    <a class="tab-item" routerLink="/staff/pre-t3-request" routerLinkActive="tab-active">
+      <span class="tab-icon"><i class="ti ti-clipboard-text"></i></span><span>Pre-T3 คำร้อง</span>
+    </a>
+    <a class="tab-item" routerLink="/staff/t3-request" routerLinkActive="tab-active">
+      <span class="tab-icon"><i class="ti ti-chart-bar"></i></span><span>T3 คำร้อง</span>
+    </a>
+    <a class="tab-item" routerLink="/staff/history" routerLinkActive="tab-active">
+      <span class="tab-icon"><i class="ti ti-folder"></i></span><span>ประวัติทั้งหมด</span>
+    </a>
+  </div>
+
+
+  <!-- REQUEST CARDS -->
+  <div class="card-list">
+    @if (isLoading()) {
+      <div class="empty-state">
+        <div class="loading-spinner"></div>
+      </div>
+    } @else if (filtered().length === 0) {
+      <div class="empty-state">
+        <div class="empty-icon"><i class="ti ti-inbox"></i></div>
+        <div class="empty-text">ไม่มีคำร้อง T3 ในหมวดนี้</div>
+      </div>
+    }
+    @for (req of filtered(); track req.id) {
+      <div class="req-card" [class]="'req-card req-card--' + req.status" (click)="openDetail(req)">
+
+        <!-- ═══ LEFT ═══ -->
+        <div class="card-left">
+          <div class="student-row">
+            <div class="student-meta">
+              <div class="name-row">
+                <span class="student-name">{{ req.studentName }}</span>
+              </div>
+              <div class="student-id">{{ req.studentId }}</div>
+            </div>
+          </div>
+          @if (req.titleThai || req.titleEn) {
+            <div class="article-title">{{ req.titleThai || req.titleEn }}</div>
+          }
+          <div class="journal-row">
+            <span class="journal-name">{{ req.journalName }}</span>
+            <span class="issn">{{ req.issn }}</span>
+            <span class="db-badge" [class]="'db-badge db-' + req.database.toLowerCase()">{{ req.database }}</span>
+            <span class="badge-pub-status"
+              [class.pub-accepted]="req.pubStatus === 'accepted'"
+              [class.pub-published]="req.pubStatus === 'published'">
+              @if (req.pubStatus === 'published') { <i class="ti ti-news"></i> ตีพิมพ์แล้ว } @else { <i class="ti ti-mail-opened"></i> ตอบรับแล้ว }
+            </span>
+          </div>
+
+          <div class="card-status-row">
+            @if (req.status === 'pending') {
+              <span class="status-chip chip-pending">รอดำเนินการ</span>
+            } @else if (req.status === 'approved') {
+              <span class="status-chip chip-approved"><i class="ti ti-circle-check"></i> อนุมัติแล้ว</span>
+            } @else {
+              <span class="status-chip chip-rejected"><i class="ti ti-circle-x"></i> ไม่อนุมัติ</span>
+            }
+          </div>
+        </div>
+
+        <!-- ═══ RIGHT ═══ -->
+        <div class="card-right">
+          <div class="date-row">
+            <span class="date-label">{{ req.dateLabel }}</span>
+            @if (req.status === 'pending') {
+              <span class="advisor-time"><i class="ti ti-clock"></i> {{ req.submittedTime }}</span>
+            }
+            @if (req.status === 'pending' && req.daysAgo) {
+              <span class="days-ago">{{ req.daysAgo }} วันแล้ว</span>
+            }
+          </div>
+          <div class="request-id">T3-{{ req.id }}</div>
+        </div>
+
+        <span class="card-arrow">›</span>
+
+      </div>
+    }
+  </div>
+
+</div>
+
+<!-- ═══ DETAIL MODAL ═══ -->
+@if (selectedRequest(); as req) {
+  <div class="modal-backdrop" (click)="closeDetail()">
+    <div class="modal" (click)="$event.stopPropagation()">
+
+      <!-- Modal Header -->
+      <div class="modal-header">
+        <div class="modal-header-left">
+          <div class="modal-title">ใบคำร้อง T3 — ขออนุมัติผลงานตีพิมพ์</div>
+          <div class="modal-meta">
+            T3-{{ req.id }} · ยื่น {{ req.submittedDate }}
+            <span class="modal-status-badge"
+              [class.badge-pending]="req.status === 'pending'"
+              [class.badge-approved]="req.status === 'approved'"
+              [class.badge-rejected]="req.status === 'rejected'">
+              @if (req.status === 'pending')  { <i class="ti ti-bell"></i> รอดำเนินการ }
+              @if (req.status === 'approved') { <i class="ti ti-circle-check"></i> อนุมัติแล้ว }
+              @if (req.status === 'rejected') { <i class="ti ti-circle-x"></i> ไม่อนุมัติ }
+            </span>
+          </div>
+        </div>
+        <button class="modal-close" (click)="closeDetail()">✕</button>
+      </div>
+
+      <div class="modal-body">
+
+        <!-- ── SECTION 1: นิสิต ── -->
+        <div class="detail-section">
+          <div class="detail-section-head">
+            <span class="section-num">1</span>
+            <span class="section-title">ข้อมูลนิสิต</span>
+          </div>
+          @if (isDetailLoading()) {
+            <div class="detail-loading"><i class="ti ti-hourglass"></i> กำลังโหลดข้อมูล...</div>
+          } @else if (detailData(); as d) {
+            <div class="detail-grid">
+              <div class="detail-field"><div class="detail-label">ชื่อ-นามสกุล</div><div class="detail-value">{{ d.student_name }}</div></div>
+              <div class="detail-field"><div class="detail-label">รหัสนิสิต</div><div class="detail-value">{{ d.student_email.replace('@msu.ac.th','') }}</div></div>
+              <div class="detail-field"><div class="detail-label">อีเมล</div><div class="detail-value">{{ d.student_email }}</div></div>
+              <div class="detail-field"><div class="detail-label">ระดับการศึกษา</div><div class="detail-value">{{ d.student_snapshot.degree_level || '—' }}</div></div>
+            </div>
+          } @else {
+            <div class="detail-grid">
+              <div class="detail-field"><div class="detail-label">ชื่อ-นามสกุล</div><div class="detail-value">{{ req.studentName }}</div></div>
+              <div class="detail-field"><div class="detail-label">รหัสนิสิต</div><div class="detail-value">{{ req.studentId }}</div></div>
+              <div class="detail-field detail-field--wide"><div class="detail-label">อีเมล</div><div class="detail-value">{{ req.email }}</div></div>
+            </div>
+          }
+        </div>
+
+        <!-- ── SECTION 2: วารสาร ── -->
+        <div class="detail-section">
+          <div class="detail-section-head">
+            <span class="section-num">2</span>
+            <span class="section-title">ข้อมูลวารสาร</span>
+          </div>
+          <div class="pre-t3-evidence-note">
+            <span class="pre-t3-evidence-icon"><i class="ti ti-circle-check"></i></span>
+            <span>ข้อมูลวารสารนี้มาจาก <strong>Pre-T3 ที่ได้รับการอนุมัติแล้ว</strong> — เป็นหลักฐานยืนยันว่านิสิตได้ผ่านขั้นตอนการตรวจสอบวารสารก่อนยื่น T3</span>
+          </div>
+          <div class="detail-grid">
+            <div class="detail-field detail-field--wide">
+              <div class="detail-label">ชื่อวารสาร</div>
+              <div class="detail-value fw-bold">{{ req.journalName }}</div>
+            </div>
+            <div class="detail-field"><div class="detail-label">ISSN</div><div class="detail-value">{{ req.issn }}</div></div>
+            <div class="detail-field"><div class="detail-label">ฐานข้อมูล</div><div class="detail-value"><span class="badge-db">{{ req.database }}</span></div></div>
+            <div class="detail-field"><div class="detail-label">ประเภทวารสาร</div><div class="detail-value">{{ req.pubType }}</div></div>
+            @if (detailData(); as d) {
+              <div class="detail-field"><div class="detail-label">CITESCORE</div><div class="detail-value">{{ d.journal_metrics.citescore || '—' }}</div></div>
+              <div class="detail-field"><div class="detail-label">Impact Factor</div><div class="detail-value">{{ d.journal_metrics.has_impact_score ? d.journal_metrics.impact_factor : 'ไม่มี' }}</div></div>
+              <div class="detail-field"><div class="detail-label">ปีข้อมูล Score</div><div class="detail-value">{{ d.journal_metrics.score_year || '—' }}</div></div>
+            }
+          </div>
+        </div>
+
+        <!-- ── SECTION 3: บทความ ── -->
+        <div class="detail-section">
+          <div class="detail-section-head">
+            <span class="section-num">3</span>
+            <span class="section-title">ข้อมูลบทความ</span>
+          </div>
+          <div class="detail-grid">
+            <div class="detail-field detail-field--wide"><div class="detail-label">ชื่อบทความ (ภาษาไทย)</div><div class="detail-value">{{ req.titleThai || '—' }}</div></div>
+            <div class="detail-field detail-field--wide"><div class="detail-label">ชื่อบทความ (English)</div><div class="detail-value">{{ req.titleEn || '—' }}</div></div>
+            <div class="detail-field"><div class="detail-label">ผู้แต่งหลัก</div><div class="detail-value">{{ req.firstAuthor }}</div></div>
+            @if (detailData(); as d) {
+              <div class="detail-field"><div class="detail-label">Corresponding Author</div><div class="detail-value">{{ d.paper_and_research_details.corresponding_author || '—' }}</div></div>
+              <div class="detail-field detail-field--wide"><div class="detail-label">การนำไปใช้ประโยชน์</div><div class="detail-value">{{ d.paper_and_research_details.innovation_type || '—' }}</div></div>
+            }
+          </div>
+        </div>
+
+        <!-- ── SECTION 4: รายละเอียดการตีพิมพ์ ── -->
+        <div class="detail-section">
+          <div class="detail-section-head">
+            <span class="section-num">4</span>
+            <span class="section-title">รายละเอียดการตีพิมพ์</span>
+          </div>
+          <div class="detail-grid">
+            <div class="detail-field">
+              <div class="detail-label">สถานะบทความ</div>
+              <div class="detail-value">
+                <span class="badge-pub-status"
+                  [class.pub-accepted]="req.pubStatus === 'accepted'"
+                  [class.pub-published]="req.pubStatus === 'published'">
+                  @if (req.pubStatus === 'published') { <i class="ti ti-news"></i> ตีพิมพ์แล้ว (Published) } @else { <i class="ti ti-mail-opened"></i> ได้รับการตอบรับ (Accepted) }
+                </span>
+              </div>
+            </div>
+            <div class="detail-field"><div class="detail-label">Volume</div><div class="detail-value">{{ req.volume || '—' }}</div></div>
+            <div class="detail-field"><div class="detail-label">Issue</div><div class="detail-value">{{ req.issue || '—' }}</div></div>
+            <div class="detail-field"><div class="detail-label">ปีที่ตีพิมพ์</div><div class="detail-value">{{ req.publishYear || '—' }}</div></div>
+          </div>
+        </div>
+
+        <!-- ── SECTION 5: หลักฐานประกอบ ── -->
+        <div class="detail-section">
+          <div class="detail-section-head">
+            <span class="section-num">5</span>
+            <span class="section-title">เอกสารหลักฐานประกอบ</span>
+          </div>
+          <div class="evidence-grid">
+            @for (f of evidenceFiles; track f.key) {
+              <div class="evidence-card">
+                <div class="evidence-icon"><i [class]="f.icon"></i></div>
+                <div class="evidence-info">
+                  <div class="evidence-name">{{ f.label }}</div>
+                  <div class="evidence-key">{{ f.key }}</div>
+                </div>
+                <div class="evidence-actions">
+                  <button class="btn-evidence-view"
+                          [disabled]="fileViewing[f.key]"
+                          (click)="viewFile(req.t3Id, f.key); $event.stopPropagation()">
+                    @if (fileViewing[f.key]) { <span class="spinner-sm"></span> } @else { <i class="ti ti-eye"></i> ดูไฟล์ }
+                  </button>
+                  <button class="btn-evidence-download"
+                          [disabled]="fileLoading[f.key]"
+                          (click)="downloadFile(req.t3Id, f.key); $event.stopPropagation()">
+                    @if (fileLoading[f.key]) { <span class="spinner-sm"></span> } @else { <i class="ti ti-download"></i> ดาวน์โหลด }
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- ── SECTION 6: ความเห็นเจ้าหน้าที่ ── -->
+        @if (req.status === 'pending') {
+          <div class="decision-section">
+            <div class="decision-section-head">
+              <span><i class="ti ti-message-circle"></i></span>
+              <span class="decision-section-title">การพิจารณาของเจ้าหน้าที่</span>
+            </div>
+
+            <div class="decision-choices">
+              <label class="decision-card" [class.decision-card--approved]="decision() === 'approved'">
+                <input type="radio" name="staffdecision" value="approved"
+                  [checked]="decision() === 'approved'" (change)="decision.set('approved')">
+                <span class="dc-radio" [class.dc-radio--approved]="decision() === 'approved'"></span>
+                <span class="dc-check"><i class="ti ti-circle-check"></i></span>
+                <span class="dc-label">อนุมัติ T3</span>
+              </label>
+              <label class="decision-card" [class.decision-card--rejected]="decision() === 'rejected'">
+                <input type="radio" name="staffdecision" value="rejected"
+                  [checked]="decision() === 'rejected'" (change)="decision.set('rejected')">
+                <span class="dc-radio" [class.dc-radio--rejected]="decision() === 'rejected'"></span>
+                <span class="dc-x">✗</span>
+                <span class="dc-label">ไม่อนุมัติ</span>
+              </label>
+            </div>
+
+            <!-- Meeting fields (approve only) -->
+            @if (decision() === 'approved') {
+              <div class="meeting-fields">
+                <div class="meeting-fields-head">
+                  <span class="meeting-icon"><i class="ti ti-building-bank"></i></span>
+                  <span class="meeting-title">ข้อมูลที่ประชุม <span class="required-mark">* จำเป็น</span></span>
+                </div>
+                <div class="meeting-grid">
+                  <div class="field-item">
+                    <label class="field-label">เลขที่ประชุม <span class="required-mark">*</span></label>
+                    <input class="field-input" [(ngModel)]="meetingNo" placeholder="เช่น 1/2026"
+                           [class.field-input--error]="!meetingNo.trim()" />
+                  </div>
+                  <div class="field-item">
+                    <label class="field-label">วันที่ประชุม <span class="required-mark">*</span></label>
+                    <input type="date" class="field-input" [(ngModel)]="meetingDate"
+                           [class.field-input--error]="!meetingDate" />
+                  </div>
+                </div>
+              </div>
+            }
+
+            <!-- Remark (reject) -->
+            @if (decision() === 'rejected') {
+              <div class="remark-wrap">
+                <label class="remark-label">
+                  เหตุผลการไม่อนุมัติ <span class="remark-required">* จำเป็น</span>
+                </label>
+                <textarea class="remark-input" [(ngModel)]="remark"
+                  [class.remark-input--error]="!remark.trim()"
+                  placeholder="กรุณาระบุเหตุผลที่ไม่อนุมัติ..."
+                  rows="3"></textarea>
+                @if (!remark.trim()) {
+                  <div class="remark-error-msg"><i class="ti ti-alert-triangle"></i> กรุณาระบุเหตุผลการไม่อนุมัติ</div>
+                }
+              </div>
+            }
+
+            @if (submitResult() === 'success') {
+              <div class="submit-label submit-label--success">✓ ดำเนินการสำเร็จ — กำลังปิดหน้าต่าง...</div>
+            } @else if (submitResult() === 'error') {
+              <div class="submit-label submit-label--error">✗ เกิดข้อผิดพลาด กรุณาลองใหม่</div>
+            }
+
+            <div class="modal-actions">
+              <button class="btn-cancel" (click)="closeDetail()">ยกเลิก</button>
+              <button class="btn-reject"
+                      [disabled]="isSubmitting() || decision() !== 'rejected' || !remark.trim()"
+                      (click)="submitDecision()">
+                <i class="ti ti-circle-x"></i> ไม่อนุมัติ
+              </button>
+              <button class="btn-approve"
+                      [disabled]="isSubmitting() || !canSubmit"
+                      (click)="submitDecision()">
+                @if (isSubmitting()) { <i class="ti ti-hourglass"></i> กำลังส่ง... } @else { <i class="ti ti-circle-check"></i> ลงนามอนุมัติ T3 }
+              </button>
+            </div>
+          </div>
+        } @else {
+          <div class="result-section"
+               [class.result-approved]="req.status === 'approved'"
+               [class.result-rejected]="req.status === 'rejected'">
+            <div class="result-icon">
+              @if (req.status === 'approved') { <i class="ti ti-circle-check"></i> } @else { <i class="ti ti-circle-x"></i> }
+            </div>
+            <div class="result-body">
+              <div class="result-title">{{ req.status === 'approved' ? 'อนุมัติแล้ว' : 'ไม่ผ่านการอนุมัติ' }}</div>
+              @if (req.approvedDate) { <div class="result-date">วันที่: {{ req.approvedDate }}</div> }
+              @if (req.staffRemark)  { <div class="result-remark">หมายเหตุ: {{ req.staffRemark }}</div> }
+            </div>
+          </div>
+        }
+
+      </div><!-- /modal-body -->
+    </div><!-- /modal -->
+  </div><!-- /modal-backdrop -->
+}

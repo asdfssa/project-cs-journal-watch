@@ -1,0 +1,224 @@
+<div class="profile-page">
+
+  <!-- ── Loading ── -->
+  @if (isLoading()) {
+    <div class="pf-loading">
+      <div class="pf-spinner"></div>
+      <span>กำลังโหลดข้อมูลโปรไฟล์...</span>
+    </div>
+  }
+
+  @if (loadError(); as err) {
+    <div class="pf-error"><i class="ti ti-alert-triangle"></i> {{ err }}</div>
+  }
+
+  @if (!isLoading() && me(); as d) {
+
+    <!-- ══ Card 1: Summary ══ -->
+    <div class="pf-summary">
+      <div class="pf-topbar"></div>
+      <div class="pf-summary__body">
+
+        <div class="pf-summary__left">
+          <div class="pf-avatar">
+            @if (userPicture) {
+              <img class="pf-avatar__img" [src]="userPicture" alt="avatar" referrerpolicy="no-referrer"/>
+            } @else {
+              <div class="pf-avatar__fallback">{{ initials() }}</div>
+            }
+            <span class="pf-avatar__dot"></span>
+          </div>
+          <div class="pf-summary__info">
+            <p class="pf-summary__role">{{ d.role }}</p>
+            <h1 class="pf-summary__name">{{ fullName() || d.username }}</h1>
+            <p class="pf-summary__email">{{ d.msuMail }}</p>
+          </div>
+        </div>
+
+        <div class="pf-summary__right">
+          <div class="pf-summary__right-top">
+            <span class="pf-status-badge"
+                  [class.pf-status-badge--active]="d.accountStatus === 'Active'">
+              {{ d.accountStatus }}
+            </span>
+            <button class="pf-btn-edit-main"
+                    [class.pf-btn-edit-main--cancel]="isEditing()"
+                    (click)="toggleEdit()">
+              @if (isEditing()) { <i class="ti ti-x"></i> ยกเลิกแก้ไข } @else { <i class="ti ti-pencil"></i> แก้ไขข้อมูลส่วนตัว }
+            </button>
+          </div>
+          <p class="pf-summary__last-login">
+            เข้าสู่ระบบล่าสุด: {{ formatDate(d.lastLoginAt) }}
+          </p>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ══ Card 2 + 3: Two columns ══ -->
+    <div class="pf-grid">
+
+      <!-- Account Info -->
+      <div class="pf-card">
+        <div class="pf-topbar"></div>
+        <div class="pf-card__header">
+          <span class="pf-card__icon"><i class="ti ti-id-badge-2"></i></span>
+          <span class="pf-card__title">ข้อมูลบัญชี</span>
+        </div>
+        <div class="info-list">
+          <div class="info-row">
+            <span class="info-label">รหัสผู้ใช้</span>
+            <span class="info-value info-value--mono">#{{ d.userId }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">ชื่อ - นามสกุล</span>
+            <span class="info-value">{{ fullName() || '—' }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">อีเมล MSU</span>
+            <span class="info-value">{{ d.msuMail }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">บทบาท</span>
+            <span class="role-pill">{{ d.role }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">สถานะบัญชี</span>
+            <span class="info-value info-value--active">● {{ d.accountStatus }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Contact Info -->
+      <div class="pf-card">
+        <div class="pf-topbar"></div>
+        <div class="pf-card__header">
+          <span class="pf-card__icon"><i class="ti ti-phone"></i></span>
+          <span class="pf-card__title">ข้อมูลติดต่อ</span>
+        </div>
+        <div class="info-list">
+          <div class="info-row">
+            <span class="info-label">เบอร์โทรศัพท์</span>
+            <span class="info-value">{{ d.phone || '—' }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Facebook ID</span>
+            <span class="info-value info-value--break">{{ d.facebookId || '—' }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Line ID</span>
+            <span class="info-value">{{ d.lineId || '—' }}</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ══ Card 4: Usage / Additional Info ══ -->
+    <div class="pf-card pf-card--full">
+      <div class="pf-topbar"></div>
+      <div class="pf-card__header">
+        <span class="pf-card__icon"><i class="ti ti-clock"></i></span>
+        <span class="pf-card__title">ข้อมูลการเข้าใช้งาน</span>
+      </div>
+      <div class="pf-usage-grid">
+        <div class="pf-usage-col">
+          <span class="pf-usage-col__label">เข้าสู่ระบบล่าสุด</span>
+          <span class="pf-usage-col__value">{{ formatDate(d.lastLoginAt) }}</span>
+        </div>
+        <div class="pf-usage-col pf-usage-col--sep">
+          <span class="pf-usage-col__label">คำนำหน้า</span>
+          <span class="pf-usage-col__value">{{ d.prefix || '—' }}</span>
+        </div>
+        <div class="pf-usage-col pf-usage-col--sep">
+          <span class="pf-usage-col__label">ชื่อผู้ใช้</span>
+          <span class="pf-usage-col__value">{{ d.username }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ Edit Form ══ -->
+    @if (isEditing()) {
+      <div class="pf-edit-card">
+        <div class="pf-topbar"></div>
+        <div class="pf-edit-card__header">
+          <span class="pf-card__icon"><i class="ti ti-pencil"></i></span>
+          <div>
+            <div class="pf-card__title">แก้ไขข้อมูลส่วนตัว</div>
+            <div class="pf-edit-card__note">แก้ไขได้เฉพาะข้อมูลด้านล่าง</div>
+          </div>
+        </div>
+
+        <div class="pf-edit-grid">
+
+          <div class="edit-field">
+            <label class="edit-label">คำนำหน้า</label>
+            <select class="edit-input" [ngModel]="prefix()" (ngModelChange)="prefix.set($event)">
+              <option value="">— ไม่ระบุ —</option>
+              <option value="นาย">นาย</option>
+              <option value="นาง">นาง</option>
+              <option value="นางสาว">นางสาว</option>
+              <option value="ดร.">ดร.</option>
+              <option value="ผศ.">ผศ.</option>
+              <option value="รศ.">รศ.</option>
+              <option value="ศ.">ศ.</option>
+            </select>
+          </div>
+
+          <div class="edit-field">
+            <label class="edit-label">ชื่อจริง</label>
+            <input class="edit-input" type="text"
+                   [ngModel]="firstName()" (ngModelChange)="firstName.set($event)"
+                   placeholder="ชื่อจริง"/>
+          </div>
+
+          <div class="edit-field">
+            <label class="edit-label">นามสกุล</label>
+            <input class="edit-input" type="text"
+                   [ngModel]="lastName()" (ngModelChange)="lastName.set($event)"
+                   placeholder="นามสกุล"/>
+          </div>
+
+          <div class="edit-field">
+            <label class="edit-label">เบอร์โทรศัพท์</label>
+            <input class="edit-input" type="tel"
+                   [ngModel]="phone()" (ngModelChange)="phone.set($event)"
+                   placeholder="0812345678"/>
+          </div>
+
+          <div class="edit-field">
+            <label class="edit-label">Facebook ID</label>
+            <input class="edit-input"
+                   [ngModel]="facebookId()" (ngModelChange)="facebookId.set($event)"
+                   placeholder="somchai.jaidee"/>
+          </div>
+
+          <div class="edit-field">
+            <label class="edit-label">Line ID</label>
+            <input class="edit-input"
+                   [ngModel]="lineId()" (ngModelChange)="lineId.set($event)"
+                   placeholder="somchai_line"/>
+          </div>
+
+        </div>
+
+        @if (saveResult() === 'success') {
+          <div class="save-result save-result--success">✓ บันทึกข้อมูลสำเร็จ</div>
+        }
+        @if (saveResult() === 'error') {
+          <div class="save-result save-result--error">✗ เกิดข้อผิดพลาด กรุณาลองใหม่</div>
+        }
+
+        <button class="btn-save" (click)="saveProfile()" [disabled]="isSaving()">
+          @if (isSaving()) {
+            <span class="btn-save__spinner"></span> กำลังบันทึก...
+          } @else {
+            <i class="ti ti-device-floppy"></i> บันทึกข้อมูล
+          }
+        </button>
+      </div>
+    }
+
+  }
+
+</div>

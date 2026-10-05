@@ -1,0 +1,4 @@
+role,first_name,last_name,msu_mail,prefix,phone,degree_level,curriculum_year,study_plan_code,advisor_major_mail,advisor_co1_mail
+Student,สมชาย,ใจดี,somchai.j@msu.ac.th,นาย,0812345678,Master,2566,Master_B,,
+Student,สมหญิง,รักเรียน,somying.r@msu.ac.th,นางสาว,0898765432,Master,2566,Master_A1,,
+Student,วิชัย,เก่งมาก,wichai.k@msu.ac.th,นาย,0876543210,Doctoral,2560,Doc_1_1,,

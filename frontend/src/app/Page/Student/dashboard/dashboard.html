@@ -1,0 +1,104 @@
+<div class="dashboard-page">
+
+  <!-- WELCOME -->
+  <section class="welcome-section">
+    <div class="hero-overlay"></div>
+
+    <div class="welcome-icon">
+      @if (userPicture) {
+        <img class="welcome-avatar" [src]="userPicture" [alt]="userName" referrerpolicy="no-referrer" />
+      } @else {
+        🎓
+      }
+    </div>
+
+    <div class="welcome-content">
+      <h1>ยินดีต้อนรับสู่ Journal Watch</h1>
+
+      <p class="subtitle">
+        Scopus & TCI Verification System
+      </p>
+
+      <div class="user-meta">
+        <div class="meta-card">
+          <span class="meta-label">ชื่อผู้ใช้งาน</span>
+          <span class="meta-value">{{ userName }}</span>
+        </div>
+
+        <div class="meta-card">
+          <span class="meta-label">อีเมล</span>
+          <span class="meta-value">{{ userEmail }}</span>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- STEPS -->
+  <section class="steps-section">
+
+    <div class="section-header">
+      <h2>ขั้นตอนการใช้งานระบบ</h2>
+      <p>Workflow การยื่นตรวจสอบวารสารและเอกสาร T3</p>
+    </div>
+
+    <div class="steps-grid">
+
+      <div class="step-card">
+        <div class="step-num">1</div>
+        <h3>ค้นหาวารสาร</h3>
+        <p>กรอกเลข ISSN ระบบตรวจสอบจาก Scopus และ TCI อัตโนมัติ</p>
+      </div>
+
+      <div class="step-card">
+        <div class="step-num">2</div>
+        <h3>ตรวจสอบผล</h3>
+        <p>ดู Quartile, Tier, Active/Discontinued และ MSU Unwanted</p>
+      </div>
+
+      <div class="step-card">
+        <div class="step-num">3</div>
+        <h3>ยื่น Pre-T3</h3>
+        <p>กรอกข้อมูลบทความ ระบบตรวจ Checklist 9 ข้อ ส่งอาจารย์ที่ปรึกษาลงนาม</p>
+      </div>
+
+      <div class="step-card">
+        <div class="step-num">4</div>
+        <h3>รอผลพิจารณา</h3>
+        <p>เจ้าหน้าที่นำเข้าที่ประชุมบัณฑิตวิทยาลัย</p>
+      </div>
+
+      <div class="step-card">
+        <div class="step-num">5</div>
+        <h3>ยื่น T3</h3>
+        <p>หลังบทความตีพิมพ์ ยื่น T3 แนบ Letter of Acceptance และ Full Paper เพื่อให้บัณฑิตวิทยาลัยตรวจสอบและรับรองผลงาน</p>
+      </div>
+
+    </div>
+
+  </section>
+
+  <!-- QUICK ACTION -->
+  <section class="quick-section">
+
+    <div class="section-header">
+      <h2>Quick Actions</h2>
+    </div>
+
+    <div class="quick-actions">
+
+      <a routerLink="/search" class="action-btn navy">
+        🔍 ค้นหาวารสาร
+      </a>
+
+      <a routerLink="/pre-t3" class="action-btn yellow">
+        📋 ยื่น Pre-T3
+      </a>
+
+    </div>
+
+  </section>
+
+ 
+
+</div>

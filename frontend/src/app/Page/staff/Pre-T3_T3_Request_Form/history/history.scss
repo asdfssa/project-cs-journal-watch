@@ -1,0 +1,553 @@
+﻿
+$navy:   #1C2744;
+$yellow: #E8A800;
+$white:  #FFFFFF;
+$bg:     #F6F7FB;
+$border: #E4E8F0;
+$green:  #1A7A42;
+$green-l:#E6F5EE;
+$red:    #C0392B;
+$red-l:  #FDECEA;
+$blue:   #1A5FAB;
+$blue-l: #EAF1FB;
+$muted:  #6B7280;
+$gray:   #9CA3AF;
+
+/* ── PAGE ── */
+.page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 28px 28px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  font-family: 'Sarabun', sans-serif;
+}
+
+/* ── HEADER ── */
+.page-header    { display: flex; flex-direction: column; gap: 4px; }
+.page-title-row { display: flex; align-items: center; gap: 10px; }
+.page-title-icon { font-size: 22px; }
+.page-title     { font-size: 22px; font-weight: 800; color: $navy; margin: 0; }
+.page-subtitle  { font-size: 13px; color: $muted; margin: 0; }
+
+/* ── TAB BAR ── */
+.tab-bar {
+  display: flex;
+  gap: 4px;
+  background: $bg;
+  border: 1.5px solid $border;
+  border-radius: 14px;
+  padding: 6px;
+  box-shadow: 0 2px 8px rgba(28,39,68,0.06);
+}
+.tab-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 20px; border-radius: 10px; font-size: 14px; font-weight: 600; color: $muted;
+  text-decoration: none; white-space: nowrap;
+  background: $white;
+  box-shadow: 0 1px 3px rgba(28,39,68,0.08);
+  transition: all 0.2s ease; font-family: 'Sarabun', sans-serif;
+  &:hover { background: rgba(232,168,0,0.08); color: $navy; }
+  &.tab-active {
+    background: $navy;
+    color: $yellow;
+    box-shadow: 0 3px 10px rgba(28,39,68,0.2);
+  }
+}
+.tab-icon { font-size: 16px; }
+
+/* ── STATS ── */
+.stats-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.stat-pill {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 20px; border-radius: 99px; font-size: 14px; font-weight: 700;
+  .stat-num { font-size: 18px; font-weight: 800; }
+  &--all      { background: #E0F2FE; color: #0369A1; }
+  &--approved { background: $green-l; color: $green; }
+  &--rejected { background: $red-l;   color: $red; }
+}
+
+/* ── FILTER ── */
+.filter-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.filter-btn {
+  padding: 8px 18px; border-radius: 99px; border: 1.5px solid $border;
+  background: $white; color: $muted; font-size: 13px; font-weight: 600;
+  font-family: 'Sarabun', sans-serif; cursor: pointer; transition: all 0.18s;
+  &:hover  { border-color: $navy; color: $navy; }
+  &.active { background: $navy; color: $white; border-color: $navy; }
+  &--type.active { background: $yellow; color: $navy; border-color: $yellow; }
+}
+.filter-divider {
+  width: 1px; height: 26px;
+  background: $border; margin: 0 4px; flex-shrink: 0;
+}
+
+/* ── CARD LIST ── */
+.card-list { display: flex; flex-direction: column; gap: 14px; }
+
+.req-card {
+  display: flex; flex-direction: column; gap: 14px;
+  background: $white; border-radius: 16px; padding: 20px 24px;
+  border: 1.5px solid $border; cursor: default; position: relative;
+  box-shadow: 0 2px 10px rgba(28,39,68,0.06); transition: all 0.2s;
+  border-left-width: 4px;
+
+  &:hover { box-shadow: 0 6px 20px rgba(28,39,68,0.12); border-color: rgba(28,39,68,0.2); }
+  &--approved  { border-left-color: $green; }
+  &--rejected  { border-left-color: $red; }
+  &--cancelled { border-left-color: $muted; opacity: 0.8; }
+
+  &--clickable {
+    cursor: pointer;
+    &:hover {
+      border-color: rgba(232,168,0,0.5);
+      box-shadow: 0 6px 20px rgba(232,168,0,0.12);
+      .req-card-arrow { opacity: 1; transform: translateY(-50%) translateX(3px); }
+    }
+  }
+}
+
+.req-card-arrow {
+  position: absolute; right: 20px; top: 50%; transform: translateY(-50%);
+  font-size: 22px; color: $muted; opacity: 0.3; transition: all 0.2s; line-height: 1; pointer-events: none;
+}
+
+/* TOP ROW */
+.req-card-top       { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; padding-right: 24px; }
+.req-card-top-left  { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 0; }
+.req-card-top-right { display: flex; flex-direction: column; align-items: center; gap: 6px; flex-shrink: 0; }
+
+/* Student row */
+.student-row  { display: flex; align-items: center; gap: 10px; }
+.avatar {
+  width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 13px; font-weight: 700;
+}
+.student-meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.name-row     { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.student-name { font-size: 15px; font-weight: 700; color: $navy; }
+.student-id   { font-size: 12px; color: $muted; }
+
+.type-badge {
+  font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px;
+  &.type-t3    { background: rgba(28,39,68,0.08); color: $navy; }
+  &.type-pret3 { background: rgba(232,168,0,0.14); color: #92600A; }
+}
+
+.article-title {
+  font-size: 13px; color: $muted; font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 560px;
+}
+
+.journal-row        { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.req-journal-label  { font-size: 11.5px; font-weight: 600; color: $muted; flex-shrink: 0; }
+.req-journal-name   { font-size: 13.5px; font-weight: 700; color: $navy; }
+.req-id-chip   { font-size: 11px; color: $navy; font-family: 'IBM Plex Mono', monospace; background: $bg; padding: 4px 10px; border-radius: 6px; border: 1px solid $border; font-weight: 700; }
+.req-date-chip { font-size: 11.5px; color: $muted; }
+
+.badge-db   { font-size: 11.5px; padding: 3px 10px; border-radius: 99px; background: $blue-l;  color: $blue;  border: 1px solid #b8cfef; font-weight: 700; }
+.badge-q    { font-size: 11.5px; padding: 3px 10px; border-radius: 99px; background: rgba(232,168,0,0.12); color: #b87d00; border: 1px solid rgba(232,168,0,0.4); font-weight: 700; }
+.badge-issn { font-size: 11.5px; color: $muted; font-family: 'IBM Plex Mono', monospace; }
+.badge-status-active       { font-size: 11.5px; padding: 3px 10px; border-radius: 99px; background: $green-l; color: $green; border: 1px solid #a8d9bc; font-weight: 700; }
+.badge-status-discontinued { font-size: 11.5px; padding: 3px 10px; border-radius: 99px; background: $red-l;   color: $red;   border: 1px solid #f5c6c0; font-weight: 700; }
+
+.cs-chip {
+  font-size: 12.5px; font-weight: 700; padding: 6px 14px; border-radius: 99px;
+  &.cs-approved  { background: $green-l;  color: $green;  border: 1px solid #a8d9bc; }
+  &.cs-rejected  { background: $red-l;    color: $red;    border: 1px solid #f5c6c0; }
+  &.cs-cancelled { background: #F3F4F6;   color: $muted;  border: 1px solid #D1D5DB; }
+}
+
+/* ── EMPTY STATE ── */
+.empty-state { display: flex; flex-direction: column; align-items: center; padding: 60px 0; gap: 12px; }
+.empty-icon  { font-size: 48px; }
+.empty-text  { font-size: 15px; color: $gray; }
+
+.loading-spinner {
+  width: 40px; height: 40px;
+  border: 3px solid rgba(28,39,68,0.12);
+  border-top-color: #E8A800;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ═══════════════════════════════════════════════════
+   MODAL  — matches pre-t3-history.scss exactly
+═══════════════════════════════════════════════════ */
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+  display: flex; align-items: flex-start; justify-content: center;
+  z-index: 1000; overflow-y: auto; padding: 24px 16px 60px;
+}
+.modal-panel {
+  background: $bg; border-radius: 12px; width: 100%; max-width: 900px;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.25); display: flex; flex-direction: column;
+  animation: slideUp 0.22s ease; overflow: hidden;
+  &::before {
+    content: ''; display: block; height: 6px; flex-shrink: 0;
+    background: linear-gradient(90deg, #262D40 0%, #E0A100 100%);
+  }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.modal-close {
+  width: 34px; height: 34px; border-radius: 50%; border: 1.5px solid $border;
+  background: $white; color: $muted; font-size: 15px; cursor: pointer; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+  &:hover { background: $red-l; color: $red; border-color: $red; }
+}
+
+/* ── MODAL HEADER ── */
+.mh { background: $white; padding: 24px 28px; border-bottom: 1.5px solid $border; display: flex; flex-direction: column; gap: 14px; }
+.mh-row1 { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.mh-icon-title { display: flex; align-items: center; gap: 10px; }
+.mh-file-icon  { font-size: 22px; }
+.mh-title      { font-size: 17px; font-weight: 800; color: $navy; }
+.mh-row1-right { display: flex; align-items: center; gap: 10px; }
+.mh-id-chip    { font-size: 11.5px; font-family: 'IBM Plex Mono', monospace; font-weight: 700; background: $bg; color: $navy; border: 1px solid $border; padding: 4px 12px; border-radius: 8px; }
+.mh-meta { font-size: 12px; color: $muted; strong { color: $navy; font-weight: 700; } }
+.mh-sep  { margin: 0 6px; }
+.mh-content { display: flex; gap: 16px; align-items: flex-start; }
+.mh-left    { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.mh-right   { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.mh-journal-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.mh-journal { font-size: 13.5px; font-weight: 600; color: $navy; }
+.mh-date-box { background: $navy; color: $white; border-radius: 12px; padding: 10px 18px; text-align: center; min-width: 90px; }
+.mh-date-val { font-size: 14px; font-weight: 800; }
+.mh-date-lbl { font-size: 10px; opacity: 0.65; margin-top: 2px; }
+.mh-status-pill {
+  font-size: 12px; font-weight: 700; padding: 7px 16px; border-radius: 99px; white-space: nowrap;
+  background: rgba(232,168,0,0.12); color: #b87d00; border: 1.5px solid rgba(232,168,0,0.4);
+  &.mh-status-pill--approved  { background: $green-l; color: $green; border-color: #a8d9bc; }
+  &.mh-status-pill--rejected  { background: $red-l;   color: $red;   border-color: #f5c6c0; }
+  &.mh-status-pill--cancelled { background: #F3F4F6;  color: $muted; border-color: #D1D5DB; }
+}
+.mh-badges { display: flex; gap: 8px; flex-wrap: wrap; }
+.mh-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.mh-cell   { display: flex; flex-direction: column; gap: 3px; padding: 8px 12px; background: $bg; border-radius: 10px; }
+.mh-lbl    { font-size: 10.5px; font-weight: 600; color: $muted; }
+.mh-val    { font-size: 13px; font-weight: 700; color: $navy; &.mono { font-family: 'IBM Plex Mono', monospace; } }
+.journal-link { color: $blue; text-decoration: underline; font-size: 13px; }
+
+.sbadge        { font-size: 11.5px; padding: 4px 12px; border-radius: 99px; font-weight: 700; }
+.sbadge-blue   { background: $blue-l;  color: $blue;  border: 1px solid #b8cfef; }
+.sbadge-yellow { background: rgba(232,168,0,0.12); color: #b87d00; border: 1px solid rgba(232,168,0,0.4); }
+.sbadge-green  { background: $green-l; color: $green; border: 1px solid #a8d9bc; }
+.sbadge-red    { background: $red-l;   color: $red;   border: 1px solid #f5c6c0; }
+
+/* ── MODAL LOADING ── */
+.modal-loading { padding: 40px; text-align: center; color: $muted; font-size: 14px; font-weight: 600; }
+
+/* ── MODAL BODY ── */
+.modal-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+
+.ms-card { background: $white; border-radius: 16px; box-shadow: 0 2px 12px rgba(28,39,68,0.07); padding: 22px; display: flex; flex-direction: column; gap: 16px; }
+.ms-head { font-size: 14px; font-weight: 800; color: $navy; padding-bottom: 12px; border-bottom: 1.5px solid $border; }
+
+.ms-current {
+  display: flex; align-items: flex-start; gap: 16px; border-radius: 16px; padding: 20px 22px;
+  background: rgba(232,168,0,0.08); border: 1.5px solid rgba(232,168,0,0.35);
+  .ms-current-title { color: #b87d00; }
+  .ms-current-desc  { color: #7a5500; }
+  &.ms-current--approved  { background: rgba(26,122,66,0.08); border-color: rgba(26,122,66,0.35); .ms-current-title { color: $green; } .ms-current-desc { color: #0f5a2f; } }
+  &.ms-current--rejected  { background: rgba(192,57,43,0.08); border-color: rgba(192,57,43,0.35); .ms-current-title { color: $red; }   .ms-current-desc { color: #8b1e14; } }
+  &.ms-current--cancelled { background: #F9FAFB; border-color: #D1D5DB; .ms-current-title { color: $muted; } .ms-current-desc { color: $gray; } }
+}
+.ms-current-icon  { font-size: 28px; flex-shrink: 0; }
+.ms-current-body  { display: flex; flex-direction: column; gap: 6px; }
+.ms-current-title { font-size: 15px; font-weight: 800; }
+.ms-current-desc  { font-size: 13px; line-height: 1.6; }
+
+/* Checklist rows */
+.checklist-list { display: flex; flex-direction: column; gap: 8px; }
+
+.checklist-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 18px; border-radius: 12px;
+  border: 1.5px solid $border; background: $white; transition: box-shadow 0.15s;
+  &--pass { border-color: #C6EDD8; background: #FAFFFE; }
+  &--fail { border-color: #F5C6C0; background: #FFFAFA; }
+}
+
+.checklist-mark {
+  width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 800; line-height: 1;
+  &--pass { background: $green; color: $white; }
+  &--fail { background: $red;   color: $white; }
+}
+
+.checklist-key { font-size: 14px; font-weight: 600; color: $navy; line-height: 1.5; }
+
+/* ── APPROVAL TIMELINE ── */
+.ms-log-wrap { border-radius: 16px; overflow: hidden; box-shadow: 0 2px 12px rgba(28,39,68,0.07); }
+.ms-log-head { display: flex; align-items: center; gap: 10px; background: $navy; color: $white; padding: 14px 22px; font-size: 14px; font-weight: 800; }
+.ms-log-body { background: $white; padding: 20px 22px; }
+
+.timeline { display: flex; flex-direction: column; }
+.tl-item  { display: flex; gap: 16px; }
+.tl-left  { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+.tl-icon  {
+  width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0;
+  &.tl-advisor { background: $green-l; border: 2px solid #a8d9bc; }
+  &.tl-reject  { background: $red-l;   border: 2px solid #f5c6c0; }
+  &.tl-waiting { background: #F3F4F6;  border: 2px solid $border; }
+}
+.tl-line  { width: 2px; flex: 1; min-height: 24px; background: $border; margin: 4px 0; }
+.tl-body  { padding-bottom: 20px; flex: 1; }
+.tl-actor-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 5px; }
+.tl-actor { font-size: 13.5px; font-weight: 700; color: $navy; }
+.tl-badge {
+  font-size: 10.5px; padding: 2px 9px; border-radius: 99px; font-weight: 700;
+  &.tb-advisor { background: $green-l; color: $green; border: 1px solid #a8d9bc; }
+  &.tb-reject  { background: $red-l;   color: $red;   border: 1px solid #f5c6c0; }
+  &.tb-waiting { background: #F3F4F6;  color: $gray;  border: 1px solid $border; }
+}
+.tl-time   { font-size: 11.5px; color: $muted; margin-left: auto; white-space: nowrap; }
+.tl-detail { font-size: 12px; color: $muted; line-height: 1.7; margin-top: 8px; padding-top: 8px; border-top: 1px dashed $border; }
+
+/* ══ T3 MODAL — matches staff t3-request style ══ */
+.t3-modal {
+  background: $white; border-radius: 12px; width: 100%; max-width: 800px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25); overflow: hidden; flex-shrink: 0;
+  display: flex; flex-direction: column;
+  &::before { content: ''; display: block; height: 6px; flex-shrink: 0;
+    background: linear-gradient(90deg, #262D40 0%, #E0A100 100%); }
+}
+
+.t3-modal-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 20px 24px 16px; border-bottom: 1px solid $border;
+}
+.t3-modal-header-left { display: flex; flex-direction: column; gap: 6px; }
+.t3-modal-title { font-size: 17px; font-weight: 800; color: $navy; }
+.t3-modal-meta  { display: flex; align-items: center; gap: 10px; font-size: 12px; color: $muted; flex-wrap: wrap; }
+.t3-modal-close {
+  background: none; border: none; font-size: 18px; color: $muted;
+  cursor: pointer; padding: 4px 8px; border-radius: 6px;
+  &:hover { background: #f3f4f6; color: $navy; }
+}
+
+.t3-status-badge {
+  font-size: 11px; font-weight: 700; padding: 3px 12px; border-radius: 99px;
+  &.badge-approved  { background: #D1FAE5; color: #065F46; border: 1px solid #A7F3D0; }
+  &.badge-rejected  { background: #FEE2E2; color: #991B1B; border: 1px solid #FECACA; }
+  &.badge-cancelled { background: #F3F4F6; color: $muted;  border: 1px solid $border; }
+}
+
+.t3-modal-body   { padding: 20px 24px 24px; display: flex; flex-direction: column; gap: 20px; }
+.t3-modal-footer { display: flex; justify-content: flex-end; padding: 14px 24px; border-top: 1px solid $border; background: $white; }
+
+/* ปุ่ม "ปิด" เป็นปุ่มเดียวใน footer นี้ (ไม่มีปุ่มคู่แบบ cancel/confirm) เลยให้
+   น้ำหนักเป็นปุ่มหลักแบบเดียวกับ .btn-save แทนปุ่มขอบบางสีเทาที่ดูจางเกินไป */
+.btn-cancel {
+  padding: 10px 28px;
+  border: none;
+  background: $navy;
+  color: $yellow;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: 'Sarabun', sans-serif;
+  box-shadow: 0 2px 10px rgba(28,39,68,0.18);
+  transition: all 0.2s;
+
+  &:hover {
+    background: #2a3758;
+    box-shadow: 0 4px 14px rgba(28,39,68,0.26);
+    transform: translateY(-1px);
+  }
+}
+
+.detail-loading { padding: 20px 0; text-align: center; color: $muted; font-size: 14px; }
+
+.pre-t3-evidence-note {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px 16px; border-radius: 10px;
+  background: rgba(26,122,66,0.06); border: 1.5px solid rgba(26,122,66,0.25);
+  font-size: 13px; color: #155d30; line-height: 1.6;
+  strong { font-weight: 700; }
+}
+.pre-t3-evidence-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+
+.badge-db-inline {
+  font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px;
+  background: rgba(26,95,171,0.1); color: #1A5FAB; border: 1px solid rgba(26,95,171,0.2);
+}
+
+/* ── RESULT (T3 modal bottom) ── */
+.result-section {
+  display: flex; align-items: flex-start; gap: 16px;
+  padding: 20px 22px; border-radius: 12px; border: 1.5px solid $border;
+  &.result-approved  { background: rgba(26,122,66,0.06);  border-color: rgba(26,122,66,0.3); }
+  &.result-rejected  { background: rgba(192,57,43,0.06);  border-color: rgba(192,57,43,0.3); }
+  &.result-cancelled { background: #F9FAFB; border-color: #D1D5DB; }
+}
+.result-icon  { font-size: 28px; flex-shrink: 0; }
+.result-body  { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.result-title { font-size: 15px; font-weight: 800; color: $navy; }
+.result-apv-row   { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.result-apv-label { font-size: 12px; color: $muted; font-weight: 600; }
+.result-apv-chip  {
+  font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 99px;
+  &.chip-ok { background: #D1FAE5; color: #065F46; border: 1px solid #A7F3D0; }
+  &.chip-no { background: #FEE2E2; color: #991B1B; border: 1px solid #FECACA; }
+}
+.result-apv-date   { font-size: 11px; color: $muted; }
+.result-apv-remark { font-size: 11px; color: $muted; font-style: italic; }
+
+/* ── DETAIL SECTIONS (T3 modal) ── */
+.detail-section      { display: flex; flex-direction: column; gap: 14px; }
+.detail-section-head { display: flex; align-items: center; gap: 10px; }
+.section-num {
+  width: 26px; height: 26px; border-radius: 50%; background: $navy; color: $white;
+  display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0;
+}
+.section-title { font-size: 14px; font-weight: 700; color: $navy; }
+
+.detail-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  background: $bg; border-radius: 10px; padding: 16px;
+}
+.detail-field {
+  display: flex; flex-direction: column; gap: 4px;
+  &--wide { grid-column: 1 / -1; }
+}
+.detail-label { font-size: 11px; font-weight: 600; color: $muted; text-transform: uppercase; letter-spacing: 0.04em; }
+.detail-value { font-size: 13px; color: $navy; font-weight: 500; &.fw-bold { font-weight: 700; } &.mono { font-family: 'IBM Plex Mono', monospace; } }
+
+/* ── EVIDENCE ── */
+.evidence-grid { display: flex; flex-direction: column; gap: 8px; }
+.evidence-card {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 16px; border-radius: 10px; background: $bg;
+  border: 1.5px solid $border; transition: all 0.2s;
+  &:hover { border-color: rgba(28,39,68,0.2); box-shadow: 0 2px 8px rgba(28,39,68,0.06); }
+}
+.evidence-icon { font-size: 24px; flex-shrink: 0; }
+.evidence-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.evidence-name { font-size: 13.5px; font-weight: 700; color: $navy; }
+.evidence-key  { font-size: 11px; color: $muted; font-family: 'IBM Plex Mono', monospace; }
+.evidence-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+.btn-evidence-view {
+  padding: 7px 14px; border-radius: 8px; border: 1.5px solid rgba(26,95,171,0.3);
+  background: rgba(26,95,171,0.06); color: $blue; font-size: 12.5px; font-weight: 700;
+  cursor: pointer; font-family: 'Sarabun', sans-serif; white-space: nowrap; transition: all 0.2s;
+  &:hover:not(:disabled) { background: $blue; color: $white; border-color: $blue; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+.btn-evidence-download {
+  padding: 7px 16px; border-radius: 8px; border: 1.5px solid $border;
+  background: $white; color: $navy; font-size: 12.5px; font-weight: 700;
+  cursor: pointer; font-family: 'Sarabun', sans-serif; white-space: nowrap; transition: all 0.2s;
+  &:hover:not(:disabled) { background: $navy; color: $white; border-color: $navy; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+.spinner-sm {
+  display: inline-block; width: 12px; height: 12px; border-radius: 50%;
+  border: 2px solid rgba(28,39,68,0.2); border-top-color: $navy;
+  animation: spin 0.6s linear infinite; vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* pub status badge */
+.badge-pub-status {
+  font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 99px;
+  &.pub-accepted  { background: #EEF6FF; color: $blue;  border: 1px solid #b8cfef; }
+  &.pub-published { background: $green-l; color: $green; border: 1px solid #a8d9bc; }
+}
+
+/* ── MODAL FOOTER ── */
+.modal-footer { display: flex; align-items: center; gap: 10px; padding: 16px 24px; background: $white; border-top: 1.5px solid $border; }
+.btn-mf { padding: 10px 20px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; border: 1.5px solid $border; font-family: 'Sarabun', sans-serif; transition: all 0.2s; white-space: nowrap; }
+.btn-mf-close { background: $white; color: $navy; &:hover { background: $bg; } }
+
+/* ══ RESPONSIVE — ไฟล์นี้ไม่เคยมี @media เลยมาก่อน ══ */
+@media (max-width: 768px) {
+  .page { padding: 20px 16px 60px; }
+
+  .tab-bar { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .tab-item { padding: 9px 14px; font-size: 13px; }
+  /* padding ฝั่งขวาของ container ที่ overflow-x:auto จะไม่ถูกนับรวมใน scrollable area
+     ในหลายเบราว์เซอร์ (บั๊กที่รู้จักกันดีของ CSS: trailing padding หายไปเมื่อเนื้อหา
+     ล้นออก) ทำให้แท็บตัวสุดท้ายชิดขอบขวาสุดพอดีไม่มีช่องว่างเหมือนฝั่งซ้าย ต้องใช้
+     margin บนตัวสุดท้ายแทน เพราะ margin ของ flex item ถูกนับรวมใน scrollWidth เสมอ */
+  .tab-item:last-child { margin-right: 6px; }
+
+  .modal-panel, .t3-modal { min-width: 0; }
+  .mh { padding: 18px; }
+  .modal-body, .t3-modal-body { padding: 16px 18px 18px; }
+
+  /* .mh-content เดิมแถวเดียว: .mh-left (flex:1;min-width:0) หดได้ไม่จำกัด ขณะที่
+     .mh-right (flex-shrink:0) มี mh-date-box (min-width:90px) ไม่ยอมหด — บนจอแคบ
+     ชื่อวารสารฝั่งซ้ายจะเหลือพื้นที่แคบมาก ต้องสลับเป็น column แทน */
+  .mh-content { flex-direction: column; align-items: stretch; }
+  .mh-right { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-start; }
+
+  .mh-grid,
+  .detail-grid { grid-template-columns: minmax(0, 1fr); }
+
+  /* .tl-actor-row ห่อ (flex-wrap:wrap) ได้ แต่ .tl-time เดิม margin-left:auto ดันลอย
+     ไปขวาสุดแทนที่จะอยู่ชิดกับ badge เมื่อตกบรรทัดใหม่บนจอแคบ — บั๊กเดียวกับที่เจอใน
+     t3-history.scss (Student) มาก่อน */
+  .tl-time { margin-left: 0; }
+
+  /* evidence-actions (ปุ่มดูไฟล์/ดาวน์โหลด flex-shrink:0) ไม่ยอมหด ขณะที่ evidence-info
+     มี min-width:0 หดได้ไม่จำกัด — สลับเป็น column แทน (บั๊กแพทเทิร์นเดียวกับ t3-request) */
+  .evidence-card { flex-wrap: wrap; }
+  .evidence-info { flex-basis: 100%; }
+  .evidence-actions {
+    flex-basis: calc(100% - 38px);
+    margin-left: 38px;
+  }
+  .btn-evidence-view, .btn-evidence-download {
+    flex: 1 1 0;
+    min-width: 0;
+    white-space: normal;
+    text-align: center;
+    padding: 8px 6px;
+  }
+}
+
+@media (max-width: 600px) {
+  /* .req-card-top-left (flex:1;min-width:0) หดได้ไม่จำกัด ขณะที่ .req-card-top-right
+     (flex-shrink:0) ไม่ยอมหด — บั๊กแพทเทิร์นเดียวกับที่เจอซ้ำๆทั้งแอป ต้องบังคับ column
+     ให้ตกคนละแถวแน่นอนแทน (ต้องใส่ width:100% ทั้งคู่ ไม่งั้นจะยุบแคบแบบที่เจอใน
+     t3-history.html มาก่อน) */
+  .req-card-top {
+    flex-direction: column;
+    align-items: stretch;
+    padding-right: 0;
+  }
+  .req-card-top-left,
+  .req-card-top-right { width: 100%; }
+
+  .req-card-top-right {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px 12px;
+    padding-top: 10px;
+    border-top: 1px dashed rgba(28,39,68,0.12);
+  }
+
+  /* ลูกศร position:absolute; top:50% เดิมอิงความสูงการ์ดแถวเดียว พอการ์ดสูงขึ้นจาก
+     column ด้านบน ตำแหน่งจะลอยกลางการ์ดไม่สัมพันธ์กับเนื้อหาแล้ว ซ่อนทิ้งบนจอมือถือ
+     (pointer-events:none อยู่แล้ว ไม่ใช่ปุ่มกดจริง แค่ตัวบอกใบ้ hover บนเดสก์ท็อป) */
+  .req-card-arrow { display: none; }
+
+  .article-title { max-width: none; white-space: normal; }
+
+  .checklist-row { flex-wrap: wrap; }
+}

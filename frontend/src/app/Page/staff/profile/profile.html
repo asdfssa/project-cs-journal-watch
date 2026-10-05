@@ -1,0 +1,161 @@
+<div class="profile-page">
+
+  <!-- LOADING -->
+  @if (isLoading()) {
+    <div class="loading-card">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">กำลังโหลดข้อมูลโปรไฟล์...</div>
+    </div>
+  }
+
+  @if (!isLoading() && profile(); as p) {
+
+    <!-- ══ การ์ดเดียวรวมทุกส่วน พื้นหลังขาวทั้งใบ ══ -->
+    <div class="pcard full-pcard">
+      <div class="pcard-topbar"></div>
+
+      <!-- ── ส่วนหัว: รูปโปรไฟล์ / ชื่อ / สถานะ ── -->
+      <div class="pcard-section profile-header">
+        <div class="hero-left">
+          <div class="hero-avatar-wrap">
+            @if (profilePicture && !imgError) {
+              <img class="hero-avatar-img" [src]="profilePicture" alt="avatar"
+                   (error)="onImgError()" referrerpolicy="no-referrer"/>
+            } @else {
+              <div class="hero-avatar-init">{{ initials }}</div>
+            }
+            <span class="hero-dot"></span>
+          </div>
+          <div class="hero-meta">
+            <div class="hero-role">{{ roleLabel(p.role) }}</div>
+            <div class="hero-name">{{ p.prefix ? p.prefix + ' ' : '' }}{{ p.firstName }} {{ p.lastName }}</div>
+            <div class="hero-email">{{ p.msuMail }}</div>
+          </div>
+        </div>
+        <div class="hero-right">
+          <span class="hero-status">{{ p.accountStatus === 'active' ? 'Active' : p.accountStatus }}</span>
+          @if (p.lastLoginAt) {
+            <div class="hero-login-time">เข้าสู่ระบบล่าสุด: {{ formatDate(p.lastLoginAt) }}</div>
+          }
+        </div>
+      </div>
+
+      <!-- ── ข้อมูลบัญชี + ข้อมูลติดต่อ (2 คอลัมน์ในการ์ดเดียวกัน) ── -->
+      <div class="pcard-section profile-two-col">
+
+        <div class="profile-col">
+          <div class="pcard-hd">
+            <span class="pcard-icon"><i class="ri-id-card-line"></i></span>
+            <span class="pcard-title">ข้อมูลบัญชี</span>
+          </div>
+          <div class="row-list">
+            <div class="row-item">
+              <span class="row-label">รหัสผู้ใช้</span>
+              <span class="row-val mono">#{{ p.userId }}</span>
+            </div>
+            <div class="row-item">
+              <span class="row-label">ชื่อ - นามสกุล</span>
+              <span class="row-val bold">{{ p.firstName }} {{ p.lastName }}</span>
+            </div>
+            <div class="row-item">
+              <span class="row-label">อีเมล MSU</span>
+              <span class="row-val bold">{{ p.msuMail }}</span>
+            </div>
+            <div class="row-item">
+              <span class="row-label">บทบาท</span>
+              <span class="role-pill">{{ roleLabel(p.role) }}</span>
+            </div>
+            <div class="row-item">
+              <span class="row-label">สถานะบัญชี</span>
+              <span class="row-val status-val">
+                <span class="status-dot"></span>{{ p.accountStatus === 'active' ? 'ใช้งานอยู่' : p.accountStatus }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="profile-col">
+          <div class="pcard-hd">
+            <span class="pcard-icon"><i class="ri-contacts-line"></i></span>
+            <span class="pcard-title">ข้อมูลติดต่อ</span>
+            <button class="btn-edit" [class.btn-edit--cancel]="isEditing()"
+                    (click)="isEditing() ? cancelEdit() : openEdit()">
+              @if (isEditing()) { <i class="ri-close-line"></i> ยกเลิก } @else { <i class="ri-edit-line"></i> แก้ไข }
+            </button>
+          </div>
+
+          @if (!isEditing()) {
+            <div class="row-list">
+              <div class="row-item">
+                <span class="row-label">เบอร์โทรศัพท์</span>
+                <span class="row-val bold">{{ p.phone || '—' }}</span>
+              </div>
+              <div class="row-item">
+                <span class="row-label">Facebook ID</span>
+                <span class="row-val bold">{{ p.facebookId || '—' }}</span>
+              </div>
+              <div class="row-item">
+                <span class="row-label">Line ID</span>
+                <span class="row-val">{{ p.lineId || '—' }}</span>
+              </div>
+            </div>
+          } @else {
+            <div class="edit-fields">
+              <div class="edit-field">
+                <label class="edit-label"><i class="ri-phone-line"></i> เบอร์โทรศัพท์</label>
+                <input class="edit-input" type="tel" placeholder="0812345678"
+                       [(ngModel)]="editForm.phone" />
+              </div>
+              <div class="edit-field">
+                <label class="edit-label"><i class="ri-facebook-box-fill"></i> Facebook ID</label>
+                <input class="edit-input" placeholder="somchai.jaidee"
+                       [(ngModel)]="editForm.facebook_id" />
+              </div>
+              <div class="edit-field">
+                <label class="edit-label"><i class="ri-chat-3-line"></i> Line ID</label>
+                <input class="edit-input" placeholder="somchai_line"
+                       [(ngModel)]="editForm.line_id" />
+              </div>
+              @if (saveResult(); as r) {
+                <div [class]="r.ok ? 'save-result success' : 'save-result error'">
+                  @if (r.ok) { <i class="ri-checkbox-circle-line"></i> } @else { <i class="ri-error-warning-line"></i> }
+                  {{ r.msg }}
+                </div>
+              }
+              <button class="btn-save" (click)="saveEdit()" [disabled]="isSaving()">
+                @if (isSaving()) { <span class="save-spinner"></span> กำลังบันทึก... }
+                @else            { <i class="ri-save-line"></i> บันทึกข้อมูล }
+              </button>
+            </div>
+          }
+        </div>
+
+      </div>
+
+      <!-- ── ข้อมูลการเข้าใช้งาน ── -->
+      <div class="pcard-section">
+        <div class="pcard-hd">
+          <span class="pcard-icon"><i class="ri-time-line"></i></span>
+          <span class="pcard-title">ข้อมูลการเข้าใช้งาน</span>
+        </div>
+        <div class="row-list row-list--3col">
+          <div class="row-item">
+            <span class="row-label">เข้าสู่ระบบล่าสุด</span>
+            <span class="row-val bold">{{ formatDate(p.lastLoginAt) }}</span>
+          </div>
+          <div class="row-item">
+            <span class="row-label">คณะ / หน่วยงาน</span>
+            <span class="row-val bold">{{ p.faculty || 'บัณฑิตวิทยาลัย' }}</span>
+          </div>
+          <div class="row-item">
+            <span class="row-label">ภาควิชา</span>
+            <span class="row-val bold">{{ p.department || '—' }}</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  }
+
+</div>

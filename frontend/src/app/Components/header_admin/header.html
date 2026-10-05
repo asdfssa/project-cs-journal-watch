@@ -1,0 +1,50 @@
+<header class="jw-header">
+
+  <!-- ROW 1: top bar -->
+  <div class="top-bar">
+
+    <!-- Hamburger Toggle — แสดงเฉพาะเมื่อ showToggle=true (หน้าที่มี sidebar) -->
+    @if (showToggle) {
+      <button class="hamburger"
+              [class.open]="sidebarOpen"
+              (click)="menuClick.emit()"
+              aria-label="Toggle sidebar">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    }
+
+    <!-- MSU Brand -->
+    <div class="msu-brand">
+      <div class="msu-logo">
+        <img class="msu-logo-img" src="/img_journal/icon_profile_v5.png" alt="MSU Logo"/>
+      </div>
+
+      <div class="msu-divider"></div>
+
+      <div class="msu-text">
+        <span class="msu-th">มหาวิทยาลัยมหาสารคาม</span>
+        <span class="msu-en">MAHASARAKHAM UNIVERSITY</span>
+      </div>
+    </div>
+
+    <!-- Journal Watch title -->
+    <div class="jw-brand">
+      <div class="jw-title-wrap">
+        <span class="jw-title">ส่องวารสาร — ระบบตรวจสอบวารสารวิชาการ</span>
+      </div>
+      <span class="jw-sub">Journal Watch · Scopus &amp; TCI Verification System</span>
+    </div>
+
+  </div>
+
+  <!-- ROW 2: yellow bar -->
+  <div class="yellow-bar">
+    <div class="yellow-inner">
+      <span class="yellow-dot"></span>
+      <span class="yellow-label">Graduate School, Mahasarakham University</span>
+    </div>
+  </div>
+
+</header>

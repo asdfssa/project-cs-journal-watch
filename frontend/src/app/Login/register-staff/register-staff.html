@@ -1,0 +1,102 @@
+<div class="login-page">
+  <div class="login-card">
+
+    <div class="card-topbar"></div>
+
+    <a class="back-btn" routerLink="/login">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M10 3L5 8L10 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      กลับหน้าเข้าสู่ระบบ
+    </a>
+
+    <div class="card-body">
+
+      <!-- LEFT: Logo + Title -->
+      <div class="card-left">
+        <div class="logo-wrap">
+          <div class="logo-ring">
+            <svg class="jw-logo-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="50" cy="50" r="48" fill="#1C2744" stroke="#E8A800" stroke-width="2.5"/>
+              <rect x="25" y="35" width="22" height="28" rx="2" fill="#E8A800"/>
+              <rect x="53" y="35" width="22" height="28" rx="2" fill="#E8A800"/>
+              <rect x="46" y="33" width="8" height="32" rx="1" fill="#B88200"/>
+              <line x1="29" y1="42" x2="43" y2="42" stroke="#1C2744" stroke-width="1.5"/>
+              <line x1="29" y1="47" x2="43" y2="47" stroke="#1C2744" stroke-width="1.5"/>
+              <line x1="29" y1="52" x2="43" y2="52" stroke="#1C2744" stroke-width="1.5"/>
+              <line x1="57" y1="42" x2="71" y2="42" stroke="#1C2744" stroke-width="1.5"/>
+              <line x1="57" y1="47" x2="71" y2="47" stroke="#1C2744" stroke-width="1.5"/>
+              <line x1="57" y1="52" x2="71" y2="52" stroke="#1C2744" stroke-width="1.5"/>
+              <circle cx="66" cy="30" r="9" fill="none" stroke="#fff" stroke-width="2.5"/>
+              <line x1="72" y1="36" x2="78" y2="42" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="logo-pulse"></div>
+        </div>
+
+        <div class="brand-block">
+          <div class="jw-title">
+            <span class="title-jw">Journal</span>
+            <span class="title-watch">Watch</span>
+          </div>
+          <div class="jw-badge">ส่องวารสาร · MSU</div>
+        </div>
+
+        <div class="staff-badge">🔐 เฉพาะเจ้าหน้าที่เท่านั้น</div>
+      </div>
+
+      <!-- DIVIDER -->
+      <div class="card-divider"></div>
+
+      <!-- RIGHT -->
+      <div class="card-right">
+
+        <div class="right-title">ลงทะเบียนเจ้าหน้าที่</div>
+
+        <div class="info-box">
+          <div class="info-item">
+            <span class="info-icon">🔐</span>
+            <span>สำหรับ <strong>เจ้าหน้าที่บัณฑิตวิทยาลัย</strong> เท่านั้น ห้ามนิสิตหรือบุคคลภายนอกใช้งาน</span>
+          </div>
+          <div class="info-divider"></div>
+          <div class="info-item">
+            <span class="info-icon"><i class="ti ti-hourglass"></i></span>
+            <span>หลังลงทะเบียน ต้องรอผู้ดูแลระบบอนุมัติ ก่อนเข้าใช้งานได้</span>
+          </div>
+        </div>
+
+        <!-- Error Banner -->
+        @if (errorMessage()) {
+          <div class="error-banner" [class.error-banner--exists]="errorCode() === 'EMAIL_ALREADY_EXISTS'">
+            <span class="error-icon">
+              {{ errorCode() === 'EMAIL_ALREADY_EXISTS' ? 'ℹ️' : '⚠️' }}
+            </span>
+            <div class="error-body">
+              <div class="error-text">{{ errorMessage() }}</div>
+              @if (errorCode() === 'EMAIL_ALREADY_EXISTS') {
+                <a class="error-link" routerLink="/login">ไปหน้าเข้าสู่ระบบ →</a>
+              }
+            </div>
+          </div>
+        }
+
+        <div class="google-btn-wrap">
+          @if (loading()) {
+            <div class="loading-wrap">
+              <div class="loading-spinner"></div>
+              <span>กำลังดำเนินการ...</span>
+            </div>
+          } @else {
+            <div id="google-btn-register"></div>
+          }
+        </div>
+
+        <div class="login-note">
+          <span class="note-dot"></span>
+          ใช้ได้เฉพาะบัญชี @msu.ac.th ของเจ้าหน้าที่เท่านั้น
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,83 @@
+<div class="dashboard-page">
+
+  <!-- WELCOME HERO -->
+  <section class="welcome-section">
+    <div class="hero-overlay"></div>
+
+    <div class="welcome-icon">
+      @if (userPicture) {
+        <img class="welcome-avatar" [src]="userPicture" [alt]="advisorName" referrerpolicy="no-referrer" />
+      } @else {
+        🎓
+      }
+    </div>
+
+    <div class="welcome-content">
+      <h1>ยินดีต้อนรับสู่ Journal Watch</h1>
+      <p class="subtitle">ระบบจัดการคำร้อง Pre-T3 และ T3 สำหรับอาจารย์ที่ปรึกษา</p>
+
+      <div class="user-meta">
+        <div class="meta-card">
+          <span class="meta-label">ชื่อ</span>
+          <span class="meta-value">{{ advisorName }}</span>
+        </div>
+        <div class="meta-card">
+          <span class="meta-label">อีเมล</span>
+          <span class="meta-value">{{ advisorEmail }}</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- STEPS -->
+  <section class="steps-section">
+    <div class="section-header">
+      <h2>ขั้นตอนการพิจารณาคำร้อง</h2>
+      <p>Workflow การตรวจสอบและลงนามคำร้องของนิสิต</p>
+    </div>
+
+    <div class="steps-grid">
+      <div class="step-card">
+        <div class="step-num">1</div>
+        <h3>รับแจ้งคำร้อง</h3>
+        <p>ระบบแจ้งเตือนเมื่อนิสิตยื่น Pre-T3 หรือ T3 เพื่อรอลงนาม</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">2</div>
+        <h3>ตรวจสอบ Checklist</h3>
+        <p>ตรวจสอบผลการตรวจสอบ 9 ข้ออัตโนมัติและข้อมูลวารสาร</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">3</div>
+        <h3>ลงนามอนุมัติ</h3>
+        <p>พิจารณาและลงนามอนุมัติหรือไม่อนุมัติพร้อมหมายเหตุ</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">4</div>
+        <h3>ติดตามผลคำร้อง</h3>
+        <p>ติดตามความคืบหน้าคำร้องที่ผ่านการลงนามในขั้นถัดไป</p>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- QUICK ACTIONS -->
+  <section class="quick-section">
+    <div class="section-header">
+      <h2>Quick Actions</h2>
+    </div>
+    <div class="quick-actions">
+      <a class="action-btn navy" routerLink="/advisor/pre-t3-request">
+        📋 คำร้อง Pre-T3
+      </a>
+      <a class="action-btn blue" routerLink="/advisor/t3-request">
+        📊 คำร้อง T3
+      </a>
+      <a class="action-btn yellow" routerLink="/search">
+        🔍 ค้นหาวารสาร
+      </a>
+    </div>
+  </section>
+
+</div>

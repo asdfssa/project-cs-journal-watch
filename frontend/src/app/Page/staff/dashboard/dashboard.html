@@ -1,0 +1,143 @@
+<div class="dashboard-page">
+
+  <!-- WELCOME -->
+  <section class="welcome-section">
+    <div class="hero-overlay"></div>
+
+    <div class="welcome-icon">
+      @if (userPicture) {
+        <img class="welcome-avatar" [src]="userPicture" [alt]="staffName" referrerpolicy="no-referrer" />
+      } @else {
+        {{ staffName ? staffName[0] : 'S' }}
+      }
+    </div>
+
+    <div class="welcome-content">
+      <h1>{{ greeting }},<br>{{ staffName || 'เจ้าหน้าที่' }}</h1>
+      <p class="subtitle">ระบบจัดการคำร้องวารสาร · เจ้าหน้าที่บัณฑิตวิทยาลัย</p>
+
+      <div class="user-meta">
+        <div class="meta-card">
+          <span class="meta-label">อีเมล</span>
+          <span class="meta-value">{{ staffEmail }}</span>
+        </div>
+        <div class="meta-card">
+          <span class="meta-label">วันที่วันนี้</span>
+          <span class="meta-value">{{ today }}</span>
+        </div>
+        @if (totalPending() > 0) {
+          <div class="meta-card meta-card--alert">
+            <span class="meta-label">แจ้งเตือน</span>
+            <div class="alert-row">
+              <span class="alert-dot"></span>
+              <span class="meta-value">มีคำร้องรอดำเนินการ {{ totalPending() }} รายการ</span>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </section>
+
+
+  <!-- WORKFLOW STEPS -->
+  <section class="steps-section">
+    <div class="section-header">
+      <h2>ขั้นตอนการดำเนินการ</h2>
+      <p>Workflow การพิจารณาคำร้องของเจ้าหน้าที่บัณฑิตวิทยาลัย</p>
+    </div>
+
+    <div class="steps-grid">
+      <div class="step-card">
+        <div class="step-num">1</div>
+        <h3>รับแจ้งคำร้อง</h3>
+        <p>ระบบแจ้งเตือนเมื่อนิสิตยื่น Pre-T3 หรือ T3 ผ่านอาจารย์ที่ปรึกษาเรียบร้อยแล้ว</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">2</div>
+        <h3>ตรวจสอบเอกสาร</h3>
+        <p>ตรวจสอบความครบถ้วนของเอกสาร Checklist และหลักฐานประกอบทั้งหมด</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">3</div>
+        <h3>นำเสนอที่ประชุม</h3>
+        <p>นำคำร้องเข้าที่ประชุมบัณฑิตวิทยาลัยเพื่อขอมติอนุมัติหรือไม่อนุมัติ</p>
+      </div>
+      <div class="step-card">
+        <div class="step-num">4</div>
+        <h3>แจ้งผลนิสิต</h3>
+        <p>อัปเดตสถานะในระบบและแจ้งผลการพิจารณาให้นิสิตทราบ</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- MAIN GRID: RECENT + QUICK ACTIONS -->
+  <div class="main-grid">
+
+    <!-- Recent Pending -->
+    <section class="panel">
+      <div class="panel-head">
+        <span class="panel-title"><i class="ti ti-clock"></i> คำร้องที่รอดำเนินการล่าสุด</span>
+        @if (!isLoading() && recentItems().length > 0) {
+          <span class="count-chip">{{ recentItems().length }} รายการ</span>
+        }
+      </div>
+
+      @if (isLoading()) {
+        <div class="skeleton-list">
+          @for (i of [1,2,3,4]; track i) {
+            <div class="skeleton-row">
+              <div class="skeleton-avatar"></div>
+              <div class="skeleton-lines">
+                <div class="skeleton-line skeleton-line--wide"></div>
+                <div class="skeleton-line skeleton-line--narrow"></div>
+              </div>
+            </div>
+          }
+        </div>
+      } @else if (recentItems().length === 0) {
+        <div class="empty-state">
+          <div class="empty-state__icon"><i class="ti ti-confetti"></i></div>
+          <div class="empty-state__text">ไม่มีคำร้องที่รอดำเนินการ</div>
+          <div class="empty-state__sub">ทุกคำร้องได้รับการพิจารณาแล้ว</div>
+        </div>
+      } @else {
+        <div class="recent-list">
+          @for (item of recentItems(); track item.studentId + item.type) {
+            <a class="recent-item" [routerLink]="item.routerLink">
+              <div class="recent-avatar" [class.recent-avatar--t3]="item.type === 'T3'">
+                {{ item.studentName[0] }}
+              </div>
+              <div class="recent-body">
+                <div class="recent-name">{{ item.studentName }}</div>
+                <div class="recent-journal">{{ item.journalName }}</div>
+              </div>
+              <div class="recent-right">
+                <span class="type-chip" [class.type-chip--t3]="item.type === 'T3'">
+                  {{ item.type === 'T3' ? 'T3' : 'Pre-T3' }}
+                </span>
+                <span class="recent-date">{{ item.dateLabel }}</span>
+              </div>
+              <span class="recent-arrow">›</span>
+            </a>
+          }
+        </div>
+      }
+    </section>
+
+    <!-- Quick Actions -->
+    <section class="panel">
+      <div class="panel-head">
+        <span class="panel-title"><i class="ti ti-bolt"></i> Quick Actions</span>
+      </div>
+      <div class="quick-actions">
+        <a class="action-btn action-btn--navy"   routerLink="/staff/pre-t3-request"><i class="ti ti-clipboard-text"></i> คำร้อง Pre-T3</a>
+        <a class="action-btn action-btn--blue"   routerLink="/staff/t3-request"><i class="ti ti-chart-bar"></i> คำร้อง T3</a>
+        <a class="action-btn action-btn--green"  routerLink="/staff/history"><i class="ti ti-folder"></i> ประวัติคำร้อง</a>
+        <a class="action-btn action-btn--yellow" routerLink="/search"><i class="ti ti-search"></i> ค้นหาวารสาร</a>
+        <a class="action-btn action-btn--red"    routerLink="/msu-unwanted"><i class="ti ti-ban"></i> MSU Unwanted</a>
+      </div>
+    </section>
+
+  </div>
+
+</div>

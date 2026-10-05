@@ -1,0 +1,607 @@
+<div class="page">
+
+  <!-- PAGE TITLE -->
+  <div class="page-header">
+    <div class="page-title-row">
+      <span class="page-title-icon"><i class="ti ti-clipboard-text"></i></span>
+      <h1 class="page-title">Pre-T3 คำร้อง</h1>
+      <button class="btn-refresh" (click)="loadCards()" [disabled]="isLoading">
+        <span class="refresh-icon" [class.spinning]="isLoading">↻</span>
+        <span>รีเฟรช</span>
+      </button>
+    </div>
+    <p class="page-subtitle">ตรวจสอบและดำเนินการคำร้อง Pre-T3 ของนิสิต</p>
+  </div>
+
+  <!-- TAB BAR -->
+  <div class="tab-bar">
+    <a class="tab-item" routerLink="/staff/pre-t3-request" routerLinkActive="tab-active">
+      <span class="tab-icon"><i class="ti ti-clipboard-text"></i></span><span>Pre-T3 คำร้อง</span>
+    </a>
+    <a class="tab-item" routerLink="/staff/t3-request" routerLinkActive="tab-active">
+      <span class="tab-icon"><i class="ti ti-chart-bar"></i></span><span>T3 คำร้อง</span>
+    </a>
+    <a class="tab-item" routerLink="/staff/history" routerLinkActive="tab-active">
+      <span class="tab-icon"><i class="ti ti-folder"></i></span><span>ประวัติทั้งหมด</span>
+    </a>
+  </div>
+
+
+  <!-- CARD LIST -->
+  <div class="card-list">
+    @if (isLoading) {
+      <div class="empty-state">
+        <div class="loading-spinner"></div>
+      </div>
+    } @else if (filtered.length === 0) {
+      <div class="empty-state">
+        <div class="empty-icon"><i class="ti ti-inbox"></i></div>
+        <div class="empty-text">ไม่มีคำร้องในหมวดนี้</div>
+      </div>
+    }
+    @for (card of filtered; track card.requestId) {
+      <div class="req-card" [class]="'req-card req-card--' + card.status" (click)="openDetail(card)">
+
+        <!-- ═══ LEFT ═══ -->
+        <div class="card-left">
+          <div class="student-row">
+            <div class="student-meta">
+              <div class="name-row">
+                <span class="student-name">{{ card.name }}</span>
+                @if (card.degree) {
+                  <span class="degree-badge" [class]="'degree-badge degree-' + card.degreeType">{{ card.degree }}</span>
+                }
+              </div>
+              <div class="student-id">{{ card.studentId }}</div>
+            </div>
+          </div>
+          @if (card.title) {
+            <div class="article-title">{{ card.title }}</div>
+          }
+          <div class="journal-row">
+            <span class="journal-name" [class.journal-unwanted]="card.journalStatus === 'unwanted'">{{ card.journal }}</span>
+            <span class="issn">{{ card.issn }}</span>
+            <span class="db-badge" [class]="'db-badge db-' + card.database.toLowerCase()">{{ card.database }}</span>
+            @if (card.quartile) { <span class="q-badge">{{ card.quartile }}</span> }
+            @if (card.journalStatus === 'active') {
+              <span class="j-status j-active">● Active</span>
+            } @else if (card.journalStatus === 'discontinued') {
+              <span class="j-status j-discontinued"><i class="ti ti-circle-x"></i> Discontinued</span>
+            } @else if (card.journalStatus === 'unwanted') {
+              <span class="j-status j-unwanted"><i class="ti ti-ban"></i> MSU Unwanted</span>
+            }
+          </div>
+
+          <div class="card-status-row">
+            @if (card.status === 'pending') {
+              <span class="status-chip chip-pending">รอดำเนินการ</span>
+            } @else if (card.status === 'meeting') {
+              <span class="status-chip chip-meeting">● ส่งที่ประชุมแล้ว</span>
+            } @else if (card.status === 'approved') {
+              <span class="status-chip chip-approved"><i class="ti ti-circle-check"></i> อนุมัติแล้ว</span>
+            } @else if (card.status === 'rejected') {
+              <span class="status-chip chip-rejected"><i class="ti ti-circle-x"></i> ไม่อนุมัติ</span>
+            } @else if (card.status === 'auto-rejected') {
+              <span class="status-chip chip-auto-rejected"><i class="ti ti-ban"></i> ระบบปฏิเสธอัตโนมัติ</span>
+            }
+          </div>
+
+        </div>
+
+        <!-- ═══ RIGHT ═══ -->
+        <div class="card-right">
+          <div class="date-row">
+            <span class="date-label">{{ card.dateLabel }}</span>
+            @if (card.advisorTime) { <span class="advisor-time"><i class="ti ti-clock"></i> {{ card.advisorTime }}</span> }
+            @if (card.daysAgo) { <span class="days-ago">{{ card.daysAgo }} วันแล้ว</span> }
+          </div>
+          <div class="request-id">{{ card.requestId }}</div>
+        </div>
+
+        <span class="card-arrow">›</span>
+
+      </div>
+    }
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     DETAIL MODAL
+══════════════════════════════════════════════════════ -->
+@if (activeCard) {
+  <div class="modal-backdrop" (click)="closeDetail()">
+    <div class="modal-panel" (click)="$event.stopPropagation()">
+
+      <!-- ══ MODAL HEADER ══ -->
+      <div class="mh">
+        <div class="mh-row1">
+          <div class="mh-icon-title">
+            <span class="mh-file-icon"><i class="ti ti-file-text"></i></span>
+            <span class="mh-title">Pre-T3 · {{ activeCard.requestId }}</span>
+          </div>
+          <div class="mh-row1-right">
+            <span class="mh-id-chip">{{ activeCard.requestId }}</span>
+            <button class="modal-close" (click)="closeDetail()">✕</button>
+          </div>
+        </div>
+        <div class="mh-meta">
+          นิสิต: <strong>{{ activeCard.name }}</strong>
+          <span class="mh-sep">·</span>
+          รหัส: <strong>{{ activeCard.studentId }}</strong>
+        </div>
+        <div class="mh-right-row">
+          @if (isDetailLoading) {
+            <span class="detail-refreshing"><i class="ti ti-hourglass"></i> กำลังโหลดข้อมูล...</span>
+          }
+          <span class="status-chip" [class]="'status-chip chip-' + activeCard.status">
+            @if (activeCard.status === 'pending') { <i class="ti ti-hourglass"></i> รอดำเนินการ }
+            @else if (activeCard.status === 'meeting') { ● ส่งที่ประชุมแล้ว }
+            @else if (activeCard.status === 'approved') { <i class="ti ti-circle-check"></i> อนุมัติแล้ว }
+            @else if (activeCard.status === 'rejected') { <i class="ti ti-circle-x"></i> ไม่อนุมัติ }
+            @else { <i class="ti ti-ban"></i> ระบบปฏิเสธ }
+          </span>
+        </div>
+      </div>
+
+      <!-- ══ MODAL BODY ══ -->
+      @if (selectedDetail; as d) {
+        <div class="modal-body">
+
+          <!-- Section 1: ข้อมูลนิสิต -->
+          <div class="ms-card">
+            <div class="ms-head"><i class="ti ti-user"></i> ข้อมูลนิสิต</div>
+            <div class="field-grid">
+              <div class="field-item">
+                <div class="field-label">ชื่อ-นามสกุล</div>
+                <div class="field-value">{{ d.studentName }}</div>
+              </div>
+              <div class="field-item">
+                <div class="field-label">รหัสนิสิต</div>
+                <div class="field-value mono">{{ d.studentId }}</div>
+              </div>
+              <div class="field-item">
+                <div class="field-label">ระดับ</div>
+                <div class="field-value">{{ d.level }}</div>
+              </div>
+              <div class="field-item">
+                <div class="field-label">อาจารย์ที่ปรึกษา</div>
+                <div class="field-value">{{ d.advisor }}</div>
+              </div>
+              <div class="field-item">
+                <div class="field-label">อีเมล</div>
+                <div class="field-value mono">{{ d.email }}</div>
+              </div>
+              <div class="field-item">
+                <div class="field-label">หลักสูตรปี</div>
+                <div class="field-value">{{ d.curriculumYear }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 2: ข้อมูลวารสาร & ผลตรวจสอบ -->
+          <div class="ms-card">
+            <div class="ms-head"><i class="ti ti-books"></i> ข้อมูลวารสาร &amp; ผลตรวจสอบ</div>
+            <div class="field-grid">
+              <div class="field-item field-item--wide">
+                <div class="field-label">ชื่อวารสาร</div>
+                <div class="field-value fw-bold">{{ d.journalName }}</div>
+              </div>
+              <div class="field-item">
+                <div class="field-label">ISSN</div>
+                <div class="field-value mono">{{ d.issn }}</div>
+              </div>
+              <div class="field-item">
+                <div class="field-label">ฐานข้อมูล</div>
+                <div class="field-value">{{ d.database }}</div>
+              </div>
+              <div class="field-item">
+                <div class="field-label">QUARTILE</div>
+                <div class="field-value">
+                  @if (d.quartile) {
+                    <span class="inline-badge badge-green">{{ d.quartile }}</span>
+                  } @else { <span class="field-dim">-</span> }
+                </div>
+              </div>
+              <div class="field-item">
+                <div class="field-label">SJR</div>
+                <div class="field-value">{{ d.sjr }}</div>
+              </div>
+              <div class="field-item">
+                <div class="field-label">CITESCORE</div>
+                <div class="field-value">{{ d.citescore }}</div>
+              </div>
+              <div class="field-item">
+                <div class="field-label">สถานะวารสาร</div>
+                <div class="field-value">
+                  @if (d.journalActive) {
+                    <span class="inline-badge badge-green">● Active</span>
+                  } @else {
+                    <span class="inline-badge badge-red"><i class="ti ti-circle-x"></i> Discontinued</span>
+                  }
+                </div>
+              </div>
+              <div class="field-item">
+                <div class="field-label">MSU UNWANTED</div>
+                <div class="field-value">
+                  @if (!d.msuUnwanted) {
+                    <span class="inline-badge badge-green">✓ ไม่ติด Unwanted</span>
+                  } @else {
+                    <span class="inline-badge badge-red"><i class="ti ti-ban"></i> ติด Unwanted</span>
+                  }
+                </div>
+              </div>
+              <div class="field-item">
+                <div class="field-label">ผลตรวจสอบระบบ</div>
+                <div class="field-value">
+                  @if (d.systemCheck) {
+                    <span class="inline-badge badge-green">✓ ผ่าน</span>
+                  } @else {
+                    <span class="inline-badge badge-red">✗ ไม่ผ่าน</span>
+                  }
+                </div>
+              </div>
+              <div class="field-item">
+                <div class="field-label">เกณฑ์ที่ใช้</div>
+                <div class="field-value">{{ d.criteria }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 3: ข้อมูลบทความ -->
+          <div class="ms-card">
+            <div class="ms-head"><i class="ti ti-file-text"></i> ข้อมูลบทความ</div>
+            <div class="field-grid">
+              <div class="field-item field-item--full">
+                <div class="field-label">ชื่อบทความ (EN)</div>
+                <div class="field-value">{{ d.articleTitle }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 4: Pre-T3 Checklist -->
+          <div class="ms-card">
+            <div class="ms-head"><i class="ti ti-list-check"></i> Pre-T3 Checklist</div>
+            @if (d.checklistPassed) {
+              <div class="checklist-banner checklist-pass">
+                <span><i class="ti ti-circle-check"></i></span><span>1–9. ผ่านทุกข้อ</span>
+              </div>
+            } @else {
+              <div class="checklist-banner checklist-fail">
+                <span><i class="ti ti-circle-x"></i></span><span>ไม่ผ่านเกณฑ์</span>
+              </div>
+            }
+          </div>
+
+          <!-- Section 5: ความเห็นอาจารย์ที่ปรึกษา -->
+          <div class="ms-card">
+            <div class="ms-head"><i class="ti ti-school"></i> ความเห็นอาจารย์ที่ปรึกษา</div>
+            <div class="field-grid">
+              <div class="field-item">
+                <div class="field-label">มติอาจารย์</div>
+                <div class="field-value">
+                  @if (d.advisorOpinion === 'เห็นชอบ') {
+                    <span class="inline-badge badge-green">✓ {{ d.advisorOpinion }}</span>
+                  } @else { {{ d.advisorOpinion }} }
+                </div>
+              </div>
+              <div class="field-item">
+                <div class="field-label">วันที่ลงนาม</div>
+                <div class="field-value">{{ d.advisorSignDate }}</div>
+              </div>
+              <div class="field-item field-item--full">
+                <div class="field-label">หมายเหตุ</div>
+                <div class="field-value field-remark">{{ d.advisorRemark }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 6: การดำเนินการ (Timeline) -->
+          <div class="ms-card">
+            <div class="ms-head"><i class="ti ti-calendar"></i> การดำเนินการ</div>
+            <div class="timeline">
+              @for (step of d.timeline; track step.label; let last = $last) {
+                <div class="tl-item">
+                  <div class="tl-left">
+                    <div class="tl-dot" [class]="'tl-dot tl-dot--' + step.status">
+                      @if (step.status === 'done') { <i class="ti ti-check"></i> }
+                    </div>
+                    @if (!last) { <div class="tl-line"></div> }
+                  </div>
+                  <div class="tl-body">
+                    <div class="tl-label" [class]="'tl-label tl-label--' + step.status">{{ step.label }}</div>
+                    <div class="tl-date">{{ step.date }}</div>
+                    @if (step.note) { <div class="tl-note">{{ step.note }}</div> }
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+
+          <!-- Section 7: การพิจารณาของเจ้าหน้าที่ -->
+          @if (d.cardStatus === 'pending' || d.cardStatus === 'meeting') {
+            <div class="ms-card review-section">
+              <div class="ms-head"><i class="ti ti-message-circle"></i> การพิจารณาของเจ้าหน้าที่</div>
+
+              <!-- Decision choices -->
+              <div class="review-choices">
+                <button class="review-choice"
+                  [class.review-choice--approved]="inlineDecision === 'approved'"
+                  (click)="inlineDecision = 'approved'">
+                  <span class="choice-indicator choice-indicator--approved">
+                    {{ inlineDecision === 'approved' ? '✓' : '○' }}
+                  </span>
+                  อนุมัติ T3
+                </button>
+                <button class="review-choice"
+                  [class.review-choice--rejected]="inlineDecision === 'rejected'"
+                  (click)="inlineDecision = 'rejected'">
+                  <span class="choice-indicator choice-indicator--rejected">
+                    {{ inlineDecision === 'rejected' ? '✗' : '○' }}
+                  </span>
+                  ไม่อนุมัติ
+                </button>
+              </div>
+
+              <!-- Reject reason (required when rejected) -->
+              @if (inlineDecision === 'rejected') {
+                <div class="meeting-info-panel meeting-info-panel--reject">
+                  <div class="meeting-info-head">
+                    <i class="ti ti-message-circle"></i> เหตุผลการไม่อนุมัติ <span class="required">*</span>
+                    <span class="required-note">จำเป็น</span>
+                  </div>
+                  <textarea class="modal-textarea modal-textarea--reject"
+                    [(ngModel)]="inlineRejectReason"
+                    placeholder="กรุณาระบุเหตุผลที่ไม่อนุมัติ..."
+                    rows="3"></textarea>
+                  @if (showRejectReasonError && !inlineRejectReason.trim()) {
+                    <div class="inline-error"><i class="ti ti-alert-triangle"></i> กรุณาระบุเหตุผลการไม่อนุมัติ</div>
+                  }
+                </div>
+              }
+
+              <!-- Meeting info (required when approved) -->
+              @if (inlineDecision === 'approved') {
+                <div class="meeting-info-panel">
+                  <div class="meeting-info-head">
+                    <i class="ti ti-clipboard-list"></i> ข้อมูลที่ประชุม <span class="required">*</span>
+                    <span class="required-note">จำเป็น</span>
+                  </div>
+                  <div class="meeting-info-grid">
+                    <div class="modal-field">
+                      <div class="modal-field-label">เลขที่ประชุม <span class="required">*</span></div>
+                      <input type="text" class="modal-input"
+                        [(ngModel)]="inlineMeetingNo"
+                        placeholder="เช่น 3/2568">
+                    </div>
+                    <div class="modal-field">
+                      <div class="modal-field-label">วันที่ประชุม <span class="required">*</span></div>
+                      <input type="date" class="modal-input"
+                        [(ngModel)]="inlineMeetingDate">
+                    </div>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div><!-- /modal-body -->
+
+        <!-- ══ MODAL FOOTER ══ -->
+        @if (d.cardStatus === 'pending' || d.cardStatus === 'meeting') {
+          <div class="modal-footer review-footer">
+            <button class="btn-cancel" (click)="closeDetail()">ยกเลิก</button>
+            @if (inlineDecision === 'approved') {
+              <button class="btn-inline-approve"
+                [disabled]="!inlineMeetingNo || !inlineMeetingDate || isSubmittingDecision"
+                (click)="submitInlineDecision('approved')">
+                <i class="ti ti-circle-check"></i> ลงนาม Pre-T3
+              </button>
+            } @else {
+              <button class="btn-inline-approve btn-inline-approve--reject"
+                [disabled]="!inlineRejectReason.trim() || isSubmittingDecision"
+                (click)="submitInlineDecision('rejected')">
+                <i class="ti ti-circle-x"></i> ยืนยันไม่อนุมัติ
+              </button>
+            }
+          </div>
+        }
+      }
+
+      <!-- ══ INLINE CONFIRM OVERLAY ══ -->
+      @if (showInlineConfirm && selectedDetail) {
+        <div class="ic-backdrop" (click)="cancelInlineConfirm()">
+          <div class="ic-card" (click)="$event.stopPropagation()">
+
+            <div class="ic-topbar"></div>
+
+            <div class="ic-icon">
+              @if (pendingAction === 'approved') { <i class="ti ti-circle-check"></i> } @else { <i class="ti ti-circle-x"></i> }
+            </div>
+
+            <div class="ic-title">
+              {{ pendingAction === 'approved' ? 'ยืนยันการลงนาม Pre-T3?' : 'ยืนยันการไม่อนุมัติ Pre-T3?' }}
+            </div>
+            <div class="ic-sub">
+              {{ pendingAction === 'approved'
+                ? 'คุณแน่ใจว่าต้องการลงนามอนุมัติคำร้องนี้ใช่หรือไม่?'
+                : 'คุณแน่ใจว่าต้องการไม่อนุมัติคำร้องนี้ใช่หรือไม่?' }}
+            </div>
+
+            <div class="ic-rows">
+              <div class="ic-row">
+                <span class="ic-row-label">วารสาร</span>
+                <span class="ic-row-value">{{ selectedDetail.journalName }}</span>
+              </div>
+              <div class="ic-row">
+                <span class="ic-row-label">ฐานข้อมูล</span>
+                <span class="ic-row-value">{{ selectedDetail.database }}</span>
+              </div>
+              @if (pendingAction === 'approved') {
+                <div class="ic-row">
+                  <span class="ic-row-label">เลขที่ประชุม</span>
+                  <span class="ic-row-value">{{ inlineMeetingNo }}</span>
+                </div>
+                <div class="ic-row">
+                  <span class="ic-row-label">วันที่ประชุม</span>
+                  <span class="ic-row-value">{{ inlineMeetingDate }}</span>
+                </div>
+              } @else {
+                <div class="ic-row">
+                  <span class="ic-row-label">เหตุผล</span>
+                  <span class="ic-row-value">{{ inlineRejectReason }}</span>
+                </div>
+              }
+            </div>
+
+            <div class="ic-actions">
+              <button class="ic-btn-cancel" (click)="cancelInlineConfirm()">ยกเลิก</button>
+              <button class="ic-btn-confirm"
+                [class.ic-btn-confirm--reject]="pendingAction === 'rejected'"
+                [disabled]="isSubmittingDecision"
+                (click)="confirmAndSubmit()">
+                @if (isSubmittingDecision) {
+                  กำลังดำเนินการ...
+                } @else if (pendingAction === 'approved') {
+                  <i class="ti ti-circle-check"></i> ยืนยัน ลงนาม Pre-T3
+                } @else {
+                  <i class="ti ti-circle-x"></i> ยืนยัน ไม่อนุมัติ
+                }
+              </button>
+            </div>
+
+          </div>
+        </div>
+      }
+
+    </div><!-- /modal-panel -->
+  </div><!-- /modal-backdrop -->
+}
+
+<!-- ══════════════════════════════════════════════════════
+     RECORD-MEETING MODAL (from detail panel)
+══════════════════════════════════════════════════════ -->
+@if (showMeetingModal && selectedDetail) {
+  <div class="meeting-backdrop" (click)="closeMeetingModal()">
+    <div class="meeting-modal" (click)="$event.stopPropagation()">
+      <div class="meeting-header">
+        <span class="meeting-title"><i class="ti ti-notes"></i> บันทึกมติที่ประชุม</span>
+        <button class="modal-close" (click)="closeMeetingModal()">✕</button>
+      </div>
+      <div class="meeting-info-banner">
+        บันทึกมติสำหรับ {{ selectedDetail.requestId }} · {{ selectedDetail.studentName }}
+      </div>
+      <div class="meeting-body">
+        <div class="modal-field">
+          <div class="modal-field-label">มติที่ประชุม <span class="required">*</span></div>
+          <div class="decision-buttons">
+            <button class="decision-btn decision-approve"
+              [class.active]="meetingDecision === 'approved'"
+              (click)="meetingDecision = 'approved'"><i class="ti ti-circle-check"></i> อนุมัติ</button>
+            <button class="decision-btn decision-reject"
+              [class.active]="meetingDecision === 'rejected'"
+              (click)="meetingDecision = 'rejected'"><i class="ti ti-circle-x"></i> ไม่อนุมัติ</button>
+          </div>
+        </div>
+        <div class="modal-field">
+          <div class="modal-field-label">หมายเหตุ</div>
+          <textarea class="modal-textarea" [(ngModel)]="meetingRemark"
+            placeholder="ระบุเหตุผลหรือหมายเหตุเพิ่มเติม (ถ้ามี)" rows="4"></textarea>
+        </div>
+      </div>
+      <div class="meeting-footer">
+        <button class="btn-cancel" (click)="closeMeetingModal()">ยกเลิก</button>
+        <button class="btn-save" [disabled]="!meetingDecision" (click)="saveMeeting()"><i class="ti ti-device-floppy"></i> บันทึกมติ</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ══════════════════════════════════════════════════════
+     SEND-TO-MEETING MODAL
+══════════════════════════════════════════════════════ -->
+@if (showSendMeetingModal && sendMeetingCard) {
+  <div class="action-modal-backdrop" (click)="closeSendMeetingModal()">
+    <div class="action-modal" (click)="$event.stopPropagation()">
+
+      <div class="action-modal-header">
+        <span class="action-modal-title"><i class="ti ti-circle-check"></i> อนุมัติคำร้อง</span>
+        <button class="modal-close" (click)="closeSendMeetingModal()">✕</button>
+      </div>
+
+      <div class="action-info-banner action-info-banner--blue">
+        อนุมัติ {{ sendMeetingCard.requestId }} · {{ sendMeetingCard.name }}
+      </div>
+
+      <div class="action-modal-body">
+        <div class="modal-field">
+          <div class="modal-field-label">วันที่ประชุม <span class="required">*</span></div>
+          <input type="date" class="modal-input" [(ngModel)]="sendMeetingDate">
+        </div>
+        <div class="modal-field">
+          <div class="modal-field-label">วาระที่ (meeting_no)</div>
+          <input type="text" class="modal-input" [(ngModel)]="sendMeetingNo"
+            placeholder="เช่น 3/2568">
+        </div>
+      </div>
+
+      <div class="action-modal-footer">
+        <button class="btn-cancel" (click)="closeSendMeetingModal()">ยกเลิก</button>
+        <button class="btn-send-meeting"
+          [disabled]="!sendMeetingDate || isSending"
+          (click)="confirmSendMeeting()">
+           {{ isSending ? 'กำลังส่ง...' : 'อนุมัติ' }}
+        </button>
+      </div>
+
+    </div>
+  </div>
+}
+
+<!-- ══════════════════════════════════════════════════════
+     INSTANT-REJECT MODAL
+══════════════════════════════════════════════════════ -->
+@if (showRejectModal && rejectCard) {
+  <div class="action-modal-backdrop" (click)="closeRejectModal()">
+    <div class="action-modal" (click)="$event.stopPropagation()">
+
+      <div class="action-modal-header action-modal-header--reject">
+        <span class="action-modal-title action-modal-title--reject"><i class="ti ti-circle-x"></i> ไม่อนุมัติทันที</span>
+        <button class="modal-close" (click)="closeRejectModal()">✕</button>
+      </div>
+
+      <div class="action-info-banner action-info-banner--red">
+        ไม่อนุมัติทันที: {{ rejectCard.requestId }} · {{ rejectCard.name }}
+      </div>
+
+      <div class="action-modal-body">
+        <div class="modal-field">
+          <div class="modal-field-label">เหตุผล <span class="required">*</span></div>
+          <textarea class="modal-textarea modal-textarea--reject"
+            [(ngModel)]="rejectReason"
+            placeholder="ระบุเหตุผลการไม่อนุมัติ..."
+            rows="4"></textarea>
+          @if (!rejectReason.trim()) {
+            <div class="remark-error-msg"><i class="ti ti-alert-triangle"></i> กรุณาระบุเหตุผล</div>
+          }
+        </div>
+      </div>
+
+      <div class="action-modal-footer">
+        <button class="btn-cancel" (click)="closeRejectModal()">ยกเลิก</button>
+        <button class="btn-confirm-reject"
+          [disabled]="!rejectReason.trim() || isRejecting"
+          (click)="confirmReject()">
+          <i class="ti ti-circle-x"></i> {{ isRejecting ? 'กำลังส่ง...' : 'ยืนยันไม่อนุมัติ' }}
+        </button>
+      </div>
+
+    </div>
+  </div>
+}
+
+<!-- ══ TOAST ══ -->
+@if (toastMessage) {
+  <div [class]="'toast-notification toast--' + toastType">
+    {{ toastMessage }}
+  </div>
+}
