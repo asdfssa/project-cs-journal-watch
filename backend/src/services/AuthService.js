@@ -17,6 +17,9 @@ const jwtUtil = require('../utils/jwt');
 const config = require('../config');
 const { OAuth2Client } = require('google-auth-library');
 const googleClient = new OAuth2Client(config.google.clientId);
+
+// hash ปลอมสำหรับ compare ตอนไม่พบ user — ให้ใช้เวลาเท่ากับกรณีพบ user (กันเดา username จากเวลาตอบ)
+const DUMMY_HASH = bcrypt.hashSync('dummy-password-for-timing', 12);
 class AuthError extends Error {
   constructor(message, code, statusCode = 400) {
     super(message);
@@ -32,11 +35,10 @@ class AuthService {
   static async login({ username, password }) {
     const user = await UserModel.findByUsername(username);
 
-    if (!user) {
-      throw new AuthError('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง', 'INVALID_CREDENTIALS', 401);
-    }
-
-    if (!['Admin', 'SuperAdmin'].includes(user.role)) {
+    // ตรวจรหัสผ่านก่อนเสมอ (ใช้ hash ปลอมถ้าไม่มี user) แล้วค่อยบอกสถานะบัญชี —
+    // คนที่ไม่รู้รหัสผ่านจะได้ 401 แบบเดียวกันทุกกรณี เดาไม่ได้ว่ามี username นี้ไหม
+    const passwordOk = await bcrypt.compare(String(password ?? ''), user?.password_hash || DUMMY_HASH);
+    if (!user || !user.password_hash || !['Admin', 'SuperAdmin'].includes(user.role) || !passwordOk) {
       throw new AuthError('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง', 'INVALID_CREDENTIALS', 401);
     }
 
@@ -45,12 +47,6 @@ class AuthService {
     }
     if (user.account_status === 'Pending') {
       throw new AuthError('บัญชีของคุณรอการอนุมัติจากผู้ดูแลระบบ', 'ACCOUNT_PENDING', 403);
-    }
-
-    const passwordOk = await bcrypt.compare(password, user.password_hash);
-
-    if (!passwordOk) {
-      throw new AuthError('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง', 'INVALID_CREDENTIALS', 401);
     }
 
     await this._issueOtpForUser(user);
@@ -71,6 +67,10 @@ class AuthService {
     const user = await UserModel.findById(userId);
     if (!user) {
       throw new AuthError('ไม่พบบัญชีผู้ใช้ในระบบ', 'USER_NOT_FOUND', 404);
+    }
+    // บัญชีอาจถูกระงับระหว่างขั้น login กับขั้นกรอก OTP
+    if (user.account_status !== 'Active') {
+      throw new AuthError('บัญชีนี้ไม่สามารถใช้งานได้ในขณะนี้', 'ACCOUNT_UNAVAILABLE', 403);
     }
 
     const activeOtp = await OtpModel.findActive(userId, 'login_2fa');
@@ -297,17 +297,12 @@ class AuthService {
    */
   static async requestPasswordReset({ username }) {
     const user = await UserModel.findByUsername(username);
+    const expiresIn = config.otp.expiresMinutes * 60;
 
-    if (!user || !['Admin', 'SuperAdmin'].includes(user.role)) {
-      // ตอบ generic เพื่อไม่ให้ enumerate username
-      throw new AuthError('ไม่พบบัญชีผู้ใช้ในระบบ', 'USER_NOT_FOUND', 404);
-    }
-
-    if (user.account_status === 'Suspended') {
-      throw new AuthError('บัญชีนี้ถูกระงับการใช้งาน', 'ACCOUNT_SUSPENDED', 403);
-    }
-    if (user.account_status === 'Pending') {
-      throw new AuthError('บัญชีของคุณรอการอนุมัติจากผู้ดูแลระบบ', 'ACCOUNT_PENDING', 403);
+    // ตอบแบบเดียวกันทุกกรณี (กัน enumerate username) — บัญชีที่รีเซ็ตไม่ได้จะได้
+    // token ที่ไม่ผูกกับ user จริง ขั้น reset-password จะตอบ OTP_EXPIRED เหมือน OTP หมดอายุ
+    if (!user || !['Admin', 'SuperAdmin'].includes(user.role) || user.account_status !== 'Active') {
+      return { resetOtpToken: jwtUtil.issuePasswordResetOtpToken(0), expiresIn };
     }
 
     await OtpModel.invalidateActive(user.user_id, 'password_reset');
@@ -328,13 +323,7 @@ class AuthService {
       throw new AuthError('ส่ง OTP ไม่สำเร็จ กรุณาลองใหม่ภายหลัง', 'OTP_SEND_FAILED', 502);
     }
 
-    const resetOtpToken = jwtUtil.issuePasswordResetOtpToken(user.user_id);
-
-    return {
-      resetOtpToken,
-      maskedEmail: this._maskEmail(user.msu_mail),
-      expiresIn: config.otp.expiresMinutes * 60,
-    };
+    return { resetOtpToken: jwtUtil.issuePasswordResetOtpToken(user.user_id), expiresIn };
   }
 
   /**
@@ -342,15 +331,9 @@ class AuthService {
    */
   static async resetPassword({ userId, otpCode, newPassword }) {
     const user = await UserModel.findById(userId);
-    if (!user) {
-      throw new AuthError('ไม่พบบัญชีผู้ใช้ในระบบ', 'USER_NOT_FOUND', 404);
-    }
-
-    if (!['Admin', 'SuperAdmin'].includes(user.role)) {
-      throw new AuthError('ไม่มีสิทธิ์ดำเนินการ', 'FORBIDDEN', 403);
-    }
-
-    const activeOtp = await OtpModel.findActive(userId, 'password_reset');
+    const activeOtp = user && ['Admin', 'SuperAdmin'].includes(user.role)
+      ? await OtpModel.findActive(userId, 'password_reset')
+      : null;
     if (!activeOtp) {
       throw new AuthError('OTP หมดอายุหรือไม่พบในระบบ กรุณาขอรีเซ็ตรหัสผ่านใหม่', 'OTP_EXPIRED', 400);
     }

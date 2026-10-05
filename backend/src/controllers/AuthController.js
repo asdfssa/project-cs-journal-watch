@@ -234,10 +234,9 @@ static async me(req, res, next) {
 
       return res.json({
         success: true,
-        message: 'ส่ง OTP ไปยังอีเมลของคุณแล้ว',
+        message: 'ถ้ามีบัญชีนี้ในระบบ เราได้ส่ง OTP ไปยังอีเมลที่ลงทะเบียนไว้แล้ว',
         data: {
           resetOtpToken: result.resetOtpToken,
-          maskedEmail: result.maskedEmail,
           expiresIn: result.expiresIn,
         },
       });

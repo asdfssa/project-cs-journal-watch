@@ -5,6 +5,7 @@
  * - requireRole   : ตรวจ role
  */
 const jwtUtil = require('../utils/jwt');
+const db = require('../config/database');
 
 function extractToken(req) {
   const header = req.headers.authorization;
@@ -12,7 +13,7 @@ function extractToken(req) {
   return header.slice(7);
 }
 
-function requireAuth(req, res, next) {
+async function requireAuth(req, res, next) {
   const token = extractToken(req);
   if (!token) {
     return res.status(401).json({
@@ -21,17 +22,9 @@ function requireAuth(req, res, next) {
       message: 'กรุณา login ก่อนเข้าใช้งาน',
     });
   }
+  let payload;
   try {
-    const payload = jwtUtil.verifyToken(token);
-    if (payload.type !== 'access') {
-      return res.status(401).json({
-        success: false,
-        code: 'WRONG_TOKEN_TYPE',
-        message: 'ประเภท Token ไม่ถูกต้อง',
-      });
-    }
-    req.user = payload;
-    next();
+    payload = jwtUtil.verifyToken(token);
   } catch (err) {
     return res.status(401).json({
       success: false,
@@ -39,6 +32,38 @@ function requireAuth(req, res, next) {
       message: 'Token ไม่ถูกต้องหรือหมดอายุ กรุณา login ใหม่',
     });
   }
+  if (payload.type !== 'access') {
+    return res.status(401).json({
+      success: false,
+      code: 'WRONG_TOKEN_TYPE',
+      message: 'ประเภท Token ไม่ถูกต้อง',
+    });
+  }
+
+  // token ยังไม่หมดอายุแต่บัญชีอาจถูกระงับ/ถูกเปลี่ยน role ไปแล้ว — เช็คกับ DB ทุกครั้ง
+  // (ROLE_CHANGED → frontend refresh แล้วได้ token ที่มี role ปัจจุบัน)
+  try {
+    const [rows] = await db.query('SELECT role, account_status FROM users WHERE user_id = ?', [payload.sub]);
+    if (!rows.length || rows[0].account_status !== 'Active') {
+      return res.status(401).json({
+        success: false,
+        code: 'ACCOUNT_INACTIVE',
+        message: 'บัญชีนี้ไม่สามารถใช้งานได้ในขณะนี้ กรุณาติดต่อผู้ดูแลระบบ',
+      });
+    }
+    if (rows[0].role !== payload.role) {
+      return res.status(401).json({
+        success: false,
+        code: 'ROLE_CHANGED',
+        message: 'สิทธิ์ของบัญชีถูกเปลี่ยน กรุณาเข้าสู่ระบบใหม่',
+      });
+    }
+  } catch (err) {
+    return next(err);
+  }
+
+  req.user = payload;
+  next();
 }
 
 function requireOtpToken(req, res, next) {
