@@ -68,6 +68,17 @@ function normalizePublicationType(rawType, preT3) {
   return NATIONAL_TIER_MAP[tier] || 'National_TCI_Tier2';
 }
 
+// น้ำหนักคะแนนตามเกณฑ์ใน schema (001_schema.sql publication_type) — backend คำนวณเอง ไม่เชื่อค่าจาก client
+// (เดิมใช้ weight_score ที่ FE ส่งมา 1.0/0.5 ตรงๆ ได้ Tier1 + 0.5 ขัดกันเอง และ client ใส่เลขอะไรก็ได้)
+const WEIGHT_BY_TYPE = {
+  International_Journal:           1.0,
+  National_TCI_Tier1:              0.8,
+  National_TCI_Tier2:              0.6,
+  International_Conference:        0.4,
+  National_Conference:             0.2,
+  Intl_Journal_Faculty_Recognized: 0.1,
+};
+
 // Frontend sends lowercase 'accepted'/'published'; the DB enum is capitalized.
 function normalizePubStatus(value) {
   return value && /published/i.test(value) ? 'Published' : 'Accepted';
@@ -107,7 +118,7 @@ class T3Controller {
     paper_and_research_details.innovation_type = normalizeInnovationType(paper_and_research_details.innovation_type);
 
     // ตรวจ publication_details
-    const pubRequired = ['type', 'weight_score'];
+    const pubRequired = ['type'];  // weight_score คำนวณจาก type เอง (WEIGHT_BY_TYPE)
     for (const field of pubRequired) {
       if (publication_details[field] === undefined) {
         return { error: {
@@ -140,6 +151,7 @@ class T3Controller {
       } };
     }
     publication_details.type   = normalizePublicationType(publication_details.type, preT3);
+    publication_details.weight_score = WEIGHT_BY_TYPE[publication_details.type];
     publication_details.status = normalizePubStatus(publication_details.status);
 
     // ดึงข้อมูลนิสิต

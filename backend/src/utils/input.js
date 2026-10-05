@@ -18,4 +18,13 @@ function nonStringField(body, fields) {
   return fields.find(f => body[f] != null && typeof body[f] !== 'string') || null;
 }
 
-module.exports = { parsePagination, nonStringField };
+/**
+ * ISSN → รูปแบบเดียว "XXXX-XXXX" (ตัด ขีด/ช่องว่าง, x → X) — ไม่ครบ 8 ตัวคืน null (รูปแบบผิด)
+ * ใช้ทั้งตอนบันทึกและตอนค้น ให้ 12345678 / 1234-5678 / 1234 5678 เป็นค่าเดียวกัน
+ */
+function normalizeIssn(value) {
+  const clean = String(value ?? '').toUpperCase().replace(/[^0-9X]/g, '');
+  return /^\d{7}[\dX]$/.test(clean) ? `${clean.slice(0, 4)}-${clean.slice(4)}` : null;
+}
+
+module.exports = { parsePagination, nonStringField, normalizeIssn };

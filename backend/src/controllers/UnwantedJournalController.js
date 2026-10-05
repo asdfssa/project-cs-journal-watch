@@ -9,7 +9,7 @@ const path = require('path');
 const fs = require('fs');
 const { parse } = require('csv-parse/sync');
 const { serverError } = require('../utils/errorResponse');
-const { parsePagination } = require('../utils/input');
+const { parsePagination, normalizeIssn } = require('../utils/input');
 const { verifyFileType, MIME_TO_EXT } = require('../middlewares/upload');
 
 // ลบไฟล์แบบไม่ throw — ใช้ใน multer callback (Express 4 จับ error ใน callback ไม่ได้ → unhandled rejection)
@@ -57,10 +57,12 @@ class UnwantedJournalController {
   // ============================================================
   static async checkByIssn(req, res, next) {
     try {
-      const issn = req.params.issn?.trim();
-
-      if (!issn) {
+      if (!req.params.issn?.trim()) {
         return res.status(400).json({ success: false, message: 'กรุณาระบุ ISSN' });
+      }
+      const issn = normalizeIssn(req.params.issn);
+      if (!issn) {
+        return res.status(400).json({ success: false, message: 'รูปแบบ ISSN ไม่ถูกต้อง (เช่น 1234-5678)' });
       }
 
       const [rows] = await db.query(
@@ -168,11 +170,17 @@ class UnwantedJournalController {
         if (!recorded_date)
           return res.status(400).json({ success: false, message: 'กรุณาระบุวันที่บันทึก' });
 
-        if (issn?.trim()) {
+        const issnNorm = issn?.trim() ? normalizeIssn(issn) : null;
+        if (issn?.trim() && !issnNorm) {
+          if (req.file) removeFile(req.file.path);
+          return res.status(400).json({ success: false, message: 'รูปแบบ ISSN ไม่ถูกต้อง (เช่น 1234-5678)' });
+        }
+
+        if (issnNorm) {
           const [dup] = await db.query(
             `SELECT unwanted_id FROM msu_unwanted_journals
              WHERE issn = ?`,
-            [issn.trim()]
+            [issnNorm]
           );
           if (dup.length) {
             if (req.file) removeFile(req.file.path);
@@ -189,7 +197,7 @@ class UnwantedJournalController {
              (issn, journal_name, publisher, note, evidence_file_path, recorded_date, created_by)
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
           [
-            issn?.trim() || null,
+            issnNorm,
             journal_name.trim(),
             publisher?.trim() || null,
             note?.trim() || null,
@@ -240,6 +248,7 @@ class UnwantedJournalController {
 
         const errors = [];
 
+        records.forEach(r => { r._issn = r.issn?.trim() ? normalizeIssn(r.issn) : null; });
         for (let i = 0; i < records.length; i++) {
           const row = records[i];
           const rowNum = i + 2;
@@ -247,20 +256,22 @@ class UnwantedJournalController {
           if (!row.journal_name?.trim()) errors.push(`Row ${rowNum}: ไม่มี journal_name`);
           if (!row.recorded_date?.trim()) errors.push(`Row ${rowNum}: ไม่มี recorded_date`);
 
+          if (row.issn?.trim() && !row._issn) errors.push(`Row ${rowNum}: รูปแบบ ISSN ไม่ถูกต้อง (${row.issn})`);
+
           // เช็คซ้ำใน DB
-          if (row.issn?.trim()) {
+          if (row._issn) {
             const [dup] = await db.query(
               `SELECT unwanted_id FROM msu_unwanted_journals
                WHERE issn = ?`,
-              [row.issn.trim()]
+              [row._issn]
             );
             if (dup.length) errors.push(`Row ${rowNum}: ISSN ${row.issn} มีอยู่ในรายการแล้ว`);
           }
 
-          // เช็คซ้ำในไฟล์เดียวกัน
-          if (row.issn?.trim()) {
+          // เช็คซ้ำในไฟล์เดียวกัน (เทียบหลัง normalize — 12345678 กับ 1234-5678 คือตัวเดียวกัน)
+          if (row._issn) {
             const dupInFile = records.filter((r, idx) =>
-              idx !== i && r.issn?.trim() === row.issn.trim()
+              idx !== i && r._issn === row._issn
             );
             if (dupInFile.length) errors.push(`Row ${rowNum}: ISSN ${row.issn} ซ้ำในไฟล์`);
           }
@@ -285,7 +296,7 @@ class UnwantedJournalController {
                  (issn, journal_name, publisher, note, recorded_date, created_by)
                VALUES (?, ?, ?, ?, ?, ?)`,
               [
-                row.issn?.trim() || null,
+                row._issn,
                 row.journal_name.trim(),
                 row.publisher?.trim() || null,
                 row.note?.trim() || null,
@@ -361,6 +372,13 @@ class UnwantedJournalController {
         if (!merged.journal_name) {
           if (req.file) removeFile(req.file.path);
           return res.status(400).json({ success: false, message: 'ชื่อวารสารห้ามว่าง' });
+        }
+        if (body.issn !== undefined && merged.issn) {
+          merged.issn = normalizeIssn(merged.issn);
+          if (!merged.issn) {
+            if (req.file) removeFile(req.file.path);
+            return res.status(400).json({ success: false, message: 'รูปแบบ ISSN ไม่ถูกต้อง (เช่น 1234-5678)' });
+          }
         }
 
         // เช็ค ISSN ซ้ำกับ record อื่น (schema เป็นแค่ INDEX ไม่ใช่ UNIQUE เลย DB ไม่กันให้)
