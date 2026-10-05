@@ -107,3 +107,23 @@ JWT_REFRESH_EXPIRES_MS=3600000   # ไม่ใช้งานเกิน 1 ช
 ```
 refresh ต้องนานกว่า access เสมอ ไม่งั้นคนที่ใช้งานอยู่จะโดนเตะกลางคัน
 ข้อจำกัด: จะดีดออกตอนกด/โหลดข้อมูลครั้งถัดไป ถ้าอยากให้เด้งเองทั้งที่เปิดหน้าค้าง ต้องเพิ่ม idle timer ฝั่ง frontend
+
+## E. refresh พร้อมกันจาก 2 tab แล้วโดน logout (เกิดจาก backend B4 — refresh token ใช้ได้ครั้งเดียวแบบเข้มงวด)
+
+ตั้งแต่ backend commit `fix(B3,B4)` refresh token แต่ละตัวใช้ได้ **ครั้งเดียวจริงๆ** (กัน token ถูกขโมยไปยิงแข่ง)
+ถ้า 2 tab ยิง `POST /auth/refresh` ในจังหวะเดียวกันเป๊ะ tab ที่ช้ากว่าจะได้ 401 → interceptor `logout()`
+ล้าง localStorage ทุก tab (เกิดยาก — ปกติ tab แรก refresh เสร็จและได้ cookie ใหม่ก่อน)
+
+**แนวทางแก้ (`auth.interceptor.ts` / `auth.service.ts`):** ตอน refresh ได้ 401 ให้ **ลอง refresh ซ้ำอีก 1 ครั้ง**
+หลังรอสั้นๆ (เช่น 300–500ms) ก่อนจะ logout — ตอนนั้นเบราว์เซอร์มี cookie ตัวใหม่ที่อีก tab ได้มาแล้ว จึงผ่าน
+```ts
+refreshAccessToken(): Observable<string | null> {
+  const call = () => this.http.post<...>(`${API}/auth/refresh`, {});
+  return call().pipe(
+    catchError(() => timer(400).pipe(switchMap(() => call()))),  // retry 1 ครั้ง
+    map(res => { localStorage.setItem('auth_token', res.data.accessToken); return res.data.accessToken; }),
+    catchError(() => of(null)),
+  );
+}
+```
+(ทำพร้อมข้อ A ได้เลย — ตัด `auth_refresh_token` ออก ยิง body `{}` เพราะ backend อ่านจาก cookie อย่างเดียว)

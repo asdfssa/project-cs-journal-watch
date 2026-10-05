@@ -39,15 +39,16 @@ class RefreshTokenModel {
   }
 
   /**
-   * Revoke token เดียว (logout)
+   * Revoke token เดียว (logout / rotate) — คืน true เฉพาะ request แรกที่ revoke สำเร็จ
    */
   static async revokeByHash(tokenHash) {
-    await db.query(
+    const [result] = await db.query(
       `UPDATE auth_tokens
        SET consumed_at = NOW()
-       WHERE token_hash = ? AND token_type = 'Refresh'`,
+       WHERE token_hash = ? AND token_type = 'Refresh' AND consumed_at IS NULL`,
       [tokenHash]
     );
+    return result.affectedRows > 0;
   }
 
   /**

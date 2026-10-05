@@ -78,7 +78,8 @@ class AuthService {
       throw new AuthError('OTP หมดอายุหรือไม่พบในระบบ กรุณาเข้าสู่ระบบใหม่', 'OTP_EXPIRED', 400);
     }
 
-    if (activeOtp.attempt_count >= config.otp.maxAttempts) {
+    // จองสิทธิ์ลองก่อนเทียบ (atomic) — ยิงพร้อมกันกี่ request ก็ลองได้ไม่เกิน maxAttempts
+    if (!(await OtpModel.consumeAttempt(activeOtp.otp_id, config.otp.maxAttempts))) {
       await OtpModel.markAsUsed(activeOtp.otp_id);
       throw new AuthError('ป้อน OTP เกินจำนวนครั้ง กรุณาเข้าสู่ระบบใหม่', 'OTP_MAX_ATTEMPTS', 429);
     }
@@ -86,12 +87,13 @@ class AuthService {
     const isValid = cryptoUtil.compareOtpHash(otpCode, activeOtp.otp_hash);
 
     if (!isValid) {
-      await OtpModel.incrementAttempts(activeOtp.otp_id);
-      const attemptsLeft = config.otp.maxAttempts - (activeOtp.attempt_count + 1);
+      const attemptsLeft = Math.max(0, config.otp.maxAttempts - (activeOtp.attempt_count + 1));
       throw new AuthError(`OTP ไม่ถูกต้อง เหลืออีก ${attemptsLeft} ครั้ง`, 'OTP_INVALID', 400);
     }
 
-    await OtpModel.markAsUsed(activeOtp.otp_id);
+    if (!(await OtpModel.markAsUsed(activeOtp.otp_id))) {
+      throw new AuthError('OTP นี้ถูกใช้ไปแล้ว กรุณาเข้าสู่ระบบใหม่', 'OTP_EXPIRED', 400);
+    }
 
     const accessToken = jwtUtil.issueAccessToken(user);
     const { token: refreshToken, hash, expiresAt } = jwtUtil.issueRefreshToken();
@@ -234,8 +236,11 @@ class AuthService {
       throw new AuthError('บัญชีนี้ไม่สามารถใช้งานได้ในขณะนี้', 'ACCOUNT_UNAVAILABLE', 401);
     }
 
-    // Rotate: revoke token เก่า ออก token ใหม่
-    await RefreshTokenModel.revokeByHash(tokenHash);
+    // Rotate: revoke token เก่าแบบ atomic — ถ้ามี request อื่นใช้ token นี้ไปก่อนแล้ว
+    // (refresh พร้อมกัน / token ถูกขโมยไปยิงแข่ง) จะได้ token ใหม่แค่ request เดียว
+    if (!(await RefreshTokenModel.revokeByHash(tokenHash))) {
+      throw new AuthError('Refresh Token ไม่ถูกต้องหรือหมดอายุ', 'INVALID_REFRESH_TOKEN', 401);
+    }
 
     const newAccessToken = jwtUtil.issueAccessToken(user);
     const { token: newRefreshToken, hash: newHash, expiresAt } = jwtUtil.issueRefreshToken();
@@ -338,7 +343,8 @@ class AuthService {
       throw new AuthError('OTP หมดอายุหรือไม่พบในระบบ กรุณาขอรีเซ็ตรหัสผ่านใหม่', 'OTP_EXPIRED', 400);
     }
 
-    if (activeOtp.attempt_count >= config.otp.maxAttempts) {
+    // จองสิทธิ์ลองก่อนเทียบ (atomic) — ยิงพร้อมกันกี่ request ก็ลองได้ไม่เกิน maxAttempts
+    if (!(await OtpModel.consumeAttempt(activeOtp.otp_id, config.otp.maxAttempts))) {
       await OtpModel.markAsUsed(activeOtp.otp_id);
       throw new AuthError('ป้อน OTP เกินจำนวนครั้ง กรุณาขอรีเซ็ตรหัสผ่านใหม่', 'OTP_MAX_ATTEMPTS', 429);
     }
@@ -346,12 +352,13 @@ class AuthService {
     const isValid = cryptoUtil.compareOtpHash(otpCode, activeOtp.otp_hash);
 
     if (!isValid) {
-      await OtpModel.incrementAttempts(activeOtp.otp_id);
-      const attemptsLeft = config.otp.maxAttempts - (activeOtp.attempt_count + 1);
+      const attemptsLeft = Math.max(0, config.otp.maxAttempts - (activeOtp.attempt_count + 1));
       throw new AuthError(`OTP ไม่ถูกต้อง เหลืออีก ${attemptsLeft} ครั้ง`, 'OTP_INVALID', 400);
     }
 
-    await OtpModel.markAsUsed(activeOtp.otp_id);
+    if (!(await OtpModel.markAsUsed(activeOtp.otp_id))) {
+      throw new AuthError('OTP นี้ถูกใช้ไปแล้ว กรุณาขอรีเซ็ตรหัสผ่านใหม่', 'OTP_EXPIRED', 400);
+    }
 
     const passwordHash = await bcrypt.hash(newPassword, 12);
     await UserModel.updatePassword(userId, passwordHash);

@@ -26,19 +26,30 @@ class OtpModel {
     return rows[0] || null;
   }
 
+  /**
+   * ใช้ OTP — คืน true เฉพาะ request แรกที่ใช้สำเร็จ (กันกรอก OTP ถูกพร้อมกันแล้วได้ token 2 ชุด)
+   */
   static async markAsUsed(otpId) {
-    await db.query(
-      `UPDATE otp_requests SET used_at = NOW() WHERE otp_id = ?`,
+    const [result] = await db.query(
+      `UPDATE otp_requests SET used_at = NOW() WHERE otp_id = ? AND used_at IS NULL`,
       [otpId]
     );
+    return result.affectedRows === 1;
   }
 
-  static async incrementAttempts(otpId) {
-    await db.query(
-      `UPDATE otp_requests SET attempt_count = attempt_count + 1 WHERE otp_id = ?`,
-      [otpId]
+  /**
+   * จองสิทธิ์ลอง OTP 1 ครั้งแบบ atomic — ต้องเรียกก่อนเทียบ OTP ทุกครั้ง
+   * คืน false ถ้าใช้ครบ maxAttempts แล้ว (ยิงพร้อมกันกี่ request ก็ได้ลองไม่เกิน maxAttempts)
+   */
+  static async consumeAttempt(otpId, maxAttempts) {
+    const [result] = await db.query(
+      `UPDATE otp_requests SET attempt_count = attempt_count + 1
+        WHERE otp_id = ? AND used_at IS NULL AND attempt_count < ?`,
+      [otpId, maxAttempts]
     );
+    return result.affectedRows === 1;
   }
+
 
   static async invalidateActive(userId, purpose) {
     await db.query(
