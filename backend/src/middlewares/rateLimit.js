@@ -40,11 +40,16 @@ const skipLocalhost = (req) => {
   return isPrivateOrLoopback(ip);
 };
 
+// key ของ rate limit = IP จริงของ client: CF-Connecting-IP ที่ Cloudflare ใส่เอง (เขียนทับค่าที่ client ส่งมา
+// ปลอมผ่าน tunnel ไม่ได้) — ไม่มี header นี้ = เรียกจากเครื่องตัวเอง (port bind แค่ 127.0.0.1) ใช้ req.ip
+const clientIp = (req) => req.get('CF-Connecting-IP') || req.ip;
+
 // 5 login attempts per 15 min per IP (username/password)
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
   skip: skipLocalhost,
+  keyGenerator: clientIp,
   message: {
     success: false,
     code: 'RATE_LIMIT',
@@ -59,6 +64,7 @@ const googleLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 30,
   skip: skipLocalhost,
+  keyGenerator: clientIp,
   message: {
     success: false,
     code: 'RATE_LIMIT',
@@ -73,6 +79,7 @@ const otpLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   max: 10,
   skip: skipLocalhost,
+  keyGenerator: clientIp,
   message: {
     success: false,
     code: 'RATE_LIMIT',
@@ -87,6 +94,7 @@ const registerLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
   skip: skipLocalhost,
+  keyGenerator: clientIp,
   message: {
     success: false,
     code: 'RATE_LIMIT',
@@ -102,6 +110,7 @@ const refreshLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 30,
   skip: skipLocalhost,
+  keyGenerator: clientIp,
   message: {
     success: false,
     code: 'RATE_LIMIT',
@@ -116,6 +125,7 @@ const forgotPasswordLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
   skip: skipLocalhost,
+  keyGenerator: clientIp,
   message: {
     success: false,
     code: 'RATE_LIMIT',
@@ -130,6 +140,7 @@ const scrapeLimiter = rateLimit({
   windowMs: 5 * 60 * 1000,
   max: 10,
   skip: skipLocalhost,
+  keyGenerator: clientIp,
   message: {
     success: false,
     code: 'RATE_LIMIT',

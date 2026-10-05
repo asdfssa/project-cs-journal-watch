@@ -81,7 +81,7 @@ class ScopusProxyService {
       return keyObj;
     }
 
-    throw new Error('All Scopus API keys are throttled, rate-limited, or out of quota');
+    throw Object.assign(new Error('All Scopus API keys are throttled, rate-limited, or out of quota'), { code: 'SCOPUS_QUOTA_EXCEEDED' });
   }
 
   /**

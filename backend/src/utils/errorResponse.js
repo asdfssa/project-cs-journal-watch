@@ -77,6 +77,12 @@ function parseError(err) {
     return { code: 'INVALID_JSON', message: 'รูปแบบ JSON ที่ส่งมาไม่ถูกต้อง', status: 400, raw: err.message };
   }
 
+  // Scopus API key ใช้ไม่ได้ทุกตัว — message ต้องมีคำว่า "quota" เพราะหน้า search ของ FE ใช้ regex
+  // /throttled|rate.?limit|quota/ กับ message ตัดสินใจสลับไป scraping (production ไม่มี debug.raw_message)
+  if (err.code === 'SCOPUS_QUOTA_EXCEEDED') {
+    return { code: 'SCOPUS_QUOTA_EXCEEDED', message: 'Scopus API quota หมดชั่วคราว กำลังเปลี่ยนไปค้นแบบ scraping', status: 503, raw: err.message };
+  }
+
   // คิว scraper เต็ม (services/scrapeQueue.js)
   if (err.code === 'SCRAPER_BUSY') {
     return { code: 'SCRAPER_BUSY', message: 'ระบบกำลังค้นหาให้ผู้ใช้อื่นอยู่ กรุณาลองใหม่อีกสักครู่', status: 429, raw: err.message };

@@ -38,7 +38,9 @@ services:
       DB_PORT: 3306
     ports:
       # 13002 ยังต้องเปิดไว้: tunnel backend-gateway (my_app) ยิง api.farmlnwza007.online/api/v3 มาที่นี่
-      - "13002:3000"
+      # (ผ่าน host.docker.internal — ใช้ได้กับ port ที่ bind 127.0.0.1) — bind แค่ localhost กันเครื่องอื่นใน LAN
+      # ต่อตรงโดยไม่ผ่าน Cloudflare (ปลอม X-Forwarded-For หลบ rate limit ได้)
+      - "127.0.0.1:13002:3000"
       # noVNC ไม่มีรหัสผ่าน (x11vnc -nopw) — bind แค่ localhost กันเปิดออกอินเทอร์เน็ต
       - "127.0.0.1:15902:5900"
       - "127.0.0.1:6082:6080"

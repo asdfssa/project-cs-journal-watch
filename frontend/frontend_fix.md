@@ -145,3 +145,14 @@ backend เพิ่ม `captchaIfFrequent` ที่ `GET /journal/scopus`, `/j
 
 SITE_KEY: ได้จาก Cloudflare dashboard → Turnstile (เจ้าของ backend จะส่งให้) — ทดสอบ local ใช้ test site key
 `1x00000000000000000000AA` (ผ่านเสมอ) หรือ `3x00000000000000000000FF` (บังคับให้กดยืนยัน)
+
+## G. หน้า search: ตัดสินใจสลับไป scraping จาก `code` แทน regex ข้อความ (backend B1/X25)
+
+backend รันเป็น `NODE_ENV=production` แล้ว → error response **ไม่มี `debug.raw_message` อีกต่อไป**
+`isApiQuotaError()` (`Page/shared/search/search.ts` และ `page_admin/shared/search/search.ts`) ยังใช้ได้ เพราะ backend ตั้ง
+`message` ตอน quota หมดให้มีคำว่า "quota" ไว้แล้ว — แต่ควรเปลี่ยนไปเช็ค code ที่ชัดเจนแทน:
+```ts
+private isApiQuotaError(err: any): boolean {
+  return err?.status === 503 && err?.error?.code === 'SCOPUS_QUOTA_EXCEEDED';
+}
+```
