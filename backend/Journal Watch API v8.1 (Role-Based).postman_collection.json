@@ -716,102 +716,10 @@
               },
               "response": []
             },
-            {
-              "name": "อัปโหลดไฟล์แนบ",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{access_token}}"
-                  }
-                ],
-                "body": {
-                  "mode": "formdata",
-                  "formdata": [
-                    {
-                      "key": "acceptance_letter",
-                      "type": "file",
-                      "description": "หนังสือตอบรับ (PDF/JPG/PNG, max 10MB)",
-                      "value": null
-                    },
-                    {
-                      "key": "full_paper",
-                      "type": "file",
-                      "description": "บทความฉบับสมบูรณ์",
-                      "value": null
-                    },
-                    {
-                      "key": "journal_cover",
-                      "type": "file",
-                      "description": "ปกวารสาร",
-                      "value": null
-                    },
-                    {
-                      "key": "table_of_contents",
-                      "type": "file",
-                      "description": "สารบัญ",
-                      "value": null
-                    },
-                    {
-                      "key": "database_evidence",
-                      "type": "file",
-                      "description": "หลักฐานฐานข้อมูล",
-                      "value": null
-                    },
-                    {
-                      "key": "peer_review_result",
-                      "type": "file",
-                      "description": "ผล Peer Review",
-                      "value": null
-                    }
-                  ]
-                },
-                "url": {
-                  "raw": "{{base_url}}/upload/t3/1/files",
-                  "host": [
-                    "{{base_url}}"
-                  ],
-                  "path": [
-                    "upload",
-                    "t3",
-                    "1",
-                    "files"
-                  ]
-                }
-              },
-              "response": []
-            },
-            {
+                        {
               "name": "ดาวน์โหลดไฟล์แนบ",
               "request": {
                 "method": "GET",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{access_token}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{base_url}}/upload/t3/1/files/acceptance_letter",
-                  "host": [
-                    "{{base_url}}"
-                  ],
-                  "path": [
-                    "upload",
-                    "t3",
-                    "1",
-                    "files",
-                    "acceptance_letter"
-                  ]
-                }
-              },
-              "response": []
-            },
-            {
-              "name": "ลบไฟล์แนบ",
-              "request": {
-                "method": "DELETE",
                 "header": [
                   {
                     "key": "Authorization",

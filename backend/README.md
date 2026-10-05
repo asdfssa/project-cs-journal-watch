@@ -177,8 +177,6 @@ schema ใน `db/init/` จะถูกรันตอนสร้าง volume
 
 | Method | Path | คำอธิบาย | Auth |
 |---|---|---|---|
-| POST | `/t3/:id/files` | อัปโหลดไฟล์แนบของ T3 | Student |
-| DELETE | `/t3/:id/files/:field` | ลบไฟล์แนบ | Student |
 | GET | `/t3/:id/files/:field` | ดาวน์โหลด/ดูไฟล์แนบ | ผู้เกี่ยวข้อง/Admin |
 
 ### User Management — `/api/v3/manage/users` (Admin/SuperAdmin/Staff)

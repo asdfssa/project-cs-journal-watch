@@ -529,16 +529,9 @@ class T3Controller {
         journal_metrics:            tryParse(req.body.journal_metrics),
       };
 
-      const result = await T3Controller._validateAndCreate(studentId, body);
-      if (result.error) {
-        const { status, ...errBody } = result.error;
-        return res.status(status).json({ success: false, ...errBody });
-      }
-      const { t3Id, student, majorAdvisor, journal_snapshot, paper_and_research_details } = result;
-
       // --- จัดการไฟล์ (ถ้ามี) ---
-      // เช็ค magic bytes ของทุกไฟล์ก่อน แล้วค่อยเขียนไฟล์ ถ้ามีไฟล์ไหนไม่ผ่านจะได้
-      // ไม่ต้อง rollback ไฟล์ที่เขียนไปแล้วบางส่วน (fail ก่อนเขียนไฟล์ไหนเลย)
+      // เช็ค magic bytes ของทุกไฟล์ก่อนสร้าง T3 และก่อนเขียนไฟล์ ถ้ามีไฟล์ไหนไม่ผ่าน
+      // จะไม่มี T3 ค้างใน DB และไม่มีไฟล์ที่เขียนไปแล้วบางส่วน
       const evidenceFiles = {};
       const uploaded = {};
       const entries = req.files ? Object.entries(req.files).filter(([f]) => FIELD_TO_KEY[f]) : [];
@@ -555,6 +548,13 @@ class T3Controller {
           });
         }
       }
+
+      const result = await T3Controller._validateAndCreate(studentId, body);
+      if (result.error) {
+        const { status, ...errBody } = result.error;
+        return res.status(status).json({ success: false, ...errBody });
+      }
+      const { t3Id, student, majorAdvisor, journal_snapshot, paper_and_research_details } = result;
 
       for (const [fieldName, fileArr] of entries) {
         const key  = FIELD_TO_KEY[fieldName];
