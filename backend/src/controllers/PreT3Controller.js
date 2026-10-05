@@ -103,36 +103,6 @@ class PreT3Controller {
         });
       }
 
-      // Build snapshots จาก DB ทั้งหมด
-      const studentSnapshot = {
-        degree_level:    student.degree_level,
-        study_plan_code: student.study_plan_code,
-        curriculum_year: student.curriculum_year,
-      };
-
-      // student_info snapshot (ดึงจาก DB ไม่เชื่อ Frontend)
-      const studentInfoSnapshot = {
-        student_id:    student.user_id,
-        full_name:     `${student.prefix || ''} ${student.first_name} ${student.last_name}`.trim(),
-        phone:         student.phone         || null,
-        department:    student.department    || null,
-        degree_level:  student.degree_level,
-        msu_mail:      student.msu_mail,
-      };
-
-      // advisor_info snapshot (ดึงจาก DB)
-      const formatAdvisorName = (a) => a
-        ? `${a.prefix || ''} ${a.first_name} ${a.last_name}`.trim()
-        : null;
-
-      const advisorInfoSnapshot = {
-        main_advisor_name:     formatAdvisorName(majorAdvisor),
-        main_advisor_position: majorAdvisor.role || null,
-        co_advisor_1:          formatAdvisorName(co1Advisor)  || null,
-        co_advisor_2:          formatAdvisorName(co2Advisor)  || null,
-        remark:                null,
-      };
-
       // article_info — รับจาก Frontend (นิสิตกรอกเอง)
       const articleInfoData = {
         title_en:     article_info?.title_en     || null,
@@ -146,15 +116,12 @@ class PreT3Controller {
       const preT3Id = await PreT3Model.create(
         studentId,
         journal_snapshot,
-        studentSnapshot,
         checklist_data,
         {
           majorAdvisorId: majorAdvisor.advisor_id,
           coAdvisor1Id:   co1Advisor?.advisor_id || null,
           coAdvisor2Id:   co2Advisor?.advisor_id || null,
         },
-        studentInfoSnapshot,
-        advisorInfoSnapshot,
         articleInfoData,
       );
 
