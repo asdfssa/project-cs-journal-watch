@@ -29,25 +29,8 @@ class PreT3Controller {
       const studentId = req.user.sub;
       const { journal_snapshot, checklist_data, article_info } = req.body;
 
-      // --- Validate required fields ---
-      if (!journal_snapshot || !checklist_data) {
-        return res.status(400).json({
-          success: false,
-          code: 'MISSING_FIELDS',
-          message: 'journal_snapshot และ checklist_data จำเป็นต้องระบุ',
-        });
-      }
-
-      // ตรวจ checklist ต้องมีครบ item1–item9 และเป็น boolean
-      for (let i = 1; i <= 9; i++) {
-        if (typeof checklist_data[`item${i}`] !== 'boolean') {
-          return res.status(400).json({
-            success: false,
-            code: 'INVALID_CHECKLIST',
-            message: `checklist_data.item${i} ต้องเป็น boolean`,
-          });
-        }
-      }
+      const invalid = PreT3Controller._validateBody(req.body);
+      if (invalid) return res.status(400).json({ success: false, ...invalid });
 
       // ดึงข้อมูลนิสิตจาก DB (ไม่เชื่อ Frontend)
       const student = await UserModel.findById(studentId);
@@ -402,13 +385,8 @@ class PreT3Controller {
       const studentId = req.user.sub;
       const { journal_snapshot, checklist_data, article_info } = req.body;
 
-      if (!journal_snapshot || !checklist_data) {
-        return res.status(400).json({
-          success: false,
-          code: 'MISSING_FIELDS',
-          message: 'journal_snapshot และ checklist_data จำเป็นต้องระบุ',
-        });
-      }
+      const invalid = PreT3Controller._validateBody(req.body);
+      if (invalid) return res.status(400).json({ success: false, ...invalid });
 
       const row = await PreT3Model.findById(preT3Id);
       if (!row) {
@@ -540,6 +518,30 @@ class PreT3Controller {
   // ============================================================
   // Helper
   // ============================================================
+  /**
+   * ตรวจ body ของ submit / resubmit — คืน { code, message } ถ้าไม่ผ่าน, null ถ้าผ่าน
+   */
+  static _validateBody({ journal_snapshot: js, checklist_data: cl }) {
+    if (!js || typeof js !== 'object' || !cl || typeof cl !== 'object') {
+      return { code: 'MISSING_FIELDS', message: 'journal_snapshot และ checklist_data จำเป็นต้องระบุ' };
+    }
+    for (const f of ['issn', 'journal_name']) {
+      if (typeof js[f] !== 'string' || !js[f].trim()) {
+        return { code: 'INVALID_JOURNAL', message: `journal_snapshot.${f} จำเป็นต้องระบุ` };
+      }
+    }
+    if (!['Scopus', 'TCI'].includes(js.indexed_database)) {
+      return { code: 'INVALID_JOURNAL', message: 'journal_snapshot.indexed_database ต้องเป็น Scopus หรือ TCI' };
+    }
+    // checklist ต้องมีครบ item1–item9 และเป็น boolean
+    for (let i = 1; i <= 9; i++) {
+      if (typeof cl[`item${i}`] !== 'boolean') {
+        return { code: 'INVALID_CHECKLIST', message: `checklist_data.item${i} ต้องเป็น boolean` };
+      }
+    }
+    return null;
+  }
+
   static _formatRow(row) {
     const parseJson = (val) => {
       if (typeof val === 'string') {

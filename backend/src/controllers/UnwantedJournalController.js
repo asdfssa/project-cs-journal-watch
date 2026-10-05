@@ -444,7 +444,7 @@ class UnwantedJournalController {
     try {
       const { id } = req.params;
       const [target] = await db.query(
-        `SELECT unwanted_id FROM msu_unwanted_journals
+        `SELECT unwanted_id, evidence_file_path FROM msu_unwanted_journals
          WHERE unwanted_id = ?`,
         [id]
       );
@@ -455,6 +455,11 @@ class UnwantedJournalController {
         `DELETE FROM msu_unwanted_journals WHERE unwanted_id = ?`,
         [id]
       );
+
+      // ลบไฟล์หลักฐานหลัง DELETE สำเร็จ — ไฟล์หายไปแล้วก็ไม่เป็นไร
+      if (target[0].evidence_file_path) {
+        fs.promises.unlink(path.join(process.cwd(), target[0].evidence_file_path)).catch(() => {});
+      }
 
       return res.json({ success: true, message: 'ลบวารสารเรียบร้อยแล้ว' });
     } catch (err) { next(err); }
