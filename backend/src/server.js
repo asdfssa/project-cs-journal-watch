@@ -32,6 +32,12 @@ async function runCleanup() {
 runCleanup();
 setInterval(runCleanup, CLEANUP_INTERVAL_MS);
 
+// promise ที่ reject โดยไม่มีใครจับ — Node 20 จะ kill process ทั้งตัว (ทุกคนหลุด + container restart)
+// log ไว้แทน; ส่วน uncaughtException ปล่อยให้ล่มตามเดิม (state ไม่น่าเชื่อแล้ว ให้ Docker restart)
+process.on('unhandledRejection', (reason) => {
+  logger.error(`[unhandledRejection] ${reason?.stack || reason}`);
+});
+
 // Graceful shutdown
 process.on('SIGTERM', () => {
   logger.info('SIGTERM received, shutting down...');

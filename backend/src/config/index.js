@@ -12,6 +12,14 @@ if (missing.length > 0) {
   process.exit(1);
 }
 
+// JWT_SECRET ใช้เซ็น access/OTP/reset token — ค่าตัวอย่างใน .env.example อยู่บน GitHub public
+// ใครรู้ก็ปลอม token ได้ → production ห้าม start ด้วยค่าตัวอย่างหรือค่าสั้นเกินไป
+if (process.env.NODE_ENV === 'production' &&
+    (process.env.JWT_SECRET.startsWith('dev_jwt_secret') || process.env.JWT_SECRET.length < 32)) {
+  console.error('❌ JWT_SECRET ยังเป็นค่าตัวอย่างหรือสั้นกว่า 32 ตัว — สร้างใหม่ด้วย: node -e "console.log(require(\'crypto\').randomBytes(48).toString(\'hex\'))"');
+  process.exit(1);
+}
+
 module.exports = {
   env: process.env.NODE_ENV || 'development',
   port: parseInt(process.env.PORT, 10) || 3000,

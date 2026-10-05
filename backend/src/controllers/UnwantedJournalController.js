@@ -12,6 +12,10 @@ const { serverError } = require('../utils/errorResponse');
 const { parsePagination } = require('../utils/input');
 const { verifyFileType, MIME_TO_EXT } = require('../middlewares/upload');
 
+// ลบไฟล์แบบไม่ throw — ใช้ใน multer callback (Express 4 จับ error ใน callback ไม่ได้ → unhandled rejection)
+// ไฟล์หาย/ลบไม่ได้ไม่ควรทำให้ request พังหรือไปลบไฟล์อื่นใน catch
+const removeFile = (p) => fs.promises.unlink(p).catch(() => {});
+
 // -------------------------------------------------------
 // Multer config สำหรับ evidence file (PDF, JPG, PNG, WEBP)
 // บันทึกลง uploads/unwanted/evidence/
@@ -147,16 +151,16 @@ class UnwantedJournalController {
         return res.status(400).json({ success: false, message: err.message });
       }
 
-      // เช็ค magic bytes จริง — fileFilter เช็คได้แค่ Content-Type ที่ client ส่งมา ปลอมได้
-      if (req.file && !(await verifyFileType(req.file.path))) {
-        fs.unlinkSync(req.file.path);
-        return res.status(400).json({
-          success: false,
-          message: 'ไฟล์หลักฐานมีเนื้อหาไม่ตรงกับประเภทไฟล์ที่ประกาศไว้ (รองรับเฉพาะ PDF, JPG, PNG, WEBP)',
-        });
-      }
-
       try {
+        // เช็ค magic bytes จริง — fileFilter เช็คได้แค่ Content-Type ที่ client ส่งมา ปลอมได้
+        if (req.file && !(await verifyFileType(req.file.path))) {
+          removeFile(req.file.path);
+          return res.status(400).json({
+            success: false,
+            message: 'ไฟล์หลักฐานมีเนื้อหาไม่ตรงกับประเภทไฟล์ที่ประกาศไว้ (รองรับเฉพาะ PDF, JPG, PNG, WEBP)',
+          });
+        }
+
         const { issn, journal_name, publisher, note, recorded_date } = req.body;
 
         if (!journal_name?.trim())
@@ -171,7 +175,7 @@ class UnwantedJournalController {
             [issn.trim()]
           );
           if (dup.length) {
-            if (req.file) fs.unlinkSync(req.file.path);
+            if (req.file) removeFile(req.file.path);
             return res.status(400).json({ success: false, message: `ISSN ${issn} มีอยู่ในรายการแล้ว` });
           }
         }
@@ -197,7 +201,7 @@ class UnwantedJournalController {
 
         return res.status(201).json({ success: true, message: 'เพิ่มวารสารเรียบร้อยแล้ว' });
       } catch (err2) {
-        if (req.file) fs.unlinkSync(req.file.path);
+        if (req.file) removeFile(req.file.path);
         next(err2);
       }
     });
@@ -322,16 +326,16 @@ class UnwantedJournalController {
         return res.status(400).json({ success: false, message: err.message });
       }
 
-      // เช็ค magic bytes จริง — fileFilter เช็คได้แค่ Content-Type ที่ client ส่งมา ปลอมได้
-      if (req.file && !(await verifyFileType(req.file.path))) {
-        fs.unlinkSync(req.file.path);
-        return res.status(400).json({
-          success: false,
-          message: 'ไฟล์หลักฐานมีเนื้อหาไม่ตรงกับประเภทไฟล์ที่ประกาศไว้ (รองรับเฉพาะ PDF, JPG, PNG, WEBP)',
-        });
-      }
-
       try {
+        // เช็ค magic bytes จริง — fileFilter เช็คได้แค่ Content-Type ที่ client ส่งมา ปลอมได้
+        if (req.file && !(await verifyFileType(req.file.path))) {
+          removeFile(req.file.path);
+          return res.status(400).json({
+            success: false,
+            message: 'ไฟล์หลักฐานมีเนื้อหาไม่ตรงกับประเภทไฟล์ที่ประกาศไว้ (รองรับเฉพาะ PDF, JPG, PNG, WEBP)',
+          });
+        }
+
         const { id } = req.params;
         const [target] = await db.query(
           `SELECT * FROM msu_unwanted_journals
@@ -339,7 +343,7 @@ class UnwantedJournalController {
           [id]
         );
         if (!target.length) {
-          if (req.file) fs.unlinkSync(req.file.path);
+          if (req.file) removeFile(req.file.path);
           return res.status(404).json({ success: false, message: 'ไม่พบวารสาร' });
         }
 
@@ -355,7 +359,7 @@ class UnwantedJournalController {
         };
 
         if (!merged.journal_name) {
-          if (req.file) fs.unlinkSync(req.file.path);
+          if (req.file) removeFile(req.file.path);
           return res.status(400).json({ success: false, message: 'ชื่อวารสารห้ามว่าง' });
         }
 
@@ -366,7 +370,7 @@ class UnwantedJournalController {
             [merged.issn, id]
           );
           if (dup.length) {
-            if (req.file) fs.unlinkSync(req.file.path);
+            if (req.file) removeFile(req.file.path);
             return res.status(400).json({ success: false, message: `ISSN ${merged.issn} มีอยู่ในรายการแล้ว` });
           }
         }
@@ -397,11 +401,11 @@ class UnwantedJournalController {
         );
 
         // UPDATE สำเร็จแล้วค่อยลบไฟล์เก่าทิ้ง
-        if (oldPathToDelete && fs.existsSync(oldPathToDelete)) fs.unlinkSync(oldPathToDelete);
+        if (oldPathToDelete) removeFile(oldPathToDelete);
 
         return res.json({ success: true, message: 'แก้ไขวารสารเรียบร้อยแล้ว' });
       } catch (err2) {
-        if (req.file) fs.unlinkSync(req.file.path);
+        if (req.file) removeFile(req.file.path);
         next(err2);
       }
     });
