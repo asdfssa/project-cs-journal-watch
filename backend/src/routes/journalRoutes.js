@@ -17,7 +17,4 @@ router.get('/tci',    requireAuth, JournalController.searchTci);
 router.get('/scopus/scrape', requireAuth, scrapeLimiter, JournalController.scrapeScopus);
 router.get('/tci/scrape',    requireAuth, scrapeLimiter, JournalController.scrapeTci);
 
-// ===== Utility =====
-router.get('/proxy-status', requireAuth, JournalController.proxyStatus);
-
 module.exports = router;

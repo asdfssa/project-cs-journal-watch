@@ -2252,29 +2252,6 @@
                 }
               },
               "response": []
-            },
-            {
-              "name": "Proxy Status",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{access_token}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{base_url}}/journal/proxy-status",
-                  "host": [
-                    "{{base_url}}"
-                  ],
-                  "path": [
-                    "journal",
-                    "proxy-status"
-                  ]
-                }
-              },
-              "response": []
             }
           ]
         },

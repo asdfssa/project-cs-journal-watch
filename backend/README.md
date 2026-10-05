@@ -132,7 +132,6 @@ schema ใน `db/init/` จะถูกรันตอนสร้าง volume
 | GET | `/tci` | ค้นหาวารสารใน TCI ด้วย ISSN (ผ่าน API) | Access token |
 | GET | `/scopus/scrape` | ค้นหา Scopus ด้วยวิธี scraping | Access token |
 | GET | `/tci/scrape` | ค้นหา TCI ด้วยวิธี scraping | Access token |
-| GET | `/proxy-status` | สถานะการหมุน API key / rate limit ของ Scopus | Access token |
 
 ### Unwanted / Predatory Journals — `/api/v3/unwanted-journals`
 

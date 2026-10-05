@@ -6,7 +6,6 @@ const ScopusService = require('../services/ScopusService');
 const TCIService = require('../services/TCIService');
 const ScopusScraper = require('../services/ScopusScraper');
 const TCIScraper = require('../services/TCIScraper');
-const scopusProxy = require('../services/ScopusProxyService');
 const { serverError } = require('../utils/errorResponse');
 
 class JournalController {
@@ -180,24 +179,6 @@ class JournalController {
       return res.json({
         success: true,
         data: JournalController._normalizeResponse(result),
-      });
-    } catch (err) {
-      next(err);
-    }
-  }
-
-  // ===================================================
-  // Utility
-  // ===================================================
-
-  /**
-   * GET /api/journal/proxy-status
-   */
-  static async proxyStatus(req, res, next) {
-    try {
-      return res.json({
-        success: true,
-        data: scopusProxy.getStatus(),
       });
     } catch (err) {
       next(err);
