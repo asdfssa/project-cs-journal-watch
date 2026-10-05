@@ -56,3 +56,54 @@ API_ENDPOINT = '/api/v3';
 
 `Dockerfile`, `nginx.conf`, `docker-compose.yml` ในโฟลเดอร์ frontend ไม่ได้ถูกใช้ใน deploy ปัจจุบัน
 (build ผ่าน `backend/Dockerfile` stage `frontend-build` แทน) — ยังไม่ได้ลบ
+
+---
+
+# ยังไม่ได้แก้ — ปัญหาระบบ session / refresh token (ตรวจ 2026-10-05)
+
+สิ่งที่ทำงานถูกแล้ว (`auth.interceptor.ts`): เจอ 401 → `POST /api/v3/auth/refresh`
+(refresh token ส่งผ่าน httpOnly cookie `jw_refresh_token` อัตโนมัติ) → ยิง request เดิมซ้ำ,
+มีหลาย request 401 พร้อมกันจะ refresh ครั้งเดียว, refresh ไม่ผ่าน → `logout()` + ไปหน้า `/login`
+
+## A. refresh ทำงานได้เพราะบังเอิญ — `src/app/auth.service.ts`
+
+`refreshAccessToken()` เช็ค `localStorage.auth_refresh_token` ก่อนยิง (`if (!rt) return of(null)`)
+และส่งไปใน body แต่ backend:
+- ไม่ได้ส่ง `refreshToken` มาใน response ของ login (ส่งทาง cookie อย่างเดียว) → `setLoggedIn` เก็บเป็น string `"undefined"`
+- `/auth/refresh` อ่านจาก cookie อย่างเดียว ไม่อ่าน body
+
+ตอนนี้ผ่านเพราะ `"undefined"` เป็น truthy ถ้า key นี้หายไปเมื่อไหร่จะไม่ refresh และดีดออกทันที
+
+**แนวทางแก้:** ตัดการอ่าน/เก็บ `auth_refresh_token` ทิ้ง ยิง `/auth/refresh` ด้วย body ว่าง `{}` เสมอ (cookie ไปเอง)
+
+## B. ฝั่ง admin ไม่ได้ใช้ระบบ refresh จริง
+
+- `page_admin/shared/req-otp/req-otp.ts` เขียน localStorage เอง (`auth_token`, `user`) ไม่ผ่าน `AuthService`
+  → signal `isLoggedIn` ของ `AuthService` ยังเป็น `false` (อ่านค่าครั้งเดียวตอนสร้าง service)
+  จนกว่าจะรีโหลดหน้า → ระหว่างนั้น token หมดอายุ interceptor จะไม่ refresh/ไม่ดีดออก เห็นแค่ error
+  (ประเมินจากโค้ด ยังไม่ได้ทดสอบกับบัญชีจริง)
+- refresh ไม่ผ่าน interceptor พาไป `/login` (หน้านิสิต) แทน `/login-admin`
+
+**แนวทางแก้:** ให้ req-otp เรียก method ของ `AuthService` เพื่ออัปเดต signal (หรือให้ `isLoggedIn` อ่าน localStorage ทุกครั้ง)
+และให้ interceptor เลือกหน้า login ตาม role (`Admin`/`SuperAdmin` → `/login-admin`)
+
+## C. logout ของ Student / Advisor / Staff ไม่ revoke refresh token
+
+`Components/sidebar_user`, `sidebar-advisor`, `sidebar-staff` → `logout()` แค่ล้าง localStorage
+ไม่ได้เรียก `POST /api/v3/auth/logout` → refresh token ใน cookie ยังใช้ได้อีก 7 วัน
+(เครื่องที่ใช้ร่วมกัน คนต่อไปเรียก `/auth/refresh` ได้ token ใหม่) — ฝั่ง admin (`sidebar_admin`) เรียกถูกแล้ว
+
+**แนวทางแก้:** ย้ายการเรียก `/auth/logout` ไปไว้ใน `AuthService.logout()` ที่เดียว ทุก sidebar ได้ไปด้วย
+
+## D. ไม่มีการดีดออกเมื่อไม่ได้ใช้งาน (idle timeout)
+
+frontend ไม่มี idle timer — ตอนนี้ดีดออกเมื่อ refresh token หมดอายุเท่านั้น
+ซึ่ง backend ตั้งไว้ 7 วัน และต่ออายุใหม่ทุกครั้งที่ refresh (เข้าเว็บสักครั้งใน 7 วัน = ล็อกอินค้างตลอด)
+
+**แนวทางแก้ (ฝั่ง backend `.env` ไม่ต้องแก้ frontend):**
+```
+JWT_ACCESS_EXPIRES_IN=15m
+JWT_REFRESH_EXPIRES_MS=3600000   # ไม่ใช้งานเกิน 1 ชม. → ดีดออก
+```
+refresh ต้องนานกว่า access เสมอ ไม่งั้นคนที่ใช้งานอยู่จะโดนเตะกลางคัน
+ข้อจำกัด: จะดีดออกตอนกด/โหลดข้อมูลครั้งถัดไป ถ้าอยากให้เด้งเองทั้งที่เปิดหน้าค้าง ต้องเพิ่ม idle timer ฝั่ง frontend
