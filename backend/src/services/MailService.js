@@ -114,8 +114,7 @@ class MailService {
    * ส่งอีเมลแจ้งเตือนทุก event ของ T3
    * @param {string} to     - email ปลายทาง
    * @param {string} event  - 'advisor_pending' | 'advisor_rejected' | 'advisor_approved' | 'faculty_pending' |
-   *                          'faculty_approved' | 'faculty_rejected' |
-   *                          'grad_school_approved' | 'grad_school_rejected' |
+   *                          'faculty_approved' | 'faculty_rejected' (มติคณะกรรมการ = ผลสุดท้ายของ T3) |
    *                          'major_advisor_approved' | 'major_advisor_rejected'
    * @param {object} data   - { studentName, journalName, articleTitle, t3Id, remark?, meetingNo?, meetingDate? }
    */
@@ -168,13 +167,14 @@ class MailService {
         subject: `[Journal Watch] อาจารย์ที่ปรึกษาอนุมัติ T3 แล้ว — รอ Staff พิจารณา`,
         text: `T3 ของคุณ (ID: ${t3Id})\nบทความ: ${articleTitle}\nวารสาร: ${journalName}\nอาจารย์ที่ปรึกษาทุกท่านอนุมัติเรียบร้อยแล้ว\nขณะนี้อยู่ระหว่างรอเจ้าหน้าที่คณะพิจารณา กรุณารอการแจ้งเตือนในขั้นตอนถัดไป`,
       },
+      // มติคณะกรรมการบัณฑิตศึกษาเป็นผลสุดท้ายของ T3 (v3 ตัดขั้นบัณฑิตวิทยาลัยออกแล้ว)
       faculty_approved: {
-        subject: `[Journal Watch] T3 ผ่านมติคณะกรรมการแล้ว — รอผล Grad School`,
-        text: `T3 ของคุณ (ID: ${t3Id})\nบทความ: ${articleTitle}\nผ่านมติคณะกรรมการบัณฑิตศึกษา${meetingNo ? `\nครั้งที่: ${meetingNo} วันที่: ${meetingDate}` : ''}\nขณะนี้อยู่ระหว่างการพิจารณาของบัณฑิตวิทยาลัย`,
+        subject: `[Journal Watch] T3 ผ่านมติคณะกรรมการบัณฑิตศึกษาแล้ว 🎉`,
+        text: `T3 ของคุณ (ID: ${t3Id})\nบทความ: ${articleTitle}\nวารสาร: ${journalName}\nผ่านมติคณะกรรมการบัณฑิตศึกษาแล้ว${meetingNo ? `\nการประชุมครั้งที่: ${meetingNo}${meetingDate ? ` วันที่: ${meetingDate}` : ''}` : ''}\nขั้นตอนการพิจารณาเสร็จสิ้น`,
       },
       faculty_rejected: {
-        subject: `[Journal Watch] T3 ถูกปฏิเสธโดยคณะกรรมการ`,
-        text: `T3 ของคุณ (ID: ${t3Id})\nบทความ: ${articleTitle}\nถูกปฏิเสธโดยคณะกรรมการบัณฑิตศึกษา${remark ? `\nเหตุผล: ${remark}` : ''}`,
+        subject: `[Journal Watch] T3 ไม่ผ่านมติคณะกรรมการบัณฑิตศึกษา`,
+        text: `T3 ของคุณ (ID: ${t3Id})\nบทความ: ${articleTitle}\nวารสาร: ${journalName}\nไม่ผ่านมติคณะกรรมการบัณฑิตศึกษา${remark ? `\nเหตุผล: ${remark}` : ''}\nกรุณาติดต่อเจ้าหน้าที่เพื่อสอบถามรายละเอียด`,
       },
       major_advisor_approved: {
         subject: `[Journal Watch] แจ้งเตือน: อาจารย์ที่ปรึกษาหลักอนุมัติ T3 ของนิสิต ${studentName} แล้ว`,
@@ -183,14 +183,6 @@ class MailService {
       major_advisor_rejected: {
         subject: `[Journal Watch] แจ้งเตือน: อาจารย์ที่ปรึกษาหลักปฏิเสธ T3 ของนิสิต ${studentName}`,
         text: `อาจารย์ที่ปรึกษาหลักได้ปฏิเสธ T3 ของนิสิต ${studentName} (ID: ${t3Id})\nบทความ: ${articleTitle}${remark ? `\nเหตุผล: ${remark}` : ''}\n\nนี่เป็นเพียงอีเมลแจ้งเตือนเท่านั้น ไม่ต้องดำเนินการใดๆ เพิ่มเติม\nหากท่านยังไม่เคยได้รับแจ้งหรือพูดคุยเรื่องนี้มาก่อน กรุณาติดต่ออาจารย์ที่ปรึกษาหลักเพื่อสอบถามรายละเอียด`,
-      },
-      grad_school_approved: {
-        subject: `[Journal Watch] T3 ได้รับการอนุมัติจากบัณฑิตวิทยาลัย 🎉`,
-        text: `T3 ของคุณ (ID: ${t3Id})\nบทความ: ${articleTitle}\nได้รับการอนุมัติจากบัณฑิตวิทยาลัย มหาวิทยาลัยมหาสารคาม\nขั้นตอนเสร็จสิ้นแล้ว`,
-      },
-      grad_school_rejected: {
-        subject: `[Journal Watch] T3 ถูกปฏิเสธโดยบัณฑิตวิทยาลัย`,
-        text: `T3 ของคุณ (ID: ${t3Id})\nบทความ: ${articleTitle}\nถูกปฏิเสธโดยบัณฑิตวิทยาลัย${remark ? `\nเหตุผล: ${remark}` : ''}\nกรุณาติดต่อเจ้าหน้าที่เพื่อสอบถามรายละเอียด`,
       },
     };
 

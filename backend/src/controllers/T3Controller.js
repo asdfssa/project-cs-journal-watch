@@ -444,7 +444,7 @@ class T3Controller {
 
       if (action === 'approve') {
         // ผลสุดท้าย: อนุมัติ → แจ้งนิสิตว่า T3 ผ่านแล้ว เสร็จสิ้นกระบวนการ
-        MailService.sendT3Notification(student.msu_mail, 'grad_school_approved', {
+        MailService.sendT3Notification(student.msu_mail, 'faculty_approved', {
           studentName: `${student.first_name} ${student.last_name}`,
           journalName,
           articleTitle,
@@ -454,7 +454,7 @@ class T3Controller {
         });
       } else {
         // ผลสุดท้าย: ปฏิเสธ → แจ้งนิสิตว่าไม่ผ่าน
-        MailService.sendT3Notification(student.msu_mail, 'grad_school_rejected', {
+        MailService.sendT3Notification(student.msu_mail, 'faculty_rejected', {
           studentName: `${student.first_name} ${student.last_name}`,
           journalName,
           articleTitle,
