@@ -16,6 +16,7 @@ const UserModel   = require('../models/UserModel');
 const MailService = require('../services/MailService');
 const db          = require('../config/database');
 const { serverError } = require('../utils/errorResponse');
+const { parsePagination } = require('../utils/input');
 const { toMysqlDate } = require('../utils/date');
 
 class PreT3Controller {
@@ -511,8 +512,7 @@ class PreT3Controller {
     try {
       const { role, sub: userId } = req.user;
       const status = ['Approved', 'Rejected'].includes(req.query.status) ? req.query.status : null;
-      const page   = Math.max(1, parseInt(req.query.page)  || 1);
-      const limit  = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+      const { page, limit } = parsePagination(req.query);
 
       let rows, total;
       if (role === 'Supervisor') {

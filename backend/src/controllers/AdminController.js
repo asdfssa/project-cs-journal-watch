@@ -4,6 +4,7 @@
  * เฉพาะ Admin และ SuperAdmin เท่านั้น
  */
 const db          = require('../config/database');
+const { parsePagination, nonStringField } = require('../utils/input');
 const MailService = require('../services/MailService');
 
 class AdminController {
@@ -85,8 +86,9 @@ class AdminController {
   // ============================================================
   static async getUsers(req, res, next) {
     try {
-      const { role, status, search, page = 1, limit = 20 } = req.query;
-      const offset = (Number(page) - 1) * Number(limit);
+      const { role, status, search } = req.query;
+      // ponytail: เพดาน 1000 เพราะหน้า staff manage-users ดึง limit=1000 แล้วกรองฝั่ง client — ลดได้เมื่อ FE ทำ pagination จริง
+      const { page, limit, offset } = parsePagination(req.query, 1000);
 
       let where = ["u.role NOT IN ('Admin','SuperAdmin')"];
       const params = [];
@@ -259,6 +261,9 @@ const [rows] = await db.query(
       if (['Admin', 'SuperAdmin'].includes(target[0].role))
         return res.status(403).json({ success: false, message: 'ไม่สามารถแก้ไขข้อมูล Admin ผ่านหน้านี้ได้' });
 
+      const badField = nonStringField(req.body, ['first_name', 'last_name', 'msu_mail']);
+      if (badField) return res.status(400).json({ success: false, code: 'INVALID_INPUT', message: `${badField} ต้องเป็นข้อความ` });
+
       const current = target[0];
       const body = req.body;
 
@@ -326,6 +331,9 @@ const [rows] = await db.query(
         phone, degree_level, curriculum_year, study_plan_code,
         advisor_major_mail, advisor_co1_mail,
       } = req.body;
+
+      const badField = nonStringField(req.body, ['first_name', 'last_name', 'msu_mail', 'advisor_major_mail', 'advisor_co1_mail']);
+      if (badField) return res.status(400).json({ success: false, code: 'INVALID_INPUT', message: `${badField} ต้องเป็นข้อความ` });
 
       // ===== Validate required =====
       if (!role)       return res.status(400).json({ success: false, message: 'กรุณาระบุ Role' });
@@ -623,6 +631,8 @@ records = parse(req.file.buffer, {
     try {
       const { id } = req.params;
       const { advisor_major_mail, advisor_co1_mail, advisor_co2_mail } = req.body;
+      const badField = nonStringField(req.body, ['advisor_major_mail', 'advisor_co1_mail', 'advisor_co2_mail']);
+      if (badField) return res.status(400).json({ success: false, code: 'INVALID_INPUT', message: `${badField} ต้องเป็นข้อความ` });
 
       // เช็กว่า student มีอยู่จริง
       const [target] = await db.query(
@@ -699,8 +709,8 @@ records = parse(req.file.buffer, {
   // ============================================================
   static async getAdmins(req, res, next) {
     try {
-      const { status, search, page = 1, limit = 20 } = req.query;
-      const offset = (Number(page) - 1) * Number(limit);
+      const { status, search } = req.query;
+      const { page, limit, offset } = parsePagination(req.query);
 
       let where = ["u.role IN ('Admin','SuperAdmin')"];
       const params = [];
@@ -755,6 +765,8 @@ records = parse(req.file.buffer, {
   static async createAdmin(req, res, next) {
     try {
       const { username, password, first_name, last_name, msu_mail } = req.body;
+      const badField = nonStringField(req.body, ['username', 'password', 'first_name', 'last_name', 'msu_mail']);
+      if (badField) return res.status(400).json({ success: false, code: 'INVALID_INPUT', message: `${badField} ต้องเป็นข้อความ` });
 
       if (!username?.trim())   return res.status(400).json({ success: false, message: 'กรุณาระบุ username' });
       if (!password?.trim())   return res.status(400).json({ success: false, message: 'กรุณาระบุ password' });
@@ -893,13 +905,16 @@ records = parse(req.file.buffer, {
       if (!['Admin', 'SuperAdmin'].includes(target[0].role))
         return res.status(400).json({ success: false, message: 'ผู้ใช้นี้ไม่ใช่ Admin' });
 
+      const badField = nonStringField(req.body, ['first_name', 'last_name', 'msu_mail']);
+      if (badField) return res.status(400).json({ success: false, code: 'INVALID_INPUT', message: `${badField} ต้องเป็นข้อความ` });
+
       const cur  = target[0];
       const body = req.body;
 
       const merged = {
-        first_name: body.first_name !== undefined ? body.first_name.trim() : cur.first_name,
-        last_name:  body.last_name  !== undefined ? body.last_name.trim()  : cur.last_name,
-        msu_mail:   body.msu_mail   !== undefined ? body.msu_mail.trim().toLowerCase() : cur.msu_mail,
+        first_name: body.first_name != null ? body.first_name.trim() : cur.first_name,
+        last_name:  body.last_name  != null ? body.last_name.trim()  : cur.last_name,
+        msu_mail:   body.msu_mail   != null ? body.msu_mail.trim().toLowerCase() : cur.msu_mail,
       };
 
       if (!merged.first_name) return res.status(400).json({ success: false, message: 'ชื่อห้ามว่าง' });

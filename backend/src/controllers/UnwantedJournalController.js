@@ -9,6 +9,7 @@ const path = require('path');
 const fs = require('fs');
 const { parse } = require('csv-parse/sync');
 const { serverError } = require('../utils/errorResponse');
+const { parsePagination } = require('../utils/input');
 const { verifyFileType, MIME_TO_EXT } = require('../middlewares/upload');
 
 // -------------------------------------------------------
@@ -86,8 +87,8 @@ class UnwantedJournalController {
   // ============================================================
   static async getAll(req, res, next) {
     try {
-      const { search, page = 1, limit = 20 } = req.query;
-      const offset = (Number(page) - 1) * Number(limit);
+      const { search } = req.query;
+      const { page, limit, offset } = parsePagination(req.query);
 
       let where = ['1=1'];
       const params = [];
