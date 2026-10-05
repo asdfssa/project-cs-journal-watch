@@ -4,6 +4,7 @@
  */
 const { chromium } = require('playwright');
 const config = require('../config');
+const { withScrapeSlot } = require('./scrapeQueue');
 
 const TCI_BASE = 'https://tci-thailand.org';
 
@@ -13,7 +14,7 @@ class TCIScraper {
 
   static async getJournalByIssn(issn) {
     const cleanIssn = issn.trim();
-    return TCIScraper._scrape(cleanIssn);
+    return withScrapeSlot(() => TCIScraper._scrape(cleanIssn));
   }
 
   // ===== Scraping =====
@@ -24,12 +25,14 @@ class TCIScraper {
       slowMo: config.scraper.slowMo,
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
-    const context = await browser.newContext({
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-    });
-    const page = await context.newPage();
 
+    // ทุกอย่างหลัง launch อยู่ใน try — newContext/newPage throw ก็ยังปิด browser (กัน Chromium ค้าง)
     try {
+      const context = await browser.newContext({
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      });
+      const page = await context.newPage();
+
       console.log(`[TCIScraper] เปิดหน้า TCI journal_list ISSN: ${issn}`);
       await page.goto(`${TCI_BASE}/journal_list`, { waitUntil: 'domcontentloaded' });
       await page.waitForTimeout(2000);

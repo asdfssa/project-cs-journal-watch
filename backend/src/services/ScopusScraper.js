@@ -5,6 +5,7 @@
  */
 const { chromium } = require('playwright');
 const config = require('../config');
+const { withScrapeSlot } = require('./scrapeQueue');
 
 class ScopusScraper {
 
@@ -12,7 +13,7 @@ class ScopusScraper {
 
   static async getJournalByIssn(issn) {
     const cleanIssn = issn.replace('-', '').trim();
-    return ScopusScraper._scrape(cleanIssn);
+    return withScrapeSlot(() => ScopusScraper._scrape(cleanIssn));
   }
 
   // ===== Scraping =====
@@ -29,6 +30,8 @@ class ScopusScraper {
     ],
   });
 
+  // ทุกอย่างหลัง launch อยู่ใน try — newContext/newPage throw ก็ยังปิด browser (กัน Chromium ค้าง)
+  try {
   const context = await browser.newContext({
     userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
     viewport: { width: 1280, height: 800 },
@@ -42,7 +45,6 @@ class ScopusScraper {
 
   const page = await context.newPage();
 
-  try {
     console.log(`[ScopusScraper] เปิดหน้า Scopus Sources ISSN: ${issn}`);
     await page.goto('https://www.scopus.com/sources.uri', {
       waitUntil: 'domcontentloaded',

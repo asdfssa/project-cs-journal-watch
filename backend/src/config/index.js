@@ -80,5 +80,14 @@ module.exports = {
   scraper: {
     headless: process.env.SCRAPER_HEADLESS !== 'false',
     slowMo: parseInt(process.env.SCRAPER_SLOW_MO, 10) || 400,
+    maxConcurrent: parseInt(process.env.SCRAPER_MAX_CONCURRENT, 10) || 2,  // Chromium พร้อมกันสูงสุด
+    maxQueue: parseInt(process.env.SCRAPER_MAX_QUEUE, 10) || 10,           // คิวรอเกินนี้ → 429 SCRAPER_BUSY
+  },
+
+  // CAPTCHA เมื่อค้นวารสารถี่ (Cloudflare Turnstile) — ไม่ตั้ง TURNSTILE_SECRET = ปิด
+  captcha: {
+    turnstileSecret: process.env.TURNSTILE_SECRET || '',
+    freeRequests: parseInt(process.env.CAPTCHA_FREE_REQUESTS, 10) || 20,  // ต่อผู้ใช้ต่อ window (การค้น 1 ครั้ง ≈ 2 request)
+    windowMs: 5 * 60 * 1000,
   },
 };

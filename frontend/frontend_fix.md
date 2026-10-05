@@ -127,3 +127,21 @@ refreshAccessToken(): Observable<string | null> {
 }
 ```
 (ทำพร้อมข้อ A ได้เลย — ตัด `auth_refresh_token` ออก ยิง body `{}` เพราะ backend อ่านจาก cookie อย่างเดียว)
+
+## F. CAPTCHA ตอนค้นวารสารถี่ (backend B11 — Cloudflare Turnstile ตรวจที่ backend)
+
+backend เพิ่ม `captchaIfFrequent` ที่ `GET /journal/scopus`, `/journal/tci`, `/journal/scopus/scrape`, `/journal/tci/scrape`
+- ผู้ใช้แต่ละคนค้นได้ 20 request / 5 นาที (ค้น 1 ครั้ง ≈ 2 request) โดยไม่ต้องยืนยัน
+- เกินจากนั้น backend ตอบ **`428 CAPTCHA_REQUIRED`** → FE ต้องให้ผู้ใช้ผ่าน Turnstile แล้วยิง request เดิมซ้ำพร้อม header
+  **`X-Captcha-Token: <token>`** — ผ่านแล้วได้โควตาใหม่อีก 20 request
+- token ผิด/หมดอายุ → `428 CAPTCHA_INVALID` (ให้แสดง widget ใหม่), ตรวจไม่ได้ → `503 CAPTCHA_UNAVAILABLE`
+- ตอนนี้ **ยังปิดอยู่** (backend ยังไม่ตั้ง `TURNSTILE_SECRET`) — จะเปิดเมื่อ FE ทำข้อนี้เสร็จ
+
+**วิธีทำ (หน้า search ทั้ง `Page/shared/search` และ `page_admin/shared/search`):**
+1. ใส่ script `https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit` (โหลดครั้งเดียว แบบเดียวกับ Google GSI)
+2. เมื่อได้ 428 → `turnstile.render('#captcha-box', { sitekey: '<SITE_KEY>', callback: token => retry(token) })`
+3. `retry(token)` = ยิง request เดิมด้วย `headers: { 'X-Captcha-Token': token }` แล้วซ่อน widget
+4. **ลบ CAPTCHA ฝั่ง client เดิม** (`localStorage.jw_captcha_ts` — bug F18) เพราะ Turnstile มาแทนแล้ว
+
+SITE_KEY: ได้จาก Cloudflare dashboard → Turnstile (เจ้าของ backend จะส่งให้) — ทดสอบ local ใช้ test site key
+`1x00000000000000000000AA` (ผ่านเสมอ) หรือ `3x00000000000000000000FF` (บังคับให้กดยืนยัน)

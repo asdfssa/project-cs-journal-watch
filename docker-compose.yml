@@ -28,6 +28,8 @@ services:
         frontend: ./frontend
     container_name: journal_watch_backend
     restart: unless-stopped
+    # tini เป็น PID 1 — เก็บกวาด process ลูกของ Chromium ที่ถูกทิ้ง (ไม่งั้นค้างเป็น zombie ทุกครั้งที่ scrape)
+    init: true
     env_file:
       - ./backend/.env
     environment:

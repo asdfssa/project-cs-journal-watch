@@ -77,6 +77,11 @@ function parseError(err) {
     return { code: 'INVALID_JSON', message: 'รูปแบบ JSON ที่ส่งมาไม่ถูกต้อง', status: 400, raw: err.message };
   }
 
+  // คิว scraper เต็ม (services/scrapeQueue.js)
+  if (err.code === 'SCRAPER_BUSY') {
+    return { code: 'SCRAPER_BUSY', message: 'ระบบกำลังค้นหาให้ผู้ใช้อื่นอยู่ กรุณาลองใหม่อีกสักครู่', status: 429, raw: err.message };
+  }
+
   // error ฝั่ง client จาก body-parser / http-errors (413 body ใหญ่เกิน, 415 encoding ไม่รองรับ ฯลฯ)
   if (err.expose && err.status >= 400 && err.status < 500) {
     const message = err.status === 413
