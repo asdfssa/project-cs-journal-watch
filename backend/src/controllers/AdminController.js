@@ -903,7 +903,7 @@ records = parse(req.file.buffer, {
 
   // ============================================================
   // PATCH /api/admin/admins/:id  — แก้ไขข้อมูล Admin
-  // Body: { first_name?, last_name?, msu_mail? }
+  // Body: { prefix?, first_name?, last_name?, msu_mail? }
   // ============================================================
   static async updateAdmin(req, res, next) {
     try {
@@ -911,7 +911,7 @@ records = parse(req.file.buffer, {
       const callerRole = req.user.role;
 
       const [target] = await db.query(
-        `SELECT user_id, role, first_name, last_name, msu_mail
+        `SELECT user_id, role, prefix, first_name, last_name, msu_mail
          FROM users
          WHERE user_id = ?`,
         [id]
@@ -925,13 +925,14 @@ records = parse(req.file.buffer, {
       if (!['Admin', 'SuperAdmin'].includes(target[0].role))
         return res.status(400).json({ success: false, message: 'ผู้ใช้นี้ไม่ใช่ Admin' });
 
-      const badField = nonStringField(req.body, ['first_name', 'last_name', 'msu_mail']);
+      const badField = nonStringField(req.body, ['prefix', 'first_name', 'last_name', 'msu_mail']);
       if (badField) return res.status(400).json({ success: false, code: 'INVALID_INPUT', message: `${badField} ต้องเป็นข้อความ` });
 
       const cur  = target[0];
       const body = req.body;
 
       const merged = {
+        prefix:     body.prefix != null ? body.prefix.trim() : cur.prefix,
         first_name: body.first_name != null ? body.first_name.trim() : cur.first_name,
         last_name:  body.last_name  != null ? body.last_name.trim()  : cur.last_name,
         msu_mail:   body.msu_mail   != null ? body.msu_mail.trim().toLowerCase() : cur.msu_mail,
@@ -949,9 +950,9 @@ records = parse(req.file.buffer, {
 
       await db.query(
         `UPDATE users
-         SET first_name = ?, last_name = ?, msu_mail = ?
+         SET prefix = ?, first_name = ?, last_name = ?, msu_mail = ?
          WHERE user_id = ?`,
-        [merged.first_name, merged.last_name, merged.msu_mail, id]
+        [merged.prefix || null, merged.first_name, merged.last_name, merged.msu_mail, id]
       );
       if (mailChanged) await OtpModel.invalidateActive(id, 'password_reset');
 
