@@ -27,4 +27,20 @@ function normalizeIssn(value) {
   return /^\d{7}[\dX]$/.test(clean) ? `${clean.slice(0, 4)}-${clean.slice(4)}` : null;
 }
 
-module.exports = { parsePagination, nonStringField, normalizeIssn };
+/**
+ * ตัวเลขทศนิยมที่เป็นทางเลือก (เช่น impact_factor, citescore):
+ *  - undefined / null / "" / ช่องว่างล้วน (ช่องฟอร์มที่ไม่ได้กรอก) → null
+ *  - ตัวเลข หรือสตริงตัวเลข (เช่น "12.5") ที่ >= 0 และ < max → Number
+ *  - อย่างอื่น (ข้อความ, ติดลบ, ใหญ่เกินคอลัมน์, object/array/boolean) → NaN — ผู้เรียกตอบ 400
+ *    (ไม่ปล่อยให้ชน DECIMAL ใน MySQL แล้วกลายเป็น 500)
+ */
+function optionalDecimal(value, max) {
+  if (value == null || (typeof value === 'string' && value.trim() === '')) return null;
+  let n;
+  if (typeof value === 'number') n = value;
+  else if (typeof value === 'string' && /^\s*\d+(\.\d+)?\s*$/.test(value)) n = Number(value);
+  else return NaN;
+  return Number.isFinite(n) && n >= 0 && n < max ? n : NaN;
+}
+
+module.exports = { parsePagination, nonStringField, normalizeIssn, optionalDecimal };

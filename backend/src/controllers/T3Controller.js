@@ -19,7 +19,7 @@ const { advisorViewFields } = require('../models/_approvalHelpers');
 const MailService = require('../services/MailService');
 const db          = require('../config/database');
 const { serverError } = require('../utils/errorResponse');
-const { parsePagination } = require('../utils/input');
+const { parsePagination, optionalDecimal } = require('../utils/input');
 const { toMysqlDate } = require('../utils/date');
 const { verifyFileType, MIME_TO_EXT } = require('../middlewares/upload');
 
@@ -135,6 +135,18 @@ class T3Controller {
         status: 400, code: 'MISSING_METRICS',
         message: 'journal_metrics.has_impact_score จำเป็นต้องระบุ',
       } };
+    }
+
+    // impact_factor / citescore: ช่องว่าง ("" / null / ไม่ส่ง) = ไม่มีค่า → null; ไม่ใช่ตัวเลข / ติดลบ / ใหญ่เกินคอลัมน์ → 400
+    // (เดิม "" หรือ "abc" ชน DECIMAL ใน MySQL แล้วตอบ 500)
+    for (const field of ['impact_factor', 'citescore']) {
+      journal_metrics[field] = optionalDecimal(journal_metrics[field], 1e6);
+      if (Number.isNaN(journal_metrics[field])) {
+        return { error: {
+          status: 400, code: 'INVALID_METRICS',
+          message: `journal_metrics.${field} ต้องเป็นตัวเลขตั้งแต่ 0 ขึ้นไป หรือเว้นว่าง`,
+        } };
+      }
     }
 
     // ตรวจ Pre-T3 ต้อง Approved และเป็นของนิสิตคนนี้
