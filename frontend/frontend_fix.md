@@ -211,3 +211,20 @@ field ใหม่ใน response ของอาจารย์ (`/pending`, `/
 
 - `0` เก็บเป็น 0 จริง (`"0.00"`) — ถ้าหมายถึง "ไม่มีข้อมูล" ให้ส่ง `null` หรือเว้นว่าง
 - `has_impact_score: true` แต่ไม่มี `impact_factor` backend **ไม่บังคับ** (ยื่นได้) — FE ควรบังคับกรอกเอง
+
+## J. คอลัมน์วันที่แบบ DATE ส่งเป็น `"YYYY-MM-DD"` แล้ว (backend X26)
+
+backend ตั้ง mysql2 `dateStrings: ['DATE']` — ทุก endpoint ที่คืน `recorded_date` (วารสารต้องห้าม) และ `meeting_date`
+(`faculty_com_approval` ของ Pre-T3 / T3) จะได้ **string `"2026-10-16"`** แทน `"2026-10-16T00:00:00.000Z"` เดิม
+
+| field | ก่อน | หลัง |
+|---|---|---|
+| `recorded_date`, `meeting_date` (DATE) | `"2026-10-16T00:00:00.000Z"` | `"2026-10-16"` |
+| `created_at`, `updated_at`, `approved_at` ฯลฯ (TIMESTAMP) | `"2026-10-05T16:55:30.000Z"` | **ไม่เปลี่ยน** (ISO มี `Z` เหมือนเดิม) |
+
+**FE ต้องทำ / ระวัง:**
+1. ใช้ string `"YYYY-MM-DD"` ตรงๆ กับ input วันที่ / date picker และส่งกลับ backend ได้เลย — **ไม่ต้องผ่าน `new Date()` / `toISOString()`**
+   (ตัวที่ทำให้วันถอยหลังเมื่อเวลาท้องถิ่นเป็น UTC+7) — ถ้าโค้ดเดิมตัดด้วย `.slice(0, 10)` ก็ยังใช้ได้
+2. ที่ส่งเข้า backend: `recorded_date` ต้องเป็น `"YYYY-MM-DD"` (รับ `"YYYY-MM-DD HH:MM:SS"` ด้วย) — ISO เต็ม `"…T00:00:00.000Z"` จะได้ **400 `INVALID_VALUE`**
+   ส่วน `meeting_date` ส่งได้ทั้ง `"YYYY-MM-DD"` และ ISO เต็ม (backend ตัดเหลือ 10 ตัวแรก)
+3. เวลา (`created_at` ฯลฯ) ยังเป็น ISO มี `Z` ตามเดิม — แสดงผลด้วย `DatePipe` ได้เหมือนเดิม ไม่ต้องแก้

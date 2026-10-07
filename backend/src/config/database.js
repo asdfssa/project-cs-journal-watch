@@ -18,6 +18,11 @@ const pool = mysql.createPool({
   connectionLimit: config.db.connectionLimit,
   queueLimit: 0,
   charset: 'utf8mb4',
+  // คอลัมน์ DATE (recorded_date, meeting_date) ส่งเป็น "YYYY-MM-DD" ตรงๆ ไม่ผ่าน JS Date — ไม่มีปัญหา timezone
+  // (ถ้าเป็น Date จะกลายเป็น ISO "…T00:00:00.000Z" ที่วันถอยหลังได้เมื่อ client แปลงเป็นเวลาท้องถิ่น)
+  // ใช้ ['DATE'] ไม่ใช่ true: true จะทำให้ TIMESTAMP/DATETIME (created_at, decided_at ฯลฯ) กลายเป็น "YYYY-MM-DD HH:MM:SS"
+  // ไม่มี Z แล้วเบราว์เซอร์อ่านเป็นเวลาท้องถิ่น → ทุกหน้าที่แสดงเวลาเพี้ยน 7 ชม.
+  dateStrings: ['DATE'],
 });
 
 // ทดสอบ connection ตอน startup
