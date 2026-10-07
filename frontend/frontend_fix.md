@@ -183,3 +183,19 @@ field ใหม่ใน response ของอาจารย์ (`/pending`, `/
 3. อย่านำ `co_advisor_*_approval.status` ไปแสดงเป็น "ผลการตัดสินของอาจารย์ร่วม" — ค่านั้นเป็นแค่ผลที่ตามอาจารย์หลัก
    (ใช้ช่องนี้แสดง **ชื่อ** อาจารย์ร่วมได้ตามเดิม, `advisor_info` มีชื่อ/ตำแหน่งแล้ว)
 4. จัดการ `403 NOT_MAJOR_ADVISOR` (แสดง `message` จาก backend)
+
+## I. eissn / SJR / CiteScore ของ Pre-T3 — backend **ไม่เก็บ** (ตัดสินใจแล้ว, bugs X20)
+
+- ตาราง `pre_t3_requests` ไม่มีคอลัมน์ `eissn`, `sjr_score`, `cite_score` และจะ **ไม่เพิ่ม** — backend ทิ้ง 3 ค่านี้ใน `journal_snapshot` ตั้งแต่ตอนรับ
+  ตอนอ่านกลับ `journal_snapshot` จึง **ไม่มี** field เหล่านี้ (ไม่ใช่ `null`) และ `journal_snapshot` ของ T3 ก็ไม่มี
+- เหตุผล: staff เป็นคนตรวจค่าเหล่านี้เองผ่านหน้าค้นหา (ได้ค่าสดจาก Scopus) ก่อนอนุมัติ Pre-T3 และ T3 — ไม่จำเป็นต้องเก็บ snapshot
+  (`impact_factor` ก็เป็นแบบเดียวกัน: นิสิตกรอก staff ตรวจ)
+- ผลคือ `t3_requests.citescore` จะเป็น `null` เสมอ (นิสิตไม่ต้องกรอก, backend ไม่ดึงให้)
+
+**FE ต้องทำ:**
+1. เลิกส่ง `eissn`, `sjr_score`, `cite_score` ตอนยื่น Pre-T3 (ตัดออกจาก `JournalSnapshot` ใน `Send_Pre-T3_req.ts` และจาก `pre-t3.ts`) —
+   ตอนนี้ส่ง `parseFloat(...) || 0` ไปก็ถูกทิ้งอยู่ดี
+2. หน้ายื่น T3 (`send-t3.ts` / `send-t3.html`) เอาช่อง SJR / CiteScore ที่อ่านจาก `journal_snapshot` ของ Pre-T3 ออก (ตอนนี้แสดง `-` เสมอ)
+3. ตอนยื่น T3 อย่าส่ง `journal_metrics.citescore` เป็น `NaN` / `0` (`Number(d.citeScore)`) — **ส่ง `null` หรือไม่ส่งเลย** (backend รับ `null` ได้ ค่า `citescore`
+   และ `impact_factor` ที่มีค่าจะกลับมาเป็น string เช่น `"12.34"` ให้ `Number()` ก่อนใช้)
+4. (ไม่บังคับ) หน้าพิจารณาของ staff ทำปุ่มลัดไปหน้าค้นหาพร้อม ISSN ของคำร้อง ให้ตรวจวารสารได้เร็วขึ้น
