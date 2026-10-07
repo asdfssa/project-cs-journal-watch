@@ -13,6 +13,7 @@
  */
 const PreT3Model  = require('../models/PreT3Model');
 const UserModel   = require('../models/UserModel');
+const { advisorViewFields } = require('../models/_approvalHelpers');
 const MailService = require('../services/MailService');
 const db          = require('../config/database');
 const { serverError } = require('../utils/errorResponse');
@@ -167,7 +168,7 @@ class PreT3Controller {
 
       return res.json({
         success: true,
-        data: rows.map(r => PreT3Controller._formatRow(r)),
+        data: rows.map(r => ({ ...PreT3Controller._formatRow(r), ...(role === 'Supervisor' ? advisorViewFields(r, userId) : {}) })),
       });
     } catch (err) {
       return serverError(res, err, 'PreT3Controller.getPending');
@@ -207,7 +208,7 @@ class PreT3Controller {
         }
       }
 
-      return res.json({ success: true, data: PreT3Controller._formatRow(row) });
+      return res.json({ success: true, data: { ...PreT3Controller._formatRow(row), ...(role === 'Supervisor' ? advisorViewFields(row, userId) : {}) } });
     } catch (err) {
       return serverError(res, err, 'PreT3Controller.getById');
     }
@@ -240,11 +241,16 @@ class PreT3Controller {
         return res.status(400).json({ success: false, code: 'INVALID_STATE', message: `Pre-T3 นี้อยู่ในสถานะ ${row.overall_status} แล้ว` });
       }
 
-      // ตรวจว่า advisor นี้เป็นคนที่รับผิดชอบ slot ไหน
-      const slots  = [row.advisor_approval, row.co_advisor_1_approval, row.co_advisor_2_approval];
-      const mySlot = slots.find(s => String(s?.user_id) === String(advisorId) && s.status === 'Pending');
-      if (!mySlot) {
-        return res.status(403).json({ success: false, code: 'FORBIDDEN', message: 'คุณไม่ใช่อาจารย์ที่ปรึกษาของ Pre-T3 นี้ หรืออนุมัติแล้ว' });
+      // อนุมัติ/ปฏิเสธเป็นสิทธิ์ของอาจารย์ที่ปรึกษาหลักคนเดียว — อาจารย์ร่วมไม่มีสิทธิ์ตัดสิน (ผลขึ้นกับอาจารย์หลัก)
+      const { my_role, can_review } = advisorViewFields(row, advisorId);
+      if (my_role === null) {
+        return res.status(403).json({ success: false, code: 'FORBIDDEN', message: 'คุณไม่ใช่อาจารย์ที่ปรึกษาของ Pre-T3 นี้' });
+      }
+      if (my_role !== 'Major') {
+        return res.status(403).json({ success: false, code: 'NOT_MAJOR_ADVISOR', message: 'เฉพาะอาจารย์ที่ปรึกษาหลักเท่านั้นที่อนุมัติหรือปฏิเสธได้ (หากเห็นต่างกรุณาปรึกษาอาจารย์ที่ปรึกษาหลัก)' });
+      }
+      if (!can_review) {
+        return res.status(403).json({ success: false, code: 'FORBIDDEN', message: 'คุณอนุมัติหรือปฏิเสธ Pre-T3 นี้ไปแล้ว' });
       }
 
       const result = await PreT3Model.advisorReview(preT3Id, advisorId, action, remark || null);
@@ -284,20 +290,18 @@ class PreT3Controller {
       // ถ้าคนที่เพิ่งอนุมัติ/ปฏิเสธคือที่ปรึกษาหลัก → แจ้งเตือน co-advisor (ถ้ามี) เฉยๆ
       // ว่าที่ปรึกษาหลักตัดสินใจแล้ว เผื่อทั้ง 3 คนคุยกันนอกระบบไปแล้วแต่ที่ปรึกษาหลัก
       // ลืมกดในระบบ — co-advisor จะได้รู้และไปทวงถามได้
-      if (mySlot === row.advisor_approval) {
-        const notifyEvent = action === 'approve' ? 'major_advisor_approved' : 'major_advisor_rejected';
-        const coAdvisorSlots = [row.co_advisor_1_approval, row.co_advisor_2_approval];
-        for (const slot of coAdvisorSlots) {
-          if (!slot?.user_id) continue;
-          const coAdvisor = await UserModel.findById(slot.user_id);
-          if (!coAdvisor) continue;
-          MailService.sendPreT3Notification(coAdvisor.msu_mail, notifyEvent, {
-            studentName: `${student.first_name} ${student.last_name}`,
-            journalName,
-            preT3Id,
-            remark,
-          });
-        }
+      const notifyEvent = action === 'approve' ? 'major_advisor_approved' : 'major_advisor_rejected';
+      // คนเดียวอาจถือทั้งช่อง Co_1 และ Co_2 → ส่งเมลครั้งเดียว
+      const coIds = new Set([row.co_advisor_1_approval?.user_id, row.co_advisor_2_approval?.user_id].filter(Boolean));
+      for (const coId of coIds) {
+        const coAdvisor = await UserModel.findById(coId);
+        if (!coAdvisor) continue;
+        MailService.sendPreT3Notification(coAdvisor.msu_mail, notifyEvent, {
+          studentName: `${student.first_name} ${student.last_name}`,
+          journalName,
+          preT3Id,
+          remark,
+        });
       }
 
       return res.json({
@@ -503,7 +507,7 @@ class PreT3Controller {
       return res.json({
         success: true,
         data: {
-          items:      rows.map(r => PreT3Controller._formatRow(r)),
+          items:      rows.map(r => ({ ...PreT3Controller._formatRow(r), ...(role === 'Supervisor' ? advisorViewFields(r, userId) : {}) })),
           total,
           page,
           limit,

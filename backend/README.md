@@ -154,7 +154,7 @@ schema ใน `db/init/` จะถูกรันตอนสร้าง volume
 | GET | `/pending` | รายการรอตรวจ | Supervisor/Staff |
 | GET | `/history` | ประวัติการตรวจ | Supervisor/Staff |
 | GET | `/:id` | รายละเอียดคำร้อง | ผู้เกี่ยวข้อง/Admin |
-| PATCH | `/:id/advisor-review` | อาจารย์ที่ปรึกษาอนุมัติ/ไม่อนุมัติ | Supervisor |
+| PATCH | `/:id/advisor-review` | อาจารย์ที่ปรึกษา**หลัก**อนุมัติ/ไม่อนุมัติ (อาจารย์ร่วม → 403 `NOT_MAJOR_ADVISOR`) | Supervisor |
 | PATCH | `/:id/faculty-review` | เจ้าหน้าที่คณะอนุมัติขั้นสุดท้าย | Staff |
 | PATCH | `/:id/resubmit` | ยื่นใหม่หลังถูกตีกลับ | Student |
 | PATCH | `/:id/cancel` | ยกเลิกคำร้องของตัวเอง | Student |
@@ -169,7 +169,7 @@ schema ใน `db/init/` จะถูกรันตอนสร้าง volume
 | GET | `/pending` | รายการรอตรวจ | Supervisor/Staff |
 | GET | `/history` | ประวัติการตรวจ | Supervisor/Staff |
 | GET | `/:id` | รายละเอียดคำร้อง | ผู้เกี่ยวข้อง/Admin |
-| PATCH | `/:id/advisor-review` | อาจารย์ที่ปรึกษาตัดสิน | Supervisor |
+| PATCH | `/:id/advisor-review` | อาจารย์ที่ปรึกษา**หลัก**ตัดสิน (อาจารย์ร่วม → 403 `NOT_MAJOR_ADVISOR`) | Supervisor |
 | PATCH | `/:id/faculty-review` | เจ้าหน้าที่คณะตัดสิน | Staff |
 | PATCH | `/:id/cancel` | ยกเลิกคำร้องของตัวเอง | Student |
 

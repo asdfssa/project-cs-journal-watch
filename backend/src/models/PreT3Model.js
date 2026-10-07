@@ -254,8 +254,7 @@ class PreT3Model {
   }
 
   /**
-   * ดึงรายการที่รอ Advisor คนนี้อนุมัติ
-   * ตรวจทั้ง major advisor และ co_advisor_1/2
+   * ดึงรายการที่รอ Advisor คนนี้อนุมัติ — เฉพาะอาจารย์หลัก (อาจารย์ร่วมไม่มีสิทธิ์ตัดสิน จึงไม่เห็นในคิวนี้)
    */
   static async findPendingForAdvisor(advisorId) {
     const [rows] = await db.query(
@@ -266,7 +265,7 @@ class PreT3Model {
           AND EXISTS (
             SELECT 1 FROM request_approvals ra
              WHERE ra.request_type = 'Pre_T3' AND ra.request_id = p.pre_t3_id
-               AND ra.step IN ('Advisor','Co_Advisor_1','Co_Advisor_2')
+               AND ra.step = 'Advisor'
                AND ra.approver_id = ? AND ra.status = 'Pending'
           )
         ORDER BY p.created_at ASC`,
@@ -276,43 +275,41 @@ class PreT3Model {
   }
 
   /**
-   * ดึงประวัติที่ Advisor คนนี้เคยอนุมัติ/ปฏิเสธแล้ว
+   * ดึงประวัติที่อาจารย์ที่ปรึกษา (หลักหรือร่วม) ของคำร้องนี้ — นับตามผลที่อาจารย์หลักตัดสินแล้ว
+   * (อนุมัติ/ปฏิเสธเป็นสิทธิ์ของอาจารย์หลักคนเดียว อาจารย์ร่วมจึงเห็นผลเดียวกัน ทั้งอนุมัติและปฏิเสธ)
+   * ใช้ EXISTS → ไม่ซ้ำแถว แม้อาจารย์คนเดียวถือหลายช่อง (เช่น เป็นทั้ง Co_1 และ Co_2)
    * @param {number} advisorId
-   * @param {object} opts - { status: 'Approved'|'Rejected'|null, page, limit }
+   * @param {object} opts - { status: 'Approved'|'Rejected'|null, page, limit } — status = ผลของอาจารย์หลัก
    */
   static async findReviewedByAdvisor(advisorId, { status = null, page = 1, limit = 20 } = {}) {
     const offset = (page - 1) * limit;
 
-    const statusCondition = status
-      ? `AND ra.status = ?`
-      : `AND ra.status IN ('Approved','Rejected')`;
-    const statusParams = status ? [status] : [];
+    const statusCondition = status ? `maj.status = ?` : `maj.status IN ('Approved','Rejected')`;
+    const params = [advisorId, ...(status ? [status] : [])];
+    const where = `
+        WHERE EXISTS (
+                SELECT 1 FROM request_approvals me
+                 WHERE me.request_type = 'Pre_T3' AND me.request_id = p.pre_t3_id
+                   AND me.step IN ('Advisor','Co_Advisor_1','Co_Advisor_2')
+                   AND me.approver_id = ?)
+          AND EXISTS (
+                SELECT 1 FROM request_approvals maj
+                 WHERE maj.request_type = 'Pre_T3' AND maj.request_id = p.pre_t3_id
+                   AND maj.step = 'Advisor' AND ${statusCondition})`;
 
     const [rows] = await db.query(
       `SELECT p.*, u.first_name, u.last_name, u.msu_mail, u.degree_level, u.curriculum_year, u.study_plan_code
          FROM pre_t3_requests p
          JOIN users u ON u.user_id = p.student_id
-         JOIN request_approvals ra
-           ON ra.request_type = 'Pre_T3' AND ra.request_id = p.pre_t3_id
-          AND ra.step IN ('Advisor','Co_Advisor_1','Co_Advisor_2')
-          AND ra.approver_id = ?
-        WHERE 1=1
-          ${statusCondition}
+        ${where}
         ORDER BY p.updated_at DESC
         LIMIT ? OFFSET ?`,
-      [advisorId, ...statusParams, limit, offset]
+      [...params, limit, offset]
     );
 
     const [countRows] = await db.query(
-      `SELECT COUNT(*) AS total
-         FROM pre_t3_requests p
-         JOIN request_approvals ra
-           ON ra.request_type = 'Pre_T3' AND ra.request_id = p.pre_t3_id
-          AND ra.step IN ('Advisor','Co_Advisor_1','Co_Advisor_2')
-          AND ra.approver_id = ?
-        WHERE 1=1
-          ${statusCondition}`,
-      [advisorId, ...statusParams]
+      `SELECT COUNT(*) AS total FROM pre_t3_requests p ${where}`,
+      params
     );
 
     return { rows: await PreT3Model._attachDerived(rows), total: countRows[0].total };

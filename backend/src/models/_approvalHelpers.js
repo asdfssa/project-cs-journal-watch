@@ -48,9 +48,10 @@ async function fetchApprovalsMap(requestType, requestIds) {
 }
 
 /**
- * Advisor (major/co) อนุมัติหรือปฏิเสธ slot ของตัวเองใน request_approvals
- * ถ้าอาจารย์หลักอนุมัติ → auto-approve co-advisors ที่ยัง Pending
- * คืน null ถ้าไม่มี slot ที่ pending ของ advisorId นี้ ไม่งั้นคืน { anyRejected, allApproved }
+ * อาจารย์ที่ปรึกษาหลัก (step 'Advisor') อนุมัติหรือปฏิเสธ — เป็นสิทธิ์ของอาจารย์หลักคนเดียว
+ * อาจารย์ร่วมไม่มีสิทธิ์ตัดสิน (ผลขึ้นกับอาจารย์หลัก) แถวของอาจารย์ร่วมเก็บไว้บอกว่าเป็นที่ปรึกษาของคำร้องนี้
+ * ถ้าอาจารย์หลักอนุมัติ → ช่องอาจารย์ร่วมที่ยัง Pending ถูกอนุมัติตามอัตโนมัติ (ไม่ใช่การกดของอาจารย์ร่วม)
+ * คืน null ถ้าอาจารย์หลักคนนี้ไม่มีช่องที่ pending ไม่งั้นคืน { anyRejected, allApproved }
  * (การอัปเดต overall_status ของตาราง request หลักเป็นหน้าที่ของ caller เอง
  * เพราะแต่ละฝั่งมี column ปลีกย่อยต่างกัน เช่น last_rejected_at)
  *
@@ -63,9 +64,9 @@ async function reviewAdvisorSlot(conn, requestType, requestId, advisorId, action
   }
 
   const [pendingSlot] = await conn.query(
-    `SELECT approval_id, step FROM request_approvals
+    `SELECT approval_id FROM request_approvals
       WHERE request_type = ? AND request_id = ?
-        AND step IN ('Advisor','Co_Advisor_1','Co_Advisor_2')
+        AND step = 'Advisor'
         AND approver_id = ? AND status = 'Pending'
       LIMIT 1`,
     [requestType, requestId, advisorId]
@@ -78,7 +79,7 @@ async function reviewAdvisorSlot(conn, requestType, requestId, advisorId, action
     [newStatus, remark, pendingSlot[0].approval_id]
   );
 
-  if (action === 'approve' && pendingSlot[0].step === 'Advisor') {
+  if (action === 'approve') {
     await conn.query(
       `UPDATE request_approvals SET status = 'Approved', decided_at = NOW()
         WHERE request_type = ? AND request_id = ?
@@ -118,4 +119,21 @@ async function withTransaction(fn) {
   }
 }
 
-module.exports = { slotFromApproval, fetchApprovalsMap, reviewAdvisorSlot, withTransaction };
+/**
+ * ข้อมูลมุมมองของอาจารย์ที่ login ต่อคำร้องหนึ่งใบ (ใช้กับ endpoint ฝั่งอาจารย์: /pending /history /:id)
+ *  - my_role   : 'Major' | 'Co_1' | 'Co_2' | null — เป็นอะไรของคำร้องนี้ (ถ้าถือหลายช่อง ให้ Major ก่อน)
+ *  - can_review: true เมื่อเป็นอาจารย์หลัก ช่องของตัวเองยัง Pending และคำร้องยัง Pending
+ */
+function advisorViewFields(row, userId) {
+  const me = String(userId);
+  const my_role = String(row.advisor_approval?.user_id) === me ? 'Major'
+    : String(row.co_advisor_1_approval?.user_id) === me ? 'Co_1'
+    : String(row.co_advisor_2_approval?.user_id) === me ? 'Co_2'
+    : null;
+  const can_review = my_role === 'Major'
+    && row.advisor_approval.status === 'Pending'
+    && row.overall_status === 'Pending';
+  return { my_role, can_review };
+}
+
+module.exports = { slotFromApproval, fetchApprovalsMap, reviewAdvisorSlot, withTransaction, advisorViewFields };
