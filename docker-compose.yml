@@ -10,7 +10,7 @@ services:
       - ./backend/.env
     command: sh -c 'MYSQL_ROOT_PASSWORD="$$DB_PASSWORD" MYSQL_DATABASE="$$DB_NAME" exec docker-entrypoint.sh mysqld'
     ports:
-      - "3310:3306"
+      - "127.0.0.1:3310:3306"
     volumes:
       - journal_watch_db_data:/var/lib/mysql
       - ./backend/db/init:/docker-entrypoint-initdb.d:ro

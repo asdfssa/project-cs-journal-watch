@@ -98,7 +98,7 @@ docker logs -f journal_watch_backend   # ดู log ของ backend
 | Service | พอร์ตบนเครื่อง host |
 |---|---|
 | backend API | `13002` (3002 ติด Windows reserved port range) (→ container `3000`) |
-| MySQL | `3310` (→ container `3306`) |
+| MySQL (bind เฉพาะ localhost) | `3310` (→ container `3306`) |
 | noVNC / VNC (bind เฉพาะ localhost) | `6082` / `15902` |
 
 `DB_HOST` และ `DB_PORT` ใน `.env` ถูก compose ทับเป็น `db:3306` ให้ backend ใน container อัตโนมัติ
