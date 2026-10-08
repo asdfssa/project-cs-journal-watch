@@ -42,8 +42,10 @@ const INNOVATION_TYPE_MAP = [
 ];
 
 function normalizeInnovationType(value) {
-  if (!value) return 'None';
-  const match = INNOVATION_TYPE_MAP.find(([pattern]) => pattern.test(value));
+  if (typeof value !== 'string' || !value) return 'None';
+  // label จริงของ FE สั้นกว่านี้มาก — ตัดไว้กัน `.*` backtrack แบบ O(n²) กับ input ยาว (ReDoS)
+  const v = value.slice(0, 200);
+  const match = INNOVATION_TYPE_MAP.find(([pattern]) => pattern.test(v));
   return match ? match[1] : 'None';
 }
 
