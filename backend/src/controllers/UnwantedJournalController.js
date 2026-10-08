@@ -7,6 +7,7 @@ const db = require('../config/database');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const { parse } = require('csv-parse/sync');
 const { serverError } = require('../utils/errorResponse');
 const { parsePagination, normalizeIssn } = require('../utils/input');
@@ -32,7 +33,8 @@ const evidenceStorage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const ext = MIME_TO_EXT[file.mimetype] || '.bin';
-    cb(null, `${Date.now()}${ext}`);
+    // randomUUID กันชื่อชนกันเมื่ออัปโหลดพร้อมกันในมิลลิวินาทีเดียว (ไฟล์หลังจะทับไฟล์แรก)
+    cb(null, `${Date.now()}-${crypto.randomUUID()}${ext}`);
   },
 });
 
@@ -165,10 +167,14 @@ class UnwantedJournalController {
 
         const { issn, journal_name, publisher, note, recorded_date } = req.body;
 
-        if (!journal_name?.trim())
+        if (!journal_name?.trim()) {
+          if (req.file) removeFile(req.file.path);
           return res.status(400).json({ success: false, message: 'กรุณาระบุชื่อวารสาร' });
-        if (!recorded_date)
+        }
+        if (!recorded_date) {
+          if (req.file) removeFile(req.file.path);
           return res.status(400).json({ success: false, message: 'กรุณาระบุวันที่บันทึก' });
+        }
 
         const issnNorm = issn?.trim() ? normalizeIssn(issn) : null;
         if (issn?.trim() && !issnNorm) {
