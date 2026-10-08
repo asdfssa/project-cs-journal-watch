@@ -780,7 +780,7 @@ records = parse(req.file.buffer, {
   // POST /api/admin/admins
   // สร้าง Admin ใหม่ (username + password)
   // Body: { username, password, first_name, last_name, msu_mail }
-  // เฉพาะ Admin และ SuperAdmin
+  // เฉพาะ SuperAdmin (บังคับที่ adminRoutes)
   // ============================================================
   static async createAdmin(req, res, next) {
     try {
@@ -793,6 +793,12 @@ records = parse(req.file.buffer, {
       if (!first_name?.trim()) return res.status(400).json({ success: false, message: 'กรุณาระบุชื่อ' });
       if (!last_name?.trim())  return res.status(400).json({ success: false, message: 'กรุณาระบุนามสกุล' });
       if (!msu_mail?.trim())   return res.status(400).json({ success: false, message: 'กรุณาระบุอีเมล' });
+
+      // กฎเดียวกับ loginValidator / resetPasswordValidator — ไม่งั้นสร้างแล้ว login ไม่ได้ หรือรหัสอ่อนกว่าตอน reset
+      if (!/^[a-zA-Z0-9_.-]{4,50}$/.test(username.trim()))
+        return res.status(400).json({ success: false, code: 'INVALID_USERNAME', message: 'username ต้องยาว 4-50 ตัว ใช้ได้เฉพาะ a-z, A-Z, 0-9, _ . -' });
+      if (password.length < 8 || password.length > 128 || !/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password))
+        return res.status(400).json({ success: false, code: 'WEAK_PASSWORD', message: 'รหัสผ่านต้องยาว 8-128 ตัว มีตัวพิมพ์ใหญ่ ตัวพิมพ์เล็ก และตัวเลข' });
 
       // เช็ค username ซ้ำ
       const [dupUser] = await db.query(
@@ -908,7 +914,9 @@ records = parse(req.file.buffer, {
   static async updateAdmin(req, res, next) {
     try {
       const { id } = req.params;
-      const callerRole = req.user.role;
+      // Admin แก้ได้เฉพาะของตัวเอง (หน้าโปรไฟล์) — จัดการ Admin คนอื่นเป็นสิทธิ์ SuperAdmin
+      if (req.user.role !== 'SuperAdmin' && Number(id) !== req.user.sub)
+        return res.status(403).json({ success: false, message: 'แก้ไขข้อมูล Admin คนอื่นได้เฉพาะ SuperAdmin' });
 
       const [target] = await db.query(
         `SELECT user_id, role, prefix, first_name, last_name, msu_mail
@@ -918,9 +926,6 @@ records = parse(req.file.buffer, {
       );
       if (!target.length)
         return res.status(404).json({ success: false, message: 'ไม่พบผู้ใช้' });
-
-      if (callerRole === 'Admin' && target[0].role === 'SuperAdmin')
-        return res.status(403).json({ success: false, message: 'ไม่สามารถแก้ไข SuperAdmin ได้' });
 
       if (!['Admin', 'SuperAdmin'].includes(target[0].role))
         return res.status(400).json({ success: false, message: 'ผู้ใช้นี้ไม่ใช่ Admin' });
@@ -942,11 +947,8 @@ records = parse(req.file.buffer, {
       if (!merged.last_name)  return res.status(400).json({ success: false, message: 'นามสกุลห้ามว่าง' });
       if (!merged.msu_mail)   return res.status(400).json({ success: false, message: 'อีเมลห้ามว่าง' });
 
-      // อีเมลของ Admin ใช้รับ OTP login/รีเซ็ตรหัสผ่าน — เปลี่ยนได้เฉพาะ SuperAdmin หรือเจ้าของบัญชี
-      // (กัน Admin เปลี่ยนอีเมล Admin คนอื่นเป็นของตัวเองแล้ว forgot-password ยึดบัญชี)
+      // อีเมลของ Admin ใช้รับ OTP login/รีเซ็ตรหัสผ่าน — การแก้ Admin คนอื่นถูกจำกัดให้ SuperAdmin ไว้ด้านบนแล้ว
       const mailChanged = mailOf(merged.msu_mail) !== mailOf(cur.msu_mail);
-      if (mailChanged && callerRole !== 'SuperAdmin' && Number(id) !== req.user.sub)
-        return res.status(403).json({ success: false, message: 'เปลี่ยนอีเมลของ Admin คนอื่นได้เฉพาะ SuperAdmin' });
 
       await db.query(
         `UPDATE users

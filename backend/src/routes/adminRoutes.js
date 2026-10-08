@@ -18,11 +18,13 @@ router.use(requireRole('Admin', 'SuperAdmin'));
 // ภาพรวมสถิติ
 router.get('/stats', AdminController.getStats);
 
-// จัดการ Admin (Admin/SuperAdmin เท่านั้น)
-router.get('/admins',                AdminController.getAdmins);
-router.post('/admins',               AdminController.createAdmin);
-router.patch('/admins/:id/suspend',  AdminController.suspendAdmin);
-router.patch('/admins/:id/activate', AdminController.activateAdmin);
+// จัดการ Admin — SuperAdmin เท่านั้น
+// (PATCH /admins/:id เปิดให้ Admin ด้วย เพราะหน้าโปรไฟล์ใช้แก้ชื่อตัวเอง — updateAdmin จำกัดให้แก้ได้แค่ของตัวเอง)
+const superAdminOnly = requireRole('SuperAdmin');
+router.get('/admins',                superAdminOnly, AdminController.getAdmins);
+router.post('/admins',               superAdminOnly, AdminController.createAdmin);
+router.patch('/admins/:id/suspend',  superAdminOnly, AdminController.suspendAdmin);
+router.patch('/admins/:id/activate', superAdminOnly, AdminController.activateAdmin);
 router.patch('/admins/:id',          AdminController.updateAdmin);
 router.delete('/admins/:id',         AdminController.deleteAdmin);
 
