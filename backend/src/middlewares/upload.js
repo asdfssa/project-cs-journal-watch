@@ -54,7 +54,8 @@ const fileFilter = (req, file, cb) => {
 const uploadT3FieldsMemory = multer({
   storage: multer.memoryStorage(),
   fileFilter,
-  limits: { fileSize: MAX_FILE_SIZE },
+  // FE ส่ง 5 ช่องข้อความ (JSON string) + ไฟล์สูงสุด 6 — กันยัดช่องข้อความรัวๆ ลง RAM
+  limits: { fileSize: MAX_FILE_SIZE, files: T3_FIELDS.length, fields: 20, fieldSize: 100 * 1024, parts: 20 + T3_FIELDS.length },
 }).fields(T3_FIELDS.map(name => ({ name, maxCount: 1 })));
 
 /**

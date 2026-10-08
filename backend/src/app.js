@@ -62,8 +62,9 @@ app.use((req, _res, next) => {
 });
 
 // Body parser
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// JSON ใหญ่สุดจริง (Pre-T3/T3) แค่หลัก KB — ไฟล์ทั้งหมดไปทาง multipart (multer) ไม่ผ่านตัวนี้
+app.use(express.json({ limit: '100kb' }));
+app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 app.use(cookieParser()); 
 
 // API routes

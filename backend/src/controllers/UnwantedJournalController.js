@@ -47,7 +47,8 @@ const uploadEvidence = multer({
       cb(new Error('ประเภทไฟล์ไม่ถูกต้อง รองรับเฉพาะ PDF, JPG, PNG, WEBP เท่านั้น'), false);
     }
   },
-  limits: { fileSize: 10 * 1024 * 1024 },
+  // fieldSize 64KB = ขนาด TEXT ของคอลัมน์ note
+  limits: { fileSize: 10 * 1024 * 1024, files: 1, fields: 10, fieldSize: 64 * 1024 },
 }).single('evidence_file');
 
 class UnwantedJournalController {
@@ -229,7 +230,7 @@ class UnwantedJournalController {
   static async importCsv(req, res, next) {
     const upload = multer({
       storage: multer.memoryStorage(),
-      limits: { fileSize: 2 * 1024 * 1024 },
+      limits: { fileSize: 2 * 1024 * 1024, files: 1, fields: 10, fieldSize: 10 * 1024 },
     }).single('file');
 
     upload(req, res, async (err) => {

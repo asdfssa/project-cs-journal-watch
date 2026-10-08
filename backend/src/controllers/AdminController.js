@@ -467,7 +467,7 @@ if (role === 'Student') {
     const { parse } = require('csv-parse/sync');
 
     // รับไฟล์ใน memory
-    const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 } }).single('file');
+    const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024, files: 1, fields: 10, fieldSize: 10 * 1024 } }).single('file');
 
     upload(req, res, async (err) => {
       if (err) return res.status(400).json({ success: false, message: 'อัปโหลดไฟล์ไม่สำเร็จ: ' + err.message });
