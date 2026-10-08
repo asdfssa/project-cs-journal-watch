@@ -20,6 +20,8 @@ const googleClient = new OAuth2Client(config.google.clientId);
 
 // hash ปลอมสำหรับ compare ตอนไม่พบ user — ให้ใช้เวลาเท่ากับกรณีพบ user (กันเดา username จากเวลาตอบ)
 const DUMMY_HASH = bcrypt.hashSync('dummy-password-for-timing', 12);
+// ช่วงที่ refresh token ที่เพิ่งถูก rotate ยังใช้ขอ access token ได้ (refresh ซ้อนจากหลายแท็บ)
+const REFRESH_GRACE_SECONDS = 10;
 class AuthError extends Error {
   constructor(message, code, statusCode = 400) {
     super(message);
@@ -227,19 +229,19 @@ class AuthService {
     const stored = await RefreshTokenModel.findByHash(tokenHash);
 
     if (!stored) {
-      throw new AuthError('Refresh Token ไม่ถูกต้องหรือหมดอายุ', 'INVALID_REFRESH_TOKEN', 401);
+      return AuthService._refreshWithinGrace(tokenHash);
     }
 
     const user = await UserModel.findById(stored.user_id);
     if (!user || user.account_status !== 'Active') {
-      await RefreshTokenModel.revokeByHash(tokenHash);
+      await RefreshTokenModel.revokeForLogout(tokenHash);
       throw new AuthError('บัญชีนี้ไม่สามารถใช้งานได้ในขณะนี้', 'ACCOUNT_UNAVAILABLE', 401);
     }
 
     // Rotate: revoke token เก่าแบบ atomic — ถ้ามี request อื่นใช้ token นี้ไปก่อนแล้ว
     // (refresh พร้อมกัน / token ถูกขโมยไปยิงแข่ง) จะได้ token ใหม่แค่ request เดียว
     if (!(await RefreshTokenModel.revokeByHash(tokenHash))) {
-      throw new AuthError('Refresh Token ไม่ถูกต้องหรือหมดอายุ', 'INVALID_REFRESH_TOKEN', 401);
+      return AuthService._refreshWithinGrace(tokenHash);
     }
 
     const newAccessToken = jwtUtil.issueAccessToken(user);
@@ -263,10 +265,27 @@ class AuthService {
   static async logout({ refreshToken }) {
     if (!refreshToken) return;
     const tokenHash = jwtUtil.hashRefreshToken(refreshToken);
-    await RefreshTokenModel.revokeByHash(tokenHash);
+    await RefreshTokenModel.revokeForLogout(tokenHash);
   }
 
   // ===== Private helpers =====
+
+  /**
+   * refresh ซ้อน (2 แท็บใช้ cookie เดียวกัน): token เพิ่งถูก rotate ไม่เกิน REFRESH_GRACE_SECONDS
+   * → ออกแค่ access token ไม่ออก refresh token ใบใหม่ (controller จะไม่แตะ cookie
+   * browser ใช้ใบที่ request ที่ชนะตั้งไว้) กัน cookie ใหม่ถูก clearCookie ของ request ที่แพ้ลบทิ้ง
+   */
+  static async _refreshWithinGrace(tokenHash) {
+    const rotated = await RefreshTokenModel.findRecentlyRotated(tokenHash, REFRESH_GRACE_SECONDS);
+    if (!rotated) {
+      throw new AuthError('Refresh Token ไม่ถูกต้องหรือหมดอายุ', 'INVALID_REFRESH_TOKEN', 401);
+    }
+    const user = await UserModel.findById(rotated.user_id);
+    if (!user || user.account_status !== 'Active') {
+      throw new AuthError('บัญชีนี้ไม่สามารถใช้งานได้ในขณะนี้', 'ACCOUNT_UNAVAILABLE', 401);
+    }
+    return { accessToken: jwtUtil.issueAccessToken(user), refreshToken: null };
+  }
 
   static async _issueOtpForUser(user) {
     await OtpModel.invalidateActive(user.user_id, 'login_2fa');

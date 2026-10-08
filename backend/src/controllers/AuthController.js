@@ -136,7 +136,10 @@ class AuthController {
       });
 
       // Rotate: set refresh token ใหม่ใน cookie
-      res.cookie('jw_refresh_token', result.refreshToken, REFRESH_COOKIE_OPTIONS);
+      // (null = refresh ซ้อนในช่วงผ่อนผัน — ไม่แตะ cookie ที่ request ที่ชนะเพิ่งตั้งไว้)
+      if (result.refreshToken) {
+        res.cookie('jw_refresh_token', result.refreshToken, REFRESH_COOKIE_OPTIONS);
+      }
 
       return res.json({
         success: true,
@@ -145,8 +148,10 @@ class AuthController {
         },
       });
     } catch (err) {
-      // clear cookie ถ้า refresh token ไม่ valid
-      res.clearCookie('jw_refresh_token', { path: '/api/v3/auth' });
+      // clear cookie เฉพาะตอน token ใช้ไม่ได้จริง (AuthError 401) — DB สะดุด/500 ไม่ควรเตะ user ออก
+      if (err.statusCode === 401) {
+        res.clearCookie('jw_refresh_token', { path: '/api/v3/auth' });
+      }
       next(err);
     }
   }

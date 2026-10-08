@@ -39,7 +39,26 @@ class RefreshTokenModel {
   }
 
   /**
-   * Revoke token เดียว (logout / rotate) — คืน true เฉพาะ request แรกที่ revoke สำเร็จ
+   * หา token ที่เพิ่งถูก rotate ภายใน graceSeconds และยังไม่ถูก logout/revoke
+   * (logout/revoke ตั้ง expires_at = NOW() จึงหลุดเงื่อนไขนี้) — ใช้กับ refresh ซ้อนจาก 2 แท็บ
+   */
+  static async findRecentlyRotated(tokenHash, graceSeconds) {
+    const [rows] = await db.query(
+      `SELECT token_id, user_id
+         FROM auth_tokens
+        WHERE token_hash = ?
+          AND token_type = 'Refresh'
+          AND consumed_at > NOW() - INTERVAL ? SECOND
+          AND expires_at > NOW()
+        LIMIT 1`,
+      [tokenHash, graceSeconds]
+    );
+    return rows[0] || null;
+  }
+
+  /**
+   * Rotate token เดียว — คืน true เฉพาะ request แรกที่ revoke สำเร็จ
+   * (ไม่แตะ expires_at เพื่อให้ findRecentlyRotated ผ่อนผัน request ที่ยิงซ้อนได้)
    */
   static async revokeByHash(tokenHash) {
     const [result] = await db.query(
@@ -52,13 +71,25 @@ class RefreshTokenModel {
   }
 
   /**
-   * Revoke ทุก token ของ user (logout all devices)
+   * Revoke ถาวร (logout / บัญชีถูกระงับ) — ตั้ง expires_at = NOW() ด้วย เพื่อปิดช่วงผ่อนผันของ rotate
+   */
+  static async revokeForLogout(tokenHash) {
+    await db.query(
+      `UPDATE auth_tokens
+       SET consumed_at = COALESCE(consumed_at, NOW()), expires_at = NOW()
+       WHERE token_hash = ? AND token_type = 'Refresh' AND expires_at > NOW()`,
+      [tokenHash]
+    );
+  }
+
+  /**
+   * Revoke ทุก token ของ user (logout all devices) — รวม token ที่เพิ่ง rotate (ปิดช่วงผ่อนผัน)
    */
   static async revokeAllByUserId(userId) {
     await db.query(
       `UPDATE auth_tokens
-       SET consumed_at = NOW()
-       WHERE user_id = ? AND token_type = 'Refresh' AND consumed_at IS NULL`,
+       SET consumed_at = COALESCE(consumed_at, NOW()), expires_at = NOW()
+       WHERE user_id = ? AND token_type = 'Refresh' AND expires_at > NOW()`,
       [userId]
     );
   }
