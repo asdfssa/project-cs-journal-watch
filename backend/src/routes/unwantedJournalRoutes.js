@@ -9,6 +9,8 @@ const UnwantedJournalController = require('../controllers/UnwantedJournalControl
 const { requireAuth, requireRole } = require('../middlewares/auth');
 
 const router = express.Router();
+const { requireNumericId } = require('../middlewares/validation');
+router.param('id', requireNumericId);
 
 router.use(requireAuth);
 

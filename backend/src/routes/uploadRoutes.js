@@ -4,6 +4,8 @@
  */
 const express          = require('express');
 const router           = express.Router();
+const { requireNumericId } = require('../middlewares/validation');
+router.param('id', requireNumericId);
 const UploadController = require('../controllers/UploadController');
 const { requireAuth, requireRole } = require('../middlewares/auth');
 

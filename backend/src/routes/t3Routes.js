@@ -4,6 +4,8 @@
  */
 const express       = require('express');
 const router        = express.Router();
+const { requireNumericId } = require('../middlewares/validation');
+router.param('id', requireNumericId);
 const T3Controller  = require('../controllers/T3Controller');
 const { requireAuth, requireRole } = require('../middlewares/auth');
 const { uploadT3FieldsMemory } = require('../middlewares/upload');

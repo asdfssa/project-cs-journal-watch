@@ -8,6 +8,8 @@ const AdminController = require('../controllers/AdminController');
 const { requireAuth, requireRole } = require('../middlewares/auth');
 
 const router = express.Router();
+const { requireNumericId } = require('../middlewares/validation');
+router.param('id', requireNumericId);
 
 router.use(requireAuth);
 router.use(requireRole('Admin', 'SuperAdmin', 'Staff'));
