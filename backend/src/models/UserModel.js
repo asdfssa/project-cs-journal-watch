@@ -36,7 +36,7 @@ static async findById(userId) {
     const [rows] = await db.query(
       `SELECT user_id, username, msu_mail,
               role, first_name, last_name,
-              account_status
+              degree_level, account_status
          FROM users
         WHERE msu_mail = ?
         LIMIT 1`,
