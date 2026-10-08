@@ -15,6 +15,7 @@ const MailService = require('./MailService');
 const cryptoUtil = require('../utils/crypto');
 const jwtUtil = require('../utils/jwt');
 const config = require('../config');
+const logger = require('../utils/logger');
 const { OAuth2Client } = require('google-auth-library');
 const googleClient = new OAuth2Client(config.google.clientId);
 
@@ -22,6 +23,8 @@ const googleClient = new OAuth2Client(config.google.clientId);
 const DUMMY_HASH = bcrypt.hashSync('dummy-password-for-timing', 12);
 // ช่วงที่ refresh token ที่เพิ่งถูก rotate ยังใช้ขอ access token ได้ (refresh ซ้อนจากหลายแท็บ)
 const REFRESH_GRACE_SECONDS = 10;
+// ขอ OTP ใหม่ได้ทุกๆ กี่วินาทีต่อบัญชี (ตรงกับ cooldown ฝั่ง FE หน้า req-otp / forgot-password)
+const OTP_RESEND_COOLDOWN_SECONDS = 60;
 class AuthError extends Error {
   constructor(message, code, statusCode = 400) {
     super(message);
@@ -126,6 +129,16 @@ class AuthService {
     const user = await UserModel.findById(userId);
     if (!user) {
       throw new AuthError('ไม่พบบัญชีผู้ใช้ในระบบ', 'USER_NOT_FOUND', 404);
+    }
+    if (user.account_status !== 'Active') {
+      throw new AuthError('บัญชีนี้ไม่สามารถใช้งานได้ในขณะนี้', 'ACCOUNT_UNAVAILABLE', 401);
+    }
+    // cooldown ต่อบัญชี — OTP ใหม่ทุกครั้งรีเซ็ตตัวนับกรอกผิด ถ้าไม่กันจะ resend แล้วเดาได้ไม่จำกัด
+    const secs = await OtpModel.secondsSinceLast(user.user_id, 'login_2fa');
+    if (secs !== null && secs < OTP_RESEND_COOLDOWN_SECONDS) {
+      const err = new AuthError(`กรุณารอ ${OTP_RESEND_COOLDOWN_SECONDS - secs} วินาทีก่อนขอ OTP ใหม่`, 'OTP_COOLDOWN', 429);
+      err.retryAfter = OTP_RESEND_COOLDOWN_SECONDS - secs;
+      throw err;
     }
     await this._issueOtpForUser(user);
     return {
@@ -329,6 +342,14 @@ class AuthService {
       return { resetOtpToken: jwtUtil.issuePasswordResetOtpToken(0), expiresIn };
     }
 
+    const resetOtpToken = jwtUtil.issuePasswordResetOtpToken(user.user_id);
+
+    // ขอซ้ำใน cooldown → ไม่ออก OTP ใหม่ (OTP ในเมลเดิมยังใช้ได้กับ token นี้) แต่ตอบเหมือนเดิมทุกอย่าง
+    const secs = await OtpModel.secondsSinceLast(user.user_id, 'password_reset');
+    if (secs !== null && secs < OTP_RESEND_COOLDOWN_SECONDS) {
+      return { resetOtpToken, expiresIn };
+    }
+
     await OtpModel.invalidateActive(user.user_id, 'password_reset');
 
     const otpCode = cryptoUtil.generateOtp();
@@ -342,12 +363,13 @@ class AuthService {
       expiresAt,
     });
 
-    const mailResult = await MailService.sendOtp(user.msu_mail, otpCode, 'password_reset');
-    if (!mailResult.success) {
-      throw new AuthError('ส่ง OTP ไม่สำเร็จ กรุณาลองใหม่ภายหลัง', 'OTP_SEND_FAILED', 502);
-    }
+    // ไม่รอส่งเมล: ถ้ารอ เวลาตอบของ username จริง (รอ SMTP) จะต่างจาก username ปลอมจนเดาได้
+    // และ 502 ตอนส่งไม่สำเร็จก็บอกว่ามีบัญชีนี้ — ส่งพลาดให้ดูใน log แทน
+    MailService.sendOtp(user.msu_mail, otpCode, 'password_reset')
+      .then(r => { if (!r.success) logger.error(`[requestPasswordReset] ส่ง OTP ไม่สำเร็จ user_id=${user.user_id}`); })
+      .catch(e => logger.error(`[requestPasswordReset] ส่ง OTP ไม่สำเร็จ user_id=${user.user_id}: ${e.message}`));
 
-    return { resetOtpToken: jwtUtil.issuePasswordResetOtpToken(user.user_id), expiresIn };
+    return { resetOtpToken, expiresIn };
   }
 
   /**

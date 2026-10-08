@@ -13,6 +13,7 @@ function errorHandler(err, req, res, next) {
       success: false,
       code:    err.code,
       message: err.message,
+      ...(err.retryAfter && { retryAfter: err.retryAfter }),
     });
   }
 

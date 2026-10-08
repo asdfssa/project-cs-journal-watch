@@ -27,6 +27,19 @@ class OtpModel {
   }
 
   /**
+   * จำนวนวินาทีนับจาก OTP ล่าสุดของ purpose นี้ (null = ไม่เคยออก) — ใช้ทำ cooldown ต่อบัญชี
+   */
+  static async secondsSinceLast(userId, purpose) {
+    const [rows] = await db.query(
+      `SELECT TIMESTAMPDIFF(SECOND, MAX(created_at), NOW()) AS secs
+         FROM otp_requests
+        WHERE user_id = ? AND purpose = ?`,
+      [userId, purpose]
+    );
+    return rows[0]?.secs ?? null;
+  }
+
+  /**
    * ใช้ OTP — คืน true เฉพาะ request แรกที่ใช้สำเร็จ (กันกรอก OTP ถูกพร้อมกันแล้วได้ token 2 ชุด)
    */
   static async markAsUsed(otpId) {
