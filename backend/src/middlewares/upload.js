@@ -66,11 +66,21 @@ const uploadT3FieldsMemory = multer({
  * @returns {Promise<boolean>}
  */
 async function verifyFileType(source) {
+  return !!(await detectAllowedMime(source));
+}
+
+/**
+ * MIME ที่ตรวจจาก magic bytes จริง (null = ไม่ใช่ชนิดที่อนุญาต) — ใช้เลือกนามสกุลไฟล์ที่เก็บ
+ * แทน MIME ที่ client ประกาศ
+ * @param {string|Buffer} source
+ * @returns {Promise<string|null>}
+ */
+async function detectAllowedMime(source) {
   const { fileTypeFromBuffer, fileTypeFromFile } = await loadFileType();
   const detected = Buffer.isBuffer(source)
     ? await fileTypeFromBuffer(source)
     : await fileTypeFromFile(source);
-  return !!detected && ALLOWED_MIME_TYPES.includes(detected.mime);
+  return detected && ALLOWED_MIME_TYPES.includes(detected.mime) ? detected.mime : null;
 }
 
 module.exports = {
@@ -79,4 +89,5 @@ module.exports = {
   ALLOWED_MIME_TYPES,
   MIME_TO_EXT,
   verifyFileType,
+  detectAllowedMime,
 };

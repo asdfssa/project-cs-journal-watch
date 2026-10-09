@@ -11,6 +11,7 @@
  *   PATCH  /api/t3/:id/faculty-review       → Staff บันทึกมติ Faculty Com (ผลสุดท้ายของ T3)
  */
 const path = require('path');
+const { randomUUID } = require('crypto');
 const fs   = require('fs/promises');
 const T3Model     = require('../models/T3Model');
 const PreT3Model  = require('../models/PreT3Model');
@@ -21,7 +22,7 @@ const db          = require('../config/database');
 const { serverError } = require('../utils/errorResponse');
 const { parsePagination, optionalDecimal } = require('../utils/input');
 const { toMysqlDate } = require('../utils/date');
-const { verifyFileType, MIME_TO_EXT } = require('../middlewares/upload');
+const { detectAllowedMime, MIME_TO_EXT } = require('../middlewares/upload');
 
 const FIELD_TO_KEY = {
   acceptance_letter:  'acceptance_letter_path',
@@ -99,7 +100,7 @@ class T3Controller {
     paper_and_research_details,
     publication_details,
     journal_metrics,
-  }) {
+  }, afterInsert = null) {
     // --- Validate required fields ---
     if (!pre_t3_id || !journal_snapshot || !paper_and_research_details || !publication_details || !journal_metrics) {
       return { error: {
@@ -203,7 +204,8 @@ class T3Controller {
           majorAdvisorId: majorAdvisor.advisor_id,
           coAdvisor1Id:   co1Advisor?.advisor_id || null,
           coAdvisor2Id:   co2Advisor?.advisor_id || null,
-        }
+        },
+        afterInsert
       );
     } catch (err) {
       if (err.code === 'T3_ALREADY_EXISTS') {
@@ -572,51 +574,52 @@ class T3Controller {
       };
 
       // --- จัดการไฟล์ (ถ้ามี) ---
-      // เช็ค magic bytes ของทุกไฟล์ก่อนสร้าง T3 และก่อนเขียนไฟล์ ถ้ามีไฟล์ไหนไม่ผ่าน
-      // จะไม่มี T3 ค้างใน DB และไม่มีไฟล์ที่เขียนไปแล้วบางส่วน
-      const evidenceFiles = {};
+      // ตรวจ magic bytes ของทุกไฟล์ก่อนสร้าง T3 และเก็บ MIME ที่ตรวจจริงไว้เลือกนามสกุล
+      // (ไม่ใช้ MIME ที่ client ประกาศ)
       const uploaded = {};
+      const toWrite = [];
       const entries = req.files ? Object.entries(req.files).filter(([f]) => FIELD_TO_KEY[f]) : [];
 
       for (const [fieldName, fileArr] of entries) {
         const file = fileArr[0];
-        // เช็ค magic bytes จริง — fileFilter เช็คได้แค่ Content-Type ที่ client ส่งมา ปลอมได้
-        const isValidType = await verifyFileType(file.buffer);
-        if (!isValidType) {
+        const mime = await detectAllowedMime(file.buffer);
+        if (!mime) {
           return res.status(400).json({
             success: false,
             code: 'INVALID_FILE_CONTENT',
             message: `ไฟล์ "${fieldName}" มีเนื้อหาไม่ตรงกับประเภทไฟล์ที่ประกาศไว้ (รองรับเฉพาะ PDF, JPG, PNG, WEBP)`,
           });
         }
+        toWrite.push({ fieldName, buffer: file.buffer, ext: MIME_TO_EXT[mime] });
       }
 
-      const result = await T3Controller._validateAndCreate(studentId, body);
+      // เขียนไฟล์ + แถว evidence ใน transaction เดียวกับ T3 (B30): อันไหนล้ม → rollback T3 ทั้งก้อน
+      // แล้วลบโฟลเดอร์ไฟล์ทิ้ง ไม่เหลือ T3 ค้างหรือไฟล์กำพร้า (retry จึงไม่ได้ T3 ซ้ำ)
+      let t3Dir = null;
+      let result;
+      try {
+        result = await T3Controller._validateAndCreate(studentId, body, async (conn, t3Id) => {
+          if (!toWrite.length) return;
+          t3Dir = path.join(process.cwd(), 'uploads', 't3', String(t3Id));
+          for (const { fieldName, buffer, ext } of toWrite) {
+            const dir = path.join(t3Dir, fieldName);
+            await fs.mkdir(dir, { recursive: true });
+            const filePath = path.join(dir, `${randomUUID()}${ext}`);
+            await fs.writeFile(filePath, buffer);
+            const relativePath = path.relative(process.cwd(), filePath).replace(/\\/g, '/');
+            await T3Model.upsertEvidenceFile(t3Id, fieldName, relativePath, conn);
+            uploaded[fieldName] = relativePath;
+          }
+        });
+      } catch (err) {
+        if (t3Dir) await fs.rm(t3Dir, { recursive: true, force: true }).catch(() => {});
+        throw err;
+      }
       if (result.error) {
         const { status, ...errBody } = result.error;
         return res.status(status).json({ success: false, ...errBody });
       }
       const { t3Id, student, majorAdvisor, journal_snapshot, paper_and_research_details } = result;
-
-      for (const [fieldName, fileArr] of entries) {
-        const key  = FIELD_TO_KEY[fieldName];
-        const file = fileArr[0];
-
-        // นามสกุลไฟล์ที่เก็บจริง ยึดตาม MIME ที่ fileFilter อนุมัติ ไม่ใช้นามสกุลจาก client
-        const ext      = MIME_TO_EXT[file.mimetype] || '.bin';
-        const filename = `${Date.now()}${ext}`;
-        const dir      = path.join(process.cwd(), 'uploads', 't3', String(t3Id), fieldName);
-
-        await fs.mkdir(dir, { recursive: true });
-        const filePath = path.join(dir, filename);
-        await fs.writeFile(filePath, file.buffer);
-
-        const relativePath   = path.relative(process.cwd(), filePath).replace(/\\/g, '/');
-        evidenceFiles[key]   = relativePath;
-        uploaded[fieldName]  = relativePath;
-
-        await T3Model.upsertEvidenceFile(t3Id, fieldName, relativePath);
-      }
 
       // แจ้ง Advisor ทางอีเมล
       const advisorUser = await UserModel.findById(majorAdvisor.advisor_id);

@@ -49,6 +49,8 @@ class T3Model {
    * @param {object} publicationDetails    - type, weight_score, specified_database, status, volume, issue, publish_year
    * @param {object} journalMetrics        - has_impact_score, impact_factor, citescore, score_year
    * @param {object} advisorIds            - majorAdvisorId, coAdvisor1Id, coAdvisor2Id
+   * @param {Function} [afterInsert]       - async (conn, t3Id) รันใน transaction เดียวกัน (เช่น เขียนไฟล์แนบ + แถว evidence)
+   *                                         ถ้า throw → rollback ทั้ง T3 (B30)
    * @returns {number} t3_id ที่สร้างใหม่
    */
   static async create(
@@ -57,7 +59,8 @@ class T3Model {
     paperAndResearchDetails,
     publicationDetails,
     journalMetrics,
-    advisorIds
+    advisorIds,
+    afterInsert = null
   ) {
     const { majorAdvisorId, coAdvisor1Id = null, coAdvisor2Id = null } = advisorIds;
 
@@ -127,6 +130,8 @@ class T3Model {
           [t3Id, step, approverId]
         );
       }
+
+      if (afterInsert) await afterInsert(conn, t3Id);
 
       return t3Id;
     });
@@ -234,10 +239,10 @@ class T3Model {
   // Evidence files (t3_evidence_files)
   // ============================================================
 
-  static async upsertEvidenceFile(t3Id, fieldName, filePath) {
+  static async upsertEvidenceFile(t3Id, fieldName, filePath, conn = db) {
     const fileType = KEY_TO_FILE_TYPE[fieldName] || KEY_TO_FILE_TYPE[`${fieldName}_path`];
     if (!fileType) return false;
-    await db.query(
+    await conn.query(
       `INSERT INTO t3_evidence_files (t3_id, file_type, file_path)
        VALUES (?, ?, ?)
        ON DUPLICATE KEY UPDATE file_path = VALUES(file_path)`,
