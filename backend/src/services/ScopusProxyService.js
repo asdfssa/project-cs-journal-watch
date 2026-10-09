@@ -15,6 +15,7 @@
  */
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const config = require('../config');
 
 // ponytail: ตัวเลขจาก burst test จริง (เจอ 429 ครั้งแรกที่ concurrent request ตัวที่ 6)
@@ -26,12 +27,18 @@ const DEFAULT_WEEKLY_LIMIT = 20000;
 const STATE_DIR = path.join(__dirname, '..', '..', 'data');
 const STATE_FILE = path.join(STATE_DIR, 'scopus-proxy-state.json');
 
+// รหัสแทน key ในไฟล์ state — ไม่เก็บ API key จริงลงดิสก์ (B49)
+const keyId = (key) => crypto.createHash('sha256').update(key).digest('hex').slice(0, 16);
+
 class ScopusProxyService {
   constructor() {
     const persisted = this._loadState();
 
+    // ไฟล์ state เวอร์ชันเก่าใช้ key จริงเป็นคีย์ — อ่านต่อได้ แล้วเขียนทับด้วยรูปแบบ hash ทันที
+    const hasLegacy = config.scopus.apiKeys.some(key => persisted[key]);
+
     this.keys = config.scopus.apiKeys.map((key, index) => {
-      const saved = persisted[key] || {};
+      const saved = persisted[keyId(key)] || persisted[key] || {};
       return {
         key,
         index,
@@ -44,6 +51,7 @@ class ScopusProxyService {
     });
     this.currentIndex = 0;
     this._writeQueue = Promise.resolve(); // serialize เขียนไฟล์กันไฟล์ state พัง
+    if (hasLegacy) this._persist().catch(() => {});
   }
 
   /**
@@ -144,7 +152,7 @@ class ScopusProxyService {
       remaining: k.weeklyRemaining,
       weeklyResetAt: k.weeklyResetAt,
       isAvailable: !this._isLocked(k),
-      keyPreview: k.key ? `${k.key.slice(0, 6)}...${k.key.slice(-4)}` : 'N/A',
+      keyPreview: k.key ? `…${k.key.slice(-4)}` : 'N/A', // 4 ตัวท้ายพอให้แยก key ได้
     }));
   }
 
@@ -172,7 +180,7 @@ class ScopusProxyService {
   async _persist() {
     const snapshot = {};
     for (const k of this.keys) {
-      snapshot[k.key] = {
+      snapshot[keyId(k.key)] = {
         weeklyLimit: k.weeklyLimit,
         weeklyRemaining: k.weeklyRemaining,
         weeklyResetAt: k.weeklyResetAt,

@@ -162,10 +162,24 @@ class UnwantedJournalController {
         [...params, Number(limit), offset]
       );
 
+      // ผู้สร้างรายการ (ชื่อ/อีเมล) และ path ไฟล์บนเซิร์ฟเวอร์ เห็นได้เฉพาะผู้จัดการรายการ — role อื่นได้แค่ว่ามีไฟล์หรือไม่
+      // evidence_file_path ของ role อื่นเป็นเส้นทางดาวน์โหลดตาม id (FE ใช้เป็นแค่ตัวบอกว่ามีไฟล์) ไม่ใช่ path จริง (B49)
+      const isManager = ['Admin', 'SuperAdmin', 'Staff'].includes(req.user.role);
+      const journals = rows.map(r => {
+        const has_evidence = !!r.evidence_file_path;
+        if (isManager) return { ...r, has_evidence };
+        return {
+          ...r,
+          first_name: null, last_name: null, msu_mail: null,
+          has_evidence,
+          evidence_file_path: has_evidence ? `/unwanted-journals/${r.unwanted_id}/evidence` : null,
+        };
+      });
+
       return res.json({
         success: true,
         data: {
-          journals: rows,
+          journals,
           pagination: {
             total: Number(countRows[0].total),
             page:  Number(page),
