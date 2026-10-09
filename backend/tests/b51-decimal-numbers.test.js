@@ -7,7 +7,7 @@ const src = (p) => path.join(__dirname, '..', 'src', p);
 let poolOptions;
 const stub = (file, exports) => { require.cache[file] = { id: file, filename: file, loaded: true, exports }; };
 stub(require.resolve('mysql2/promise'), {
-  createPool: (o) => { poolOptions = o; return { getConnection: async () => ({ release() {} }) }; },
+  createPool: (o) => { poolOptions = o; return { pool: { on() {} }, getConnection: async () => ({ release() {} }) }; },
 });
 stub(src('config/index.js'), { db: { host: 'h', port: 3306, user: 'u', password: 'p', database: 'd', connectionLimit: 1 } });
 require(src('config/database.js'));
