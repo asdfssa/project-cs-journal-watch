@@ -17,6 +17,7 @@ if (config.mail.mode === 'smtp') {
     host: config.mail.smtp.host,
     port: config.mail.smtp.port,
     secure: config.mail.smtp.port === 465,
+    requireTLS: config.mail.smtp.port !== 465 && config.mail.smtp.requireTLS,
     auth: {
       user: config.mail.smtp.user,
       pass: config.mail.smtp.pass,

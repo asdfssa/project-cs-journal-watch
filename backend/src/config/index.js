@@ -55,6 +55,9 @@ module.exports = {
       port: parseInt(process.env.SMTP_PORT, 10) || 587,
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
+      // port อื่นนอกจาก 465 (SSL ล้วน) ต้องอัปเกรดเป็น TLS ก่อนส่งรหัสผ่าน/OTP — ไม่งั้น attacker กลางทางตัด STARTTLS แล้วอ่านได้
+      // ตั้ง SMTP_REQUIRE_TLS=false เฉพาะ relay ภายในที่ไม่รองรับ TLS จริงๆ
+      requireTLS: process.env.SMTP_REQUIRE_TLS !== 'false',
     },
   },
 

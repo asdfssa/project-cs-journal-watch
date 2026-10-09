@@ -4,7 +4,7 @@
  * เฉพาะ Admin และ SuperAdmin เท่านั้น
  */
 const db          = require('../config/database');
-const { parsePagination, nonStringField, nonScalarField } = require('../utils/input');
+const { parsePagination, nonStringField, nonScalarField, likeContains } = require('../utils/input');
 
 // field ของผู้ใช้ที่ลง SQL ตรงๆ แต่ไม่บังคับว่าต้องเป็นข้อความ — ห้ามเป็น object/array (B45)
 // CSV import: จำกัดจำนวนแถว + ค่า enum ที่คอลัมน์ users รับ (ผิด → แจ้งรายแถว ไม่ปล่อยไปชน MySQL แล้ว 500 ทั้งก้อน)
@@ -116,7 +116,7 @@ class AdminController {
       if (status) { where.push('u.account_status = ?'); params.push(status); }
       if (search) {
         where.push('(u.first_name LIKE ? OR u.last_name LIKE ? OR u.msu_mail LIKE ?)');
-        const like = `%${search}%`;
+        const like = likeContains(search);
         params.push(like, like, like);
       }
 
@@ -831,7 +831,7 @@ records = parse(req.file.buffer, {
       if (status) { where.push('u.account_status = ?'); params.push(status); }
       if (search) {
         where.push('(u.username LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ? OR u.msu_mail LIKE ?)');
-        const like = `%${search}%`;
+        const like = likeContains(search);
         params.push(like, like, like, like);
       }
 

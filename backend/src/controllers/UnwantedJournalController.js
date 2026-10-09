@@ -10,7 +10,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const { parse } = require('csv-parse/sync');
 const { serverError } = require('../utils/errorResponse');
-const { parsePagination, normalizeIssn, nonStringField } = require('../utils/input');
+const { parsePagination, normalizeIssn, nonStringField, likeContains } = require('../utils/input');
 const { toMysqlDate } = require('../utils/date');
 
 const MAX_IMPORT_ROWS = 2000;
@@ -129,7 +129,7 @@ class UnwantedJournalController {
       const params = [];
 
       if (search) {
-        const like = `%${search}%`;
+        const like = likeContains(search);
         // ISSN เก็บเป็น XXXX-XXXX → ค้น "12345678" ต้องเทียบแบบตัดขีดด้วย ไม่งั้นไม่เจอ
         const digits = String(search).replace(/[\s-]/g, '');
         if (digits.length >= 4 && /^[0-9Xx]+$/.test(digits)) {

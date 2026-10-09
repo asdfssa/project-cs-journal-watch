@@ -42,7 +42,13 @@ const skipLocalhost = (req) => {
 
 // key ของ rate limit = IP จริงของ client: CF-Connecting-IP ที่ Cloudflare ใส่เอง (เขียนทับค่าที่ client ส่งมา
 // ปลอมผ่าน tunnel ไม่ได้) — ไม่มี header นี้ = เรียกจากเครื่องตัวเอง (port bind แค่ 127.0.0.1) ใช้ req.ip
-const clientIp = (req) => req.get('CF-Connecting-IP') || req.ip;
+// เชื่อ header นี้เฉพาะเมื่อ TCP peer เป็น loopback/private (cloudflared ในเครื่อง/Docker network) —
+// ถ้า port ถูกเปิดออกสู่ภายนอกในอนาคต client จะปลอม header เพื่อหมุน key หลบ limiter ไม่ได้ (B53)
+const clientIp = (req) => {
+  const cf = req.get('CF-Connecting-IP');
+  if (cf && isPrivateOrLoopback(req.socket?.remoteAddress)) return cf;
+  return req.ip;
+};
 
 // 5 login attempts per 15 min per IP (username/password)
 const loginLimiter = rateLimit({
@@ -182,4 +188,4 @@ const passwordConfirmLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-module.exports = { passwordConfirmLimiter, submitLimiter, loginLimiter, googleLimiter, otpLimiter, registerLimiter, forgotPasswordLimiter, scrapeLimiter, refreshLimiter };
+module.exports = { clientIp, passwordConfirmLimiter, submitLimiter, loginLimiter, googleLimiter, otpLimiter, registerLimiter, forgotPasswordLimiter, scrapeLimiter, refreshLimiter };

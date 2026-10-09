@@ -9,6 +9,7 @@
  * ไม่ตั้ง TURNSTILE_SECRET = ปิดฟีเจอร์นี้ (ผ่านทุก request) จนกว่า frontend จะรองรับ 428
  */
 const config = require('../config');
+const { clientIp } = require('./rateLimit');
 
 const VERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 const counters = new Map(); // user_id → { count, resetAt }
@@ -51,7 +52,7 @@ async function captchaIfFrequent(req, res, next) {
 
   let ok;
   try {
-    ok = await verifyTurnstile(token, req.get('CF-Connecting-IP') || req.ip);
+    ok = await verifyTurnstile(token, clientIp(req));
   } catch (err) {
     return res.status(503).json({
       success: false,

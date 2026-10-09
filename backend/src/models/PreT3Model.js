@@ -393,7 +393,8 @@ class PreT3Model {
                AND ra.step IN ('Advisor','Co_Advisor_1','Co_Advisor_2')
                AND ra.status <> 'Approved'
           )
-        ORDER BY p.created_at ASC`
+        ORDER BY p.created_at ASC
+        LIMIT 1000`
     );
     return PreT3Model._attachDerived(rows);
   }

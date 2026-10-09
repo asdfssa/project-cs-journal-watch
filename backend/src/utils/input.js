@@ -19,6 +19,14 @@ function nonStringField(body, fields) {
 }
 
 /**
+ * ค่าสำหรับ `LIKE ?` แบบ "มีคำนี้อยู่ข้างใน" — escape % _ \ ที่ผู้ใช้พิมพ์มา ไม่ให้กลายเป็น wildcard
+ * (ค้นด้วย "%" หรือ "_" เดิมได้ทุกแถว / ตรงเกินจริง)
+ */
+function likeContains(search) {
+  return `%${String(search).replace(/[\\%_]/g, '\\$&')}%`;
+}
+
+/**
  * คืนชื่อ field แรกที่เป็น object/array (ไม่ใช่ค่าเดี่ยว) — ใช้กับ field ที่ลง SQL ตรงๆ แต่ชนิดไม่จำเป็นต้องเป็น string
  * (เช่น curriculum_year) กัน {..}/[..] ไปขยายเป็น SQL แล้วได้ 500 หรือแทรกเงื่อนไข (undefined / null ถือว่าไม่ได้ส่ง)
  */
@@ -51,4 +59,4 @@ function optionalDecimal(value, max) {
   return Number.isFinite(n) && n >= 0 && n < max ? n : NaN;
 }
 
-module.exports = { parsePagination, nonStringField, nonScalarField, normalizeIssn, optionalDecimal };
+module.exports = { parsePagination, nonStringField, nonScalarField, likeContains, normalizeIssn, optionalDecimal };

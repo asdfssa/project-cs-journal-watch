@@ -11,7 +11,7 @@
 const db        = require('../config/database');
 const UserModel = require('../models/UserModel');
 const { serverError } = require('../utils/errorResponse');
-const { nonScalarField } = require('../utils/input');
+const { nonScalarField, likeContains } = require('../utils/input');
 
 class UserController {
 
@@ -141,7 +141,7 @@ class UserController {
 
       if (search) {
         where.push('(u.first_name LIKE ? OR u.last_name LIKE ? OR u.msu_mail LIKE ?)');
-        const like = `%${search}%`;
+        const like = likeContains(search);
         params.push(like, like, like);
       }
 
