@@ -3,6 +3,7 @@
  * ใช้ express-validator สำหรับ validate + sanitize input
  */
 const { body } = require('express-validator');
+const config = require('../config');
 
 const loginValidator = [
   body('username')
@@ -21,7 +22,8 @@ const verifyOtpValidator = [
     .trim()
     .notEmpty().withMessage('OTP code is required')
     .isNumeric().withMessage('OTP must be numeric')
-    .isLength({ min: 6, max: 6 }).withMessage('OTP must be 6 digits'),
+    // ความยาวตาม OTP_LENGTH (เดิมฝัง 6 — ตั้ง OTP_LENGTH อื่นแล้ว BE ปฏิเสธทุก OTP)
+    .isLength({ min: config.otp.length, max: config.otp.length }).withMessage(`OTP must be ${config.otp.length} digits`),
 ];
 
 const googleLoginValidator = [
@@ -45,7 +47,8 @@ const resetPasswordValidator = [
     .trim()
     .notEmpty().withMessage('OTP code is required')
     .isNumeric().withMessage('OTP must be numeric')
-    .isLength({ min: 6, max: 6 }).withMessage('OTP must be 6 digits'),
+    // ความยาวตาม OTP_LENGTH (เดิมฝัง 6 — ตั้ง OTP_LENGTH อื่นแล้ว BE ปฏิเสธทุก OTP)
+    .isLength({ min: config.otp.length, max: config.otp.length }).withMessage(`OTP must be ${config.otp.length} digits`),
   body('newPassword')
     .notEmpty().withMessage('New password is required')
     .isLength({ min: 8, max: 128 }).withMessage('Password must be 8-128 characters')

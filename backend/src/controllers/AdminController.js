@@ -55,14 +55,16 @@ class AdminController {
           SELECT COUNT(*) AS total,
             SUM(overall_status = 'Pending')  AS pending,
             SUM(overall_status = 'Approved') AS approved,
-            SUM(overall_status = 'Rejected') AS rejected
+            SUM(overall_status = 'Rejected') AS rejected,
+            SUM(overall_status = 'Cancelled') AS cancelled
           FROM pre_t3_requests
         `),
         db.query(`
           SELECT COUNT(*) AS total,
             SUM(overall_status = 'Pending')  AS pending,
             SUM(overall_status = 'Approved') AS approved,
-            SUM(overall_status = 'Rejected') AS rejected
+            SUM(overall_status = 'Rejected') AS rejected,
+            SUM(overall_status = 'Cancelled') AS cancelled
           FROM t3_requests
         `),
         db.query(`
@@ -90,8 +92,8 @@ class AdminController {
             active:      Number(userRows[0].active),
             suspended:   Number(userRows[0].suspended),
           },
-          pre_t3:  { total: Number(preT3Rows[0].total), pending: Number(preT3Rows[0].pending), approved: Number(preT3Rows[0].approved), rejected: Number(preT3Rows[0].rejected) },
-          t3:      { total: Number(t3Rows[0].total),    pending: Number(t3Rows[0].pending),    approved: Number(t3Rows[0].approved),    rejected: Number(t3Rows[0].rejected) },
+          pre_t3:  { total: Number(preT3Rows[0].total), pending: Number(preT3Rows[0].pending), approved: Number(preT3Rows[0].approved), rejected: Number(preT3Rows[0].rejected), cancelled: Number(preT3Rows[0].cancelled) },
+          t3:      { total: Number(t3Rows[0].total),    pending: Number(t3Rows[0].pending),    approved: Number(t3Rows[0].approved),    rejected: Number(t3Rows[0].rejected), cancelled: Number(t3Rows[0].cancelled) },
           msu_unwanted: { total: Number(unwantedRows[0].total) },
           api_keys: apiKeyStats,
         },
@@ -554,7 +556,8 @@ records = parse(req.file.buffer, {
             `SELECT msu_mail FROM users WHERE msu_mail IN (?)`,
             [allMails]
           );
-          existingMailSet = new Set(existingRows.map(r => r.msu_mail));
+          // collation ของ DB ไม่สนตัวพิมพ์ จึงเจอแถวที่เก็บ "Somchai@msu.ac.th" — ต้อง lowercase ก่อนเทียบกับค่าที่ lowercase แล้วในไฟล์
+          existingMailSet = new Set(existingRows.map(r => r.msu_mail.toLowerCase()));
         }
 
         let advisorMailMap = {};
@@ -564,7 +567,7 @@ records = parse(req.file.buffer, {
              WHERE msu_mail IN (?) AND role = 'Supervisor'`,
             [allAdvisorMails]
           );
-          for (const a of advisorRows) advisorMailMap[a.msu_mail] = a.user_id;
+          for (const a of advisorRows) advisorMailMap[a.msu_mail.toLowerCase()] = a.user_id;
         }
 
         // ===== Validate ทุก row ก่อน (all-or-nothing) =====
@@ -962,6 +965,9 @@ records = parse(req.file.buffer, {
       if (!['Admin', 'SuperAdmin'].includes(target[0].role))
         return res.status(400).json({ success: false, message: 'ผู้ใช้นี้ไม่ใช่ Admin' });
 
+      if (target[0].account_status !== 'Active')
+        return res.status(400).json({ success: false, message: 'ระงับได้เฉพาะบัญชีที่มีสถานะ Active เท่านั้น' });
+
       await db.query(
         `UPDATE users SET account_status = 'Suspended' WHERE user_id = ?`,
         [id]
@@ -991,6 +997,9 @@ records = parse(req.file.buffer, {
 
       if (!['Admin', 'SuperAdmin'].includes(target[0].role))
         return res.status(400).json({ success: false, message: 'ผู้ใช้นี้ไม่ใช่ Admin' });
+
+      if (target[0].account_status !== 'Suspended')
+        return res.status(400).json({ success: false, message: 'คืนสถานะได้เฉพาะบัญชีที่ถูกระงับเท่านั้น' });
 
       await db.query(
         `UPDATE users SET account_status = 'Active' WHERE user_id = ?`,
