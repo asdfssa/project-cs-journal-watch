@@ -10,10 +10,10 @@
 
 | รายการ | จำนวน |
 |---|---|
-| บั๊ก BE ที่แก้และ commit (ใน `bugs-8-10-2569.md` ติ๊ก `[x]`) | 29 รายการ (ดู `backend-changes-for-frontend.md` หัวข้อ 3) |
+| บั๊ก BE ที่แก้และ commit (ใน `bugs-8-10-2569.md` ติ๊ก `[x]`) | 29 รายการ (ดู `Backend_Fixed-9-10-2569.md` หัวข้อ 3) |
 | ตั้งใจเลื่อน | B27 ส่วน DB user, B33, B36 และส่วนย่อยของ B37, B41, B42, B52, B53, B54 |
 | เทสต์อัตโนมัติ (`backend/tests/`) | 16 ไฟล์ · 94 เคส |
-| เอกสารให้ทีม FE | `backend-changes-for-frontend.md` |
+| เอกสารให้ทีม FE | `Backend_Fixed-9-10-2569.md` |
 
 ## 2. ผลทดสอบ Docker (ทำแล้ว)
 
