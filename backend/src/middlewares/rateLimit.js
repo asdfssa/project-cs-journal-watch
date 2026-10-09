@@ -165,4 +165,21 @@ const submitLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-module.exports = { submitLimiter, loginLimiter, googleLimiter, otpLimiter, registerLimiter, forgotPasswordLimiter, scrapeLimiter, refreshLimiter };
+// 5 ครั้งที่ล้มเหลวต่อ 15 นาทีต่อผู้ใช้ สำหรับ action ที่ต้องยืนยันรหัสผ่านปัจจุบัน (กัน token หลุดแล้วไล่เดารหัสผ่านผ่าน endpoint นี้)
+// skipSuccessfulRequests: นับเฉพาะ response 4xx/5xx — แก้โปรไฟล์ปกติไม่โดนโควตา
+const passwordConfirmLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  skip: skipLocalhost,
+  skipSuccessfulRequests: true,
+  keyGenerator: (req) => `user:${req.user.sub}`,
+  message: {
+    success: false,
+    code: 'RATE_LIMIT',
+    message: 'ยืนยันรหัสผ่านผิดเกินจำนวนครั้งที่กำหนด กรุณารอ 15 นาทีแล้วลองใหม่',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+module.exports = { passwordConfirmLimiter, submitLimiter, loginLimiter, googleLimiter, otpLimiter, registerLimiter, forgotPasswordLimiter, scrapeLimiter, refreshLimiter };

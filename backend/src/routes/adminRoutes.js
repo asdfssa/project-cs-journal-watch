@@ -7,6 +7,7 @@
 const express = require('express');
 const AdminController = require('../controllers/AdminController');
 const { requireAuth, requireRole } = require('../middlewares/auth');
+const { passwordConfirmLimiter } = require('../middlewares/rateLimit');
 
 const router = express.Router();
 const { requireNumericId } = require('../middlewares/validation');
@@ -25,7 +26,7 @@ router.get('/admins',                superAdminOnly, AdminController.getAdmins);
 router.post('/admins',               superAdminOnly, AdminController.createAdmin);
 router.patch('/admins/:id/suspend',  superAdminOnly, AdminController.suspendAdmin);
 router.patch('/admins/:id/activate', superAdminOnly, AdminController.activateAdmin);
-router.patch('/admins/:id',          AdminController.updateAdmin);
+router.patch('/admins/:id',          passwordConfirmLimiter, AdminController.updateAdmin);
 router.delete('/admins/:id',         AdminController.deleteAdmin);
 
 module.exports = router;

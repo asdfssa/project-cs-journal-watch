@@ -19,6 +19,8 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const USER_SCALAR_FIELDS = ['prefix', 'phone', 'facebook_id', 'line_id', 'degree_level', 'curriculum_year', 'study_plan_code'];
 const MailService = require('../services/MailService');
 const OtpModel    = require('../models/OtpModel');
+const RefreshTokenModel = require('../models/RefreshTokenModel');
+const bcryptjs    = require('bcryptjs');
 
 // Staff จัดการได้เฉพาะ Student/Supervisor — แก้/ระงับ/คืนสถานะ Staff คนอื่นต้องเป็น Admin
 const staffTouchingStaff = (req, target) => req.user.role === 'Staff' && target.role === 'Staff';
@@ -1021,7 +1023,7 @@ records = parse(req.file.buffer, {
       if (!['Admin', 'SuperAdmin'].includes(target[0].role))
         return res.status(400).json({ success: false, message: 'ผู้ใช้นี้ไม่ใช่ Admin' });
 
-      const badField = nonStringField(req.body, ['prefix', 'first_name', 'last_name', 'msu_mail']);
+      const badField = nonStringField(req.body, ['prefix', 'first_name', 'last_name', 'msu_mail', 'current_password']);
       if (badField) return res.status(400).json({ success: false, code: 'INVALID_INPUT', message: `${badField} ต้องเป็นข้อความ` });
 
       const cur  = target[0];
@@ -1041,15 +1043,39 @@ records = parse(req.file.buffer, {
       // อีเมลของ Admin ใช้รับ OTP login/รีเซ็ตรหัสผ่าน — การแก้ Admin คนอื่นถูกจำกัดให้ SuperAdmin ไว้ด้านบนแล้ว
       const mailChanged = mailOf(merged.msu_mail) !== mailOf(cur.msu_mail);
 
+      // อีเมลนี้คือช่องทางรับ OTP ของ login/รีเซ็ตรหัสผ่าน — เปลี่ยนแล้วใครคุมอีเมลใหม่ก็ยึดบัญชีได้
+      // access token อย่างเดียวจึงไม่พอ (token หลุด = ยึดบัญชีถาวร): ต้องยืนยันรหัสผ่านของผู้ทำรายการ (B34)
+      if (mailChanged) {
+        const password = req.body.current_password;
+        if (!password) {
+          return res.status(400).json({ success: false, code: 'PASSWORD_REQUIRED', message: 'การเปลี่ยนอีเมลต้องยืนยันด้วยรหัสผ่านปัจจุบันของคุณ (current_password)' });
+        }
+        const [actorRows] = await db.query(`SELECT password_hash FROM users WHERE user_id = ?`, [req.user.sub]);
+        const ok = actorRows[0]?.password_hash && await bcryptjs.compare(password, actorRows[0].password_hash);
+        if (!ok) {
+          return res.status(403).json({ success: false, code: 'INVALID_PASSWORD', message: 'รหัสผ่านไม่ถูกต้อง' });
+        }
+      }
+
       await db.query(
         `UPDATE users
          SET prefix = ?, first_name = ?, last_name = ?, msu_mail = ?
          WHERE user_id = ?`,
         [merged.prefix || null, merged.first_name, merged.last_name, merged.msu_mail, id]
       );
-      if (mailChanged) await OtpModel.invalidateActive(id, 'password_reset');
+      if (mailChanged) {
+        await OtpModel.invalidateActive(id, 'password_reset');
+        // ตัดทุก session ของเจ้าของอีเมล — refresh token ที่อาจหลุดอยู่จะใช้ต่อไม่ได้ (access token เดิมอยู่ได้จนหมดอายุ)
+        await RefreshTokenModel.revokeAllByUserId(id);
+      }
 
-      return res.json({ success: true, message: 'แก้ไขข้อมูล Admin เรียบร้อยแล้ว' });
+      return res.json({
+        success: true,
+        message: mailChanged
+          ? 'แก้ไขข้อมูล Admin เรียบร้อยแล้ว เซสชันเดิมของบัญชีนี้จะสิ้นสุด ต้องเข้าสู่ระบบใหม่'
+          : 'แก้ไขข้อมูล Admin เรียบร้อยแล้ว',
+        data: { relogin_required: mailChanged },
+      });
     } catch (err) { next(err); }
   }
 
