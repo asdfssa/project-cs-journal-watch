@@ -23,25 +23,13 @@ const handleMulterError = (err, req, res, next) => {
 };
 
 // -------------------------------------------------------
-// นิสิตยื่น T3 ใหม่
-// POST /api/t3
-// -------------------------------------------------------
-router.post(
-  '/',
-  requireAuth,
-  requireRole('Student'),
-  submitLimiter,
-  T3Controller.submit
-);
-
-// -------------------------------------------------------
 // นิสิตยื่น T3 + อัปโหลดไฟล์แนบพร้อมกันในคำขอเดียว
 // POST /api/t3/with-files
 // Content-Type: multipart/form-data
 // Text fields (JSON string): pre_t3_id, journal_snapshot,
 //   paper_and_research_details, publication_details, journal_metrics
-// File fields (optional): acceptance_letter, full_paper, journal_cover,
-//   table_of_contents, database_evidence, peer_review_result
+// File fields: acceptance_letter + full_paper (บังคับ), ที่เหลือเป็นทางเลือก:
+//   journal_cover, table_of_contents, database_evidence, peer_review_result
 // -------------------------------------------------------
 router.post(
   '/with-files',

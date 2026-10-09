@@ -83,6 +83,9 @@ function normalizePubStatus(value) {
   return value && /published/i.test(value) ? 'Published' : 'Accepted';
 }
 
+// ไฟล์หลักฐานที่ต้องแนบทุกครั้งที่ยื่น T3 (ที่เหลือเป็นทางเลือก)
+const REQUIRED_FILES = ['acceptance_letter', 'full_paper'];
+
 class T3Controller {
   // ============================================================
   // Shared validation + creation ใช้ร่วมกันโดย submit() และ submitWithFiles()
@@ -210,41 +213,6 @@ class T3Controller {
     }
 
     return { t3Id, student, majorAdvisor, journal_snapshot, paper_and_research_details };
-  }
-
-  // ============================================================
-  // POST /api/t3
-  // Role: Student
-  // ============================================================
-  static async submit(req, res) {
-    try {
-      const studentId = req.user.sub;
-      const result = await T3Controller._validateAndCreate(studentId, req.body);
-      if (result.error) {
-        const { status, ...body } = result.error;
-        return res.status(status).json({ success: false, ...body });
-      }
-      const { t3Id, student, majorAdvisor, journal_snapshot, paper_and_research_details } = result;
-
-      // แจ้ง Advisor ทางอีเมล
-      const advisorUser = await UserModel.findById(majorAdvisor.advisor_id);
-      if (advisorUser) {
-        MailService.sendT3Notification(advisorUser.msu_mail, 'advisor_pending', {
-          studentName: `${student.first_name} ${student.last_name}`,
-          journalName: journal_snapshot.journal_name,
-          articleTitle: paper_and_research_details.title_english || paper_and_research_details.title_thai,
-          t3Id,
-        });
-      }
-
-      return res.status(201).json({
-        success: true,
-        message: 'ยื่น T3 สำเร็จ กรุณารอการอนุมัติจากอาจารย์ที่ปรึกษา',
-        data: { t3_id: t3Id },
-      });
-    } catch (err) {
-      return serverError(res, err, 'T3Controller.submit');
-    }
   }
 
   // ============================================================
@@ -565,7 +533,18 @@ class T3Controller {
         journal_metrics:            tryParse(req.body.journal_metrics),
       };
 
-      // --- จัดการไฟล์ (ถ้ามี) ---
+      // ไฟล์หลักฐานบังคับ 2 ไฟล์ (X32) — เช็คฝั่ง server ไม่พึ่ง FE
+      const missing = REQUIRED_FILES.filter(f => !req.files?.[f]?.[0]);
+      if (missing.length) {
+        return res.status(400).json({
+          success: false,
+          code: 'MISSING_REQUIRED_FILES',
+          message: `ต้องแนบไฟล์ให้ครบ: ${missing.join(', ')}`,
+          missing,
+        });
+      }
+
+      // --- จัดการไฟล์ ---
       // ตรวจ magic bytes ของทุกไฟล์ก่อนสร้าง T3 และเก็บ MIME ที่ตรวจจริงไว้เลือกนามสกุล
       // (ไม่ใช้ MIME ที่ client ประกาศ)
       const uploaded = {};

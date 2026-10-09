@@ -13,6 +13,8 @@ const T3Controller = require(src('controllers/T3Controller.js'));
 
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
 const makeRes = () => ({ code: null, body: null, status(c) { this.code = c; return this; }, json(b) { this.body = b; return this; } });
+// X32: ต้องแนบ acceptance_letter + full_paper เสมอ
+const REQ_FILES = () => ({ acceptance_letter: [{ buffer: PNG, mimetype: 'application/pdf' }], full_paper: [{ buffer: PNG, mimetype: 'application/pdf' }] });
 const makeReq = (files) => ({ user: { sub: 1 }, body: { pre_t3_id: '1' }, files });
 
 test('ไฟล์ล้มกลางทาง → โฟลเดอร์ถูกลบ, ไม่มีไฟล์กำพร้า, ตอบ 500', async () => {
@@ -26,7 +28,7 @@ test('ไฟล์ล้มกลางทาง → โฟลเดอร์ถ
   };
   try {
     const res = makeRes();
-    await T3Controller.submitWithFiles(makeReq({ full_paper: [{ buffer: PNG, mimetype: 'application/pdf' }] }), res);
+    await T3Controller.submitWithFiles(makeReq(REQ_FILES()), res);
     assert.equal(res.code, 500);
     assert.equal(fs.existsSync(path.join(tmp, 'uploads', 't3', '42')), false);
   } finally {
@@ -48,7 +50,7 @@ test('สำเร็จ → นามสกุลมาจากเนื้อ
   };
   try {
     const res = makeRes();
-    await T3Controller.submitWithFiles(makeReq({ full_paper: [{ buffer: PNG, mimetype: 'application/pdf' }] }), res);
+    await T3Controller.submitWithFiles(makeReq(REQ_FILES()), res);
     assert.equal(res.code, 201);
     assert.match(res.body.data.uploaded.full_paper, /^uploads\/t3\/7\/full_paper\/[0-9a-f-]{36}\.png$/);
     assert.ok(conn.calls.some(([sql]) => sql.includes('t3_evidence_files')));
@@ -65,7 +67,7 @@ test('ไฟล์เนื้อหาไม่ใช่ชนิดที่�
   T3Controller._validateAndCreate = async () => { called = true; };
   try {
     const res = makeRes();
-    await T3Controller.submitWithFiles(makeReq({ full_paper: [{ buffer: Buffer.from('<html>'), mimetype: 'application/pdf' }] }), res);
+    await T3Controller.submitWithFiles(makeReq({ ...REQ_FILES(), full_paper: [{ buffer: Buffer.from('<html>'), mimetype: 'application/pdf' }] }), res);
     assert.equal(res.code, 400);
     assert.equal(called, false);
   } finally { T3Controller._validateAndCreate = orig; }
@@ -85,4 +87,28 @@ test('T3Model.create: afterInsert รันใน transaction เดียวก
   assert.equal(await T3Model.create(...args, async (conn2, id) => { assert.equal(id, 9); seen.push('after'); }), 9);
   await assert.rejects(T3Model.create(...args, async () => { throw new Error('disk full'); }), /disk full/);
   assert.deepEqual(seen, ['after', 'commit', 'rollback']);
+});
+
+test('X32: ไม่แนบ acceptance_letter/full_paper → 400 MISSING_REQUIRED_FILES และไม่สร้าง T3', async () => {
+  let called = false;
+  const orig = T3Controller._validateAndCreate;
+  T3Controller._validateAndCreate = async () => { called = true; };
+  try {
+    for (const files of [undefined, {}, { full_paper: REQ_FILES().full_paper }, { journal_cover: REQ_FILES().full_paper }]) {
+      const res = makeRes();
+      await T3Controller.submitWithFiles(makeReq(files), res);
+      assert.equal(res.code, 400);
+      assert.equal(res.body.code, 'MISSING_REQUIRED_FILES');
+    }
+    const res = makeRes();
+    await T3Controller.submitWithFiles(makeReq({ full_paper: REQ_FILES().full_paper }), res);
+    assert.deepEqual(res.body.missing, ['acceptance_letter']);
+    assert.equal(called, false);
+  } finally { T3Controller._validateAndCreate = orig; }
+});
+
+test('X32: ไม่มี POST /t3 แบบ JSON แล้ว (เหลือ /with-files ทางเดียว)', () => {
+  const router = require(src('routes/t3Routes.js'));
+  const posts = router.stack.filter(l => l.route?.methods.post).map(l => l.route.path);
+  assert.deepEqual(posts, ['/with-files']);
 });
