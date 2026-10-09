@@ -610,6 +610,11 @@ class PreT3Controller {
     if (!['Scopus', 'TCI'].includes(js.indexed_database)) {
       return { code: 'INVALID_JOURNAL', message: 'journal_snapshot.indexed_database ต้องเป็น Scopus หรือ TCI' };
     }
+    // วารสาร Discontinued (Scopus) / Inactive (TCI) ยื่น Pre-T3 ไม่ได้ (T3 ไม่ตรวจซ้ำ เพราะอ้าง Pre-T3 ที่อนุมัติไปแล้ว)
+    // shortcut: เชื่อธงจาก journal_snapshot ที่ client ส่งมา, ถ้าต้องกันการปลอมค่า ให้ดึงจาก ScopusService/TCIService ตรวจที่ server
+    if (js.is_discontinued) {
+      return { code: 'JOURNAL_DISCONTINUED', message: 'วารสารนี้ถูกถอดออกจากฐานข้อมูล (Discontinued/Inactive) ไม่สามารถยื่น Pre-T3 ได้' };
+    }
     // checklist ต้องมีครบ item1–item9 และเป็น boolean
     for (let i = 1; i <= 9; i++) {
       if (typeof cl[`item${i}`] !== 'boolean') {
