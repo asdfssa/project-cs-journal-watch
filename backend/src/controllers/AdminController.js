@@ -222,7 +222,28 @@ const [rows] = await db.query(
         `UPDATE users SET account_status = 'Suspended' WHERE user_id = ?`,
         [id]
       );
-      return res.json({ success: true, message: 'ระงับบัญชีเรียบร้อยแล้ว' });
+
+      // อาจารย์ที่ถูกระงับตัดสินคำขอไม่ได้ — บอกจำนวนที่ค้างให้แอดมินไปเปลี่ยนอาจารย์ของนิสิต (B32)
+      let pendingApprovals = 0;
+      if (target[0].role === 'Supervisor') {
+        const count = async (table, idCol, type) => {
+          const [[row]] = await db.query(
+            `SELECT COUNT(*) AS n FROM request_approvals ra
+               JOIN ${table} r ON ra.request_type = '${type}' AND ra.request_id = r.${idCol}
+              WHERE ra.approver_id = ? AND ra.status = 'Pending' AND r.overall_status = 'Pending'`,
+            [id]
+          );
+          return row.n;
+        };
+        pendingApprovals = (await count('pre_t3_requests', 'pre_t3_id', 'Pre_T3')) + (await count('t3_requests', 't3_id', 'T3'));
+      }
+      return res.json({
+        success: true,
+        message: pendingApprovals
+          ? `ระงับบัญชีเรียบร้อยแล้ว แต่ยังมี ${pendingApprovals} คำขอที่รออาจารย์ท่านนี้อยู่ กรุณาเปลี่ยนอาจารย์ที่ปรึกษาของนิสิตที่เกี่ยวข้อง`
+          : 'ระงับบัญชีเรียบร้อยแล้ว',
+        data: { pending_approvals: pendingApprovals },
+      });
     } catch (err) { next(err); }
   }
 
@@ -646,80 +667,120 @@ records = parse(req.file.buffer, {
   // ============================================================
   // PATCH /api/manage/users/:id/advisors
   // Body: { advisor_major_mail?, advisor_co1_mail?, advisor_co2_mail? }
+  //  - ฟิลด์ที่ไม่ส่ง = คงค่าเดิม · ส่ง "" เฉพาะ co1/co2 = ถอดออก · Major ถอดไม่ได้ (ต้องมีเสมอ)
+  //  - อาจารย์ต้องเป็น Supervisor ที่ Active และห้ามซ้ำกันระหว่างช่อง
+  //  - ช่องที่เปลี่ยนจะย้าย approver ของคำขอ Pending ตามไปด้วย (เฉพาะขั้นที่ยังไม่ตัดสิน)
+  //  - ถอด Co ที่ยังมีคำขอ Pending รออยู่ → 409 (B32)
   // ============================================================
   static async updateAdvisors(req, res, next) {
     try {
       const { id } = req.params;
-      const { advisor_major_mail, advisor_co1_mail, advisor_co2_mail } = req.body;
-      const badField = nonStringField(req.body, ['advisor_major_mail', 'advisor_co1_mail', 'advisor_co2_mail']);
+      const MAIL_FIELDS = { Major: 'advisor_major_mail', Co_1: 'advisor_co1_mail', Co_2: 'advisor_co2_mail' };
+      const badField = nonStringField(req.body, Object.values(MAIL_FIELDS));
       if (badField) return res.status(400).json({ success: false, code: 'INVALID_INPUT', message: `${badField} ต้องเป็นข้อความ` });
 
-      // เช็กว่า student มีอยู่จริง
-      const [target] = await db.query(
-        `SELECT user_id, role FROM users WHERE user_id = ?`,
-        [id]
-      );
+      const sent = Object.entries(MAIL_FIELDS).filter(([, f]) => req.body[f] != null);
+      if (!sent.length) {
+        return res.status(400).json({ success: false, code: 'NOTHING_TO_UPDATE', message: 'ต้องระบุอาจารย์อย่างน้อยหนึ่งช่อง' });
+      }
+
+      const [target] = await db.query(`SELECT user_id, role FROM users WHERE user_id = ?`, [id]);
       if (!target.length) return res.status(404).json({ success: false, message: 'ไม่พบผู้ใช้' });
       if (target[0].role !== 'Student')
         return res.status(400).json({ success: false, message: 'ผู้ใช้นี้ไม่ใช่นิสิต' });
 
-      // helper: lookup advisor by mail
-      const lookupAdvisor = async (mail) => {
-        if (!mail || !mail.trim()) return null;
+      // ช่องที่ส่งมา → user_id ใหม่ (null = ถอดออก); ช่องที่ไม่ส่งไม่อยู่ใน changes
+      const changes = {};
+      for (const [slot, field] of sent) {
+        const mail = mailOf(req.body[field]);
+        if (!mail) {
+          if (slot === 'Major') {
+            return res.status(400).json({ success: false, code: 'MAJOR_REQUIRED', message: 'ต้องมีอาจารย์ที่ปรึกษาหลักเสมอ ถอดออกไม่ได้' });
+          }
+          changes[slot] = null;
+          continue;
+        }
         const [rows] = await db.query(
-          `SELECT user_id FROM users
-           WHERE msu_mail = ? AND role = 'Supervisor'`,
-          [mail.toLowerCase().trim()]
+          `SELECT user_id, account_status FROM users WHERE msu_mail = ? AND role = 'Supervisor'`, [mail]
         );
-        if (!rows.length) throw new Error(`ไม่พบอาจารย์ที่ปรึกษา: ${mail}`);
-        return rows[0].user_id;
-      };
-
-      let majorId, co1Id, co2Id;
-      try {
-        majorId = await lookupAdvisor(advisor_major_mail);
-        co1Id   = await lookupAdvisor(advisor_co1_mail);
-        co2Id   = await lookupAdvisor(advisor_co2_mail);
-      } catch (e) {
-        return res.status(400).json({ success: false, message: e.message });
+        if (!rows.length) return res.status(400).json({ success: false, message: `ไม่พบอาจารย์ที่ปรึกษา: ${mail}` });
+        if (rows[0].account_status !== 'Active')
+          return res.status(400).json({ success: false, code: 'ADVISOR_NOT_ACTIVE', message: `อาจารย์ ${mail} ไม่ได้อยู่ในสถานะ Active` });
+        changes[slot] = rows[0].user_id;
       }
 
-      // ลบ assignments เดิม + insert ใหม่ ในทรานแซกชันเดียว กันเหลือ student
-      // ไม่มีที่ปรึกษาเลยถ้า insert พังกลางทาง
+      const STEP_OF = { Major: 'Advisor', Co_1: 'Co_Advisor_1', Co_2: 'Co_Advisor_2' };
+      // คำขอ Pending ของนิสิตคนนี้ ที่ขั้น step ยังรอตัดสิน (ใช้ทั้งนับและย้าย approver)
+      const PENDING_JOIN = (table, idCol, type) =>
+        `request_approvals ra JOIN ${table} r ON ra.request_type = '${type}' AND ra.request_id = r.${idCol}`;
+      const PENDING_WHERE = `r.student_id = ? AND r.overall_status = 'Pending' AND ra.step = ? AND ra.status = 'Pending'`;
+
       const conn = await db.getConnection();
       try {
         await conn.beginTransaction();
+        // lock นิสิต ให้ admin สองคนแก้พร้อมกันต่อคิว
+        await conn.query(`SELECT user_id FROM users WHERE user_id = ? FOR UPDATE`, [id]);
 
-        await conn.query(`DELETE FROM advisor_assignments WHERE student_id = ?`, [id]);
+        const [currentRows] = await conn.query(
+          `SELECT advisor_id, advisor_type FROM advisor_assignments WHERE student_id = ?`, [id]
+        );
+        const current = {};
+        for (const r of currentRows) current[r.advisor_type] = r.advisor_id;
+        const final = { ...current, ...changes };
 
-        if (majorId) {
-          await conn.query(
-            `INSERT INTO advisor_assignments (student_id, advisor_id, advisor_type) VALUES (?, ?, 'Major')`,
-            [id, majorId]
-          );
+        if (!final.Major) {
+          await conn.rollback();
+          return res.status(400).json({ success: false, code: 'MAJOR_REQUIRED', message: 'ต้องมีอาจารย์ที่ปรึกษาหลักเสมอ' });
         }
-        if (co1Id) {
-          await conn.query(
-            `INSERT INTO advisor_assignments (student_id, advisor_id, advisor_type) VALUES (?, ?, 'Co_1')`,
-            [id, co1Id]
-          );
+        const ids = ['Major', 'Co_1', 'Co_2'].map(s => final[s]).filter(Boolean);
+        if (new Set(ids).size !== ids.length) {
+          await conn.rollback();
+          return res.status(400).json({ success: false, code: 'DUPLICATE_ADVISOR', message: 'อาจารย์คนเดียวกันใส่ได้ช่องเดียว' });
         }
-        if (co2Id) {
-          await conn.query(
-            `INSERT INTO advisor_assignments (student_id, advisor_id, advisor_type) VALUES (?, ?, 'Co_2')`,
-            [id, co2Id]
-          );
+
+        let reassigned = 0;
+        for (const slot of Object.keys(changes)) {
+          if ((current[slot] ?? null) === (final[slot] ?? null)) continue;
+          const step = STEP_OF[slot];
+
+          if (!final[slot]) {
+            // ถอด Co: ถ้ายังมีคำขอ Pending รอขั้นนี้อยู่ → บล็อก ไม่งั้นแถว approval จะค้างไม่มีใครตัดสิน
+            const [[a]] = await conn.query(`SELECT COUNT(*) AS n FROM ${PENDING_JOIN('pre_t3_requests', 'pre_t3_id', 'Pre_T3')} WHERE ${PENDING_WHERE}`, [id, step]);
+            const [[b]] = await conn.query(`SELECT COUNT(*) AS n FROM ${PENDING_JOIN('t3_requests', 't3_id', 'T3')} WHERE ${PENDING_WHERE}`, [id, step]);
+            if (a.n + b.n > 0) {
+              await conn.rollback();
+              return res.status(409).json({
+                success: false, code: 'ADVISOR_HAS_PENDING_REQUESTS',
+                message: 'ถอดอาจารย์ร่วมไม่ได้ เพราะยังมีคำขอที่รอการอนุมัติจากอาจารย์ท่านนี้อยู่ กรุณารอให้ตัดสินก่อน หรือเปลี่ยนเป็นอาจารย์คนอื่นแทน',
+              });
+            }
+          } else {
+            const [ra] = await conn.query(`UPDATE ${PENDING_JOIN('pre_t3_requests', 'pre_t3_id', 'Pre_T3')} SET ra.approver_id = ? WHERE ${PENDING_WHERE}`, [final[slot], id, step]);
+            const [rb] = await conn.query(`UPDATE ${PENDING_JOIN('t3_requests', 't3_id', 'T3')} SET ra.approver_id = ? WHERE ${PENDING_WHERE}`, [final[slot], id, step]);
+            reassigned += ra.affectedRows + rb.affectedRows;
+          }
+
+          await conn.query(`DELETE FROM advisor_assignments WHERE student_id = ? AND advisor_type = ?`, [id, slot]);
+          if (final[slot]) {
+            await conn.query(
+              `INSERT INTO advisor_assignments (student_id, advisor_id, advisor_type) VALUES (?, ?, ?)`,
+              [id, final[slot], slot]
+            );
+          }
         }
 
         await conn.commit();
+        return res.json({
+          success: true,
+          message: 'อัปเดตอาจารย์ที่ปรึกษาเรียบร้อยแล้ว',
+          data: { requests_reassigned: reassigned },
+        });
       } catch (txErr) {
         await conn.rollback();
         throw txErr;
       } finally {
         conn.release();
       }
-
-      return res.json({ success: true, message: 'อัปเดตอาจารย์ที่ปรึกษาเรียบร้อยแล้ว' });
     } catch (err) { next(err); }
   }
 
