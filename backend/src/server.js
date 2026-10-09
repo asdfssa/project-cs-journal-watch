@@ -15,7 +15,7 @@ const server = app.listen(config.port, () => {
 });
 
 // Cleanup job — ลบ refresh/reset token และ OTP ที่หมดอายุ/ใช้ไปแล้วทิ้ง กัน DB บวม
-const CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 ชม.
+const CLEANUP_INTERVAL_MS = 60 * 60 * 1000; // 1 ชม. (index บน expires_at ทำให้การลบถูกมาก)
 
 async function runCleanup() {
   try {
