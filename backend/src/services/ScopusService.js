@@ -153,6 +153,7 @@ class ScopusService {
     let bestQuartile = null;
     let bestPercentile = null;
     let rankings = [];
+    let scholarlyOutput = null; // จำนวนบทความในช่วงคำนวณ CiteScore (ไม่ใช่จำนวนทั้งหมดตลอดอายุวารสาร)
 
     const csyList = ScopusService._safeGetCiteScoreYearInfoList(entry);
     if (csyList.length > 0) {
@@ -166,6 +167,8 @@ class ScopusService {
       if (csInfoList.length > 0) {
         const csInfo = csInfoList[0];
         citeScore = csInfo['citeScore'] || targetYear['citeScore'] || null;
+        const docs = parseInt(csInfo['scholarlyOutput'], 10);
+        scholarlyOutput = Number.isNaN(docs) ? null : docs;
         let csrList = csInfo['citeScoreSubjectRank'] || [];
         if (!Array.isArray(csrList)) csrList = [csrList];
 
@@ -212,7 +215,10 @@ class ScopusService {
       scopus_quartile_data: rankings.length > 0 ? rankings : null,
       scopus_best_quartile: bestQuartile,
       scopus_best_percentile: bestPercentile,
-      scopus_h_index: null,
+      scopus_h_index: null, // Serial Title API (STANDARD) ไม่ส่ง H-Index
+      scopus_total_docs: scholarlyOutput,
+      open_access: entry['openaccess'] === '1' || entry['openaccess'] === 1 ? 'Open Access' : null,
+      open_access_type: entry['openaccessType'] || null,
       scopus_citescore: citeScore ? parseFloat(citeScore) : null,
       scopus_sjr: sjrValue,
       scopus_snip: snipValue,
