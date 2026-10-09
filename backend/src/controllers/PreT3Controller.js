@@ -20,6 +20,20 @@ const { serverError } = require('../utils/errorResponse');
 const { parsePagination, normalizeIssn } = require('../utils/input');
 const { toMysqlDate } = require('../utils/date');
 
+const UNWANTED_BODY = {
+  code: 'UNWANTED_JOURNAL',
+  message: 'วารสารนี้อยู่ในรายการวารสารที่ไม่พึงประสงค์ของมหาวิทยาลัย ไม่สามารถยื่น Pre-T3 ได้',
+};
+
+// ISSN (normalize แล้ว) อยู่ใน msu_unwanted_journals ไหม — เทียบทั้งแบบมี/ไม่มีขีด เผื่อแถวเก่าเก็บไม่มีขีด
+async function isUnwantedIssn(issn) {
+  const [rows] = await db.query(
+    'SELECT 1 FROM msu_unwanted_journals WHERE issn IN (?, ?) LIMIT 1',
+    [issn, issn.replace('-', '')]
+  );
+  return rows.length > 0;
+}
+
 const DUPLICATE_BODY = {
   code: 'PRE_T3_DUPLICATE',
   message: 'คุณมี Pre-T3 ของวารสาร ISSN นี้ที่รออนุมัติหรืออนุมัติแล้ว ไม่สามารถยื่นซ้ำได้',
@@ -37,6 +51,7 @@ class PreT3Controller {
 
       const invalid = PreT3Controller._validateBody(req.body);
       if (invalid) return res.status(400).json({ success: false, ...invalid });
+      if (await isUnwantedIssn(journal_snapshot.issn)) return res.status(400).json({ success: false, ...UNWANTED_BODY });
 
       // ดึงข้อมูลนิสิตจาก DB (ไม่เชื่อ Frontend)
       const student = await UserModel.findById(studentId);
@@ -402,6 +417,7 @@ class PreT3Controller {
 
       const invalid = PreT3Controller._validateBody(req.body);
       if (invalid) return res.status(400).json({ success: false, ...invalid });
+      if (await isUnwantedIssn(journal_snapshot.issn)) return res.status(400).json({ success: false, ...UNWANTED_BODY });
 
       const row = await PreT3Model.findById(preT3Id);
       if (!row) {

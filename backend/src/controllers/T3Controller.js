@@ -50,26 +50,21 @@ function normalizeInnovationType(value) {
   return match ? match[1] : 'None';
 }
 
-// Frontend "journalType" dropdown only has 2 options (international/national Thai
-// labels), but publication_type has 6 values distinguishing TCI tier / conference.
-// For the national case, derive the tier from the journal's own Pre-T3 record
-// (quartile_or_tier, e.g. "กลุ่มที่ 1") instead of guessing from the submit body.
+// ชนิดวารสารของ T3 derive จาก Pre-T3 ที่อนุมัติแล้วเท่านั้น (indexed_database + กลุ่ม TCI) —
+// ไม่อ่าน publication_details.type ที่ client ส่งมา เพราะกำหนดน้ำหนักคะแนนโดยตรง (B31)
+//   Scopus → International_Journal · TCI กลุ่ม 1/2 → National_TCI_Tier1/2 · อ่านไม่ได้ → null (ผู้เรียกตอบ 400)
 const NATIONAL_TIER_MAP = {
   '1': 'National_TCI_Tier1',
   '2': 'National_TCI_Tier2',
 };
 
-function normalizePublicationType(rawType, preT3) {
-  if (rawType && /นานาชาติ|international/i.test(rawType)) {
-    return 'International_Journal';
+function derivePublicationType(preT3) {
+  if (preT3?.indexed_database === 'Scopus') return 'International_Journal';
+  if (preT3?.indexed_database === 'TCI') {
+    const tier = String(preT3.quartile_or_tier || '').match(/(\d+)/)?.[1];
+    return NATIONAL_TIER_MAP[tier] || null;
   }
-  const tierMatch = String(preT3?.quartile_or_tier || '').match(/(\d+)/);
-  const tier = tierMatch ? tierMatch[1] : null;
-  if (!NATIONAL_TIER_MAP[tier]) {
-    // แปลงจาก quartile_or_tier ไม่ได้ — เดา Tier2 ให้ แต่ log ไว้เพราะกระทบเครดิตนิสิตโดยตรง
-    console.warn(`[T3Controller] normalizePublicationType: parse tier ไม่ได้จาก quartile_or_tier="${preT3?.quartile_or_tier}" defaulting เป็น National_TCI_Tier2`);
-  }
-  return NATIONAL_TIER_MAP[tier] || 'National_TCI_Tier2';
+  return null;
 }
 
 // น้ำหนักคะแนนตามเกณฑ์ใน schema (001_schema.sql publication_type) — backend คำนวณเอง ไม่เชื่อค่าจาก client
@@ -121,17 +116,6 @@ class T3Controller {
     }
     paper_and_research_details.innovation_type = normalizeInnovationType(paper_and_research_details.innovation_type);
 
-    // ตรวจ publication_details
-    const pubRequired = ['type'];  // weight_score คำนวณจาก type เอง (WEIGHT_BY_TYPE)
-    for (const field of pubRequired) {
-      if (publication_details[field] === undefined) {
-        return { error: {
-          status: 400, code: 'MISSING_PUB_FIELD',
-          message: `publication_details.${field} จำเป็นต้องระบุ`,
-        } };
-      }
-    }
-
     // ตรวจ has_impact_score + impact_factor
     if (journal_metrics.has_impact_score === undefined) {
       return { error: {
@@ -166,7 +150,15 @@ class T3Controller {
         message: `Pre-T3 ต้องได้รับการอนุมัติก่อน (สถานะปัจจุบัน: ${preT3.overall_status})`,
       } };
     }
-    publication_details.type   = normalizePublicationType(publication_details.type, preT3);
+    // type/weight_score derive จาก Pre-T3 ทั้งคู่ — ค่าที่ client ส่งมาถูกเมิน
+    const pubType = derivePublicationType(preT3);
+    if (!pubType) {
+      return { error: {
+        status: 400, code: 'INVALID_TIER',
+        message: 'ระบุประเภท/กลุ่มวารสารจาก Pre-T3 ไม่ได้ กรุณาติดต่อเจ้าหน้าที่หรือยื่น Pre-T3 ใหม่',
+      } };
+    }
+    publication_details.type   = pubType;
     publication_details.weight_score = WEIGHT_BY_TYPE[publication_details.type];
     publication_details.status = normalizePubStatus(publication_details.status);
 
