@@ -22,6 +22,12 @@ if (config.mail.mode === 'smtp') {
       user: config.mail.smtp.user,
       pass: config.mail.smtp.pass,
     },
+    // เก็บ connection ไว้ใช้ซ้ำ (ไม่ต้องจับมือ TLS + login ใหม่ทุกครั้ง ~2 วินาที) และไม่รอนานเมื่อเน็ต/SMTP มีปัญหา
+    pool: true,
+    maxConnections: 3,
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 20000,
   });
 } else if (config.mail.mode !== 'console') {
   // mode ตั้งผิด (ไม่ใช่ 'console' หรือ 'smtp') — transporter จะเป็น null เงียบๆ

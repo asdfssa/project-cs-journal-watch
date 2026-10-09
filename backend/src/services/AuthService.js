@@ -314,10 +314,12 @@ class AuthService {
       expiresAt,
     });
 
-    const mailResult = await MailService.sendOtp(user.msu_mail, otpCode, 'login_2fa');
-    if (!mailResult.success) {
-      throw new AuthError('ส่ง OTP ไม่สำเร็จ กรุณาลองใหม่ภายหลัง', 'OTP_SEND_FAILED', 502);
-    }
+    // ไม่รอส่งเมล: การต่อ SMTP ใช้ 2-20 วินาที ทำให้หน้าล็อกอินค้าง — ตอบทันทีแล้วส่งเบื้องหลัง
+    // ส่งพลาดผู้ใช้กด "ส่งรหัสอีกครั้ง" ได้ (cooldown) และดูสาเหตุใน log
+    // shortcut: ไม่มี retry อัตโนมัติ, ถ้าต้องการยืนยันว่าเมลถึงจริง ให้เก็บสถานะส่งลง DB
+    MailService.sendOtp(user.msu_mail, otpCode, 'login_2fa')
+      .then(r => { if (!r.success) logger.error(`[login] ส่ง OTP ไม่สำเร็จ user_id=${user.user_id}: ${r.error || ''}`); })
+      .catch(e => logger.error(`[login] ส่ง OTP ไม่สำเร็จ user_id=${user.user_id}: ${e.message}`));
   }
 
   static _maskEmail(email) {
