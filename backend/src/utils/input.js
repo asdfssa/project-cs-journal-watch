@@ -19,6 +19,14 @@ function nonStringField(body, fields) {
 }
 
 /**
+ * คืนชื่อ field แรกที่เป็น object/array (ไม่ใช่ค่าเดี่ยว) — ใช้กับ field ที่ลง SQL ตรงๆ แต่ชนิดไม่จำเป็นต้องเป็น string
+ * (เช่น curriculum_year) กัน {..}/[..] ไปขยายเป็น SQL แล้วได้ 500 หรือแทรกเงื่อนไข (undefined / null ถือว่าไม่ได้ส่ง)
+ */
+function nonScalarField(body, fields) {
+  return fields.find(f => body[f] != null && typeof body[f] === 'object') || null;
+}
+
+/**
  * ISSN → รูปแบบเดียว "XXXX-XXXX" (ตัด ขีด/ช่องว่าง, x → X) — ไม่ครบ 8 ตัวคืน null (รูปแบบผิด)
  * ใช้ทั้งตอนบันทึกและตอนค้น ให้ 12345678 / 1234-5678 / 1234 5678 เป็นค่าเดียวกัน
  */
@@ -43,4 +51,4 @@ function optionalDecimal(value, max) {
   return Number.isFinite(n) && n >= 0 && n < max ? n : NaN;
 }
 
-module.exports = { parsePagination, nonStringField, normalizeIssn, optionalDecimal };
+module.exports = { parsePagination, nonStringField, nonScalarField, normalizeIssn, optionalDecimal };

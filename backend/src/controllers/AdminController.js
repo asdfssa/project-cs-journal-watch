@@ -4,7 +4,10 @@
  * เฉพาะ Admin และ SuperAdmin เท่านั้น
  */
 const db          = require('../config/database');
-const { parsePagination, nonStringField } = require('../utils/input');
+const { parsePagination, nonStringField, nonScalarField } = require('../utils/input');
+
+// field ของผู้ใช้ที่ลง SQL ตรงๆ แต่ไม่บังคับว่าต้องเป็นข้อความ — ห้ามเป็น object/array (B45)
+const USER_SCALAR_FIELDS = ['prefix', 'phone', 'facebook_id', 'line_id', 'degree_level', 'curriculum_year', 'study_plan_code'];
 const MailService = require('../services/MailService');
 const OtpModel    = require('../models/OtpModel');
 
@@ -296,7 +299,7 @@ const [rows] = await db.query(
       if (staffTouchingStaff(req, target[0]))
         return res.status(403).json({ success: false, message: 'Staff ไม่สามารถแก้ไขข้อมูล Staff ได้ กรุณาติดต่อ Admin' });
 
-      const badField = nonStringField(req.body, ['first_name', 'last_name', 'msu_mail']);
+      const badField = nonStringField(req.body, ['first_name', 'last_name', 'msu_mail']) || nonScalarField(req.body, USER_SCALAR_FIELDS);
       if (badField) return res.status(400).json({ success: false, code: 'INVALID_INPUT', message: `${badField} ต้องเป็นข้อความ` });
 
       const current = target[0];
@@ -373,7 +376,8 @@ const [rows] = await db.query(
         advisor_major_mail, advisor_co1_mail,
       } = req.body;
 
-      const badField = nonStringField(req.body, ['first_name', 'last_name', 'msu_mail', 'advisor_major_mail', 'advisor_co1_mail']);
+      const badField = nonStringField(req.body, ['first_name', 'last_name', 'msu_mail', 'advisor_major_mail', 'advisor_co1_mail'])
+        || nonScalarField(req.body, [...USER_SCALAR_FIELDS, 'role']);
       if (badField) return res.status(400).json({ success: false, code: 'INVALID_INPUT', message: `${badField} ต้องเป็นข้อความ` });
 
       // ===== Validate required =====

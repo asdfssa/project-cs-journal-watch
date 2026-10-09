@@ -11,6 +11,7 @@
 const db        = require('../config/database');
 const UserModel = require('../models/UserModel');
 const { serverError } = require('../utils/errorResponse');
+const { nonScalarField } = require('../utils/input');
 
 class UserController {
 
@@ -87,6 +88,9 @@ class UserController {
       if (!user) {
         return res.status(404).json({ success: false, code: 'USER_NOT_FOUND', message: 'ไม่พบข้อมูลผู้ใช้' });
       }
+
+      const badField = nonScalarField(req.body, ['phone', 'facebook_id', 'line_id']);
+      if (badField) return res.status(400).json({ success: false, code: 'INVALID_INPUT', message: `${badField} รูปแบบไม่ถูกต้อง` });
 
       const { phone, facebook_id, line_id } = req.body;
 

@@ -10,7 +10,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const { parse } = require('csv-parse/sync');
 const { serverError } = require('../utils/errorResponse');
-const { parsePagination, normalizeIssn } = require('../utils/input');
+const { parsePagination, normalizeIssn, nonStringField } = require('../utils/input');
 const { verifyFileType, MIME_TO_EXT } = require('../middlewares/upload');
 
 // ลบไฟล์แบบไม่ throw — ใช้ใน multer callback (Express 4 จับ error ใน callback ไม่ได้ → unhandled rejection)
@@ -164,6 +164,13 @@ class UnwantedJournalController {
             success: false,
             message: 'ไฟล์หลักฐานมีเนื้อหาไม่ตรงกับประเภทไฟล์ที่ประกาศไว้ (รองรับเฉพาะ PDF, JPG, PNG, WEBP)',
           });
+        }
+
+        // multipart field ซ้ำ (issn=a&issn=b) ได้ array → .trim() พัง 500 — ต้องเป็นข้อความเท่านั้น
+        const badField = nonStringField(req.body, ['issn', 'journal_name', 'publisher', 'note', 'recorded_date']);
+        if (badField) {
+          if (req.file) removeFile(req.file.path);
+          return res.status(400).json({ success: false, code: 'INVALID_INPUT', message: `${badField} ต้องเป็นข้อความ` });
         }
 
         const { issn, journal_name, publisher, note, recorded_date } = req.body;
@@ -352,6 +359,13 @@ class UnwantedJournalController {
             success: false,
             message: 'ไฟล์หลักฐานมีเนื้อหาไม่ตรงกับประเภทไฟล์ที่ประกาศไว้ (รองรับเฉพาะ PDF, JPG, PNG, WEBP)',
           });
+        }
+
+        // multipart field ซ้ำ (issn=a&issn=b) ได้ array → .trim() พัง 500 — ต้องเป็นข้อความเท่านั้น
+        const badField = nonStringField(req.body, ['issn', 'journal_name', 'publisher', 'note', 'recorded_date']);
+        if (badField) {
+          if (req.file) removeFile(req.file.path);
+          return res.status(400).json({ success: false, code: 'INVALID_INPUT', message: `${badField} ต้องเป็นข้อความ` });
         }
 
         const { id } = req.params;
