@@ -1,7 +1,7 @@
 /**
  * Crypto Utility
  * - สร้าง OTP code (numeric)
- * - Hash OTP ก่อนเก็บลง DB (ใช้ SHA-256)
+ * - Hash OTP ก่อนเก็บลง DB (HMAC-SHA256)
  * - Compare OTP แบบ constant-time เพื่อกัน timing attack
  */
 const crypto = require('crypto');
@@ -17,14 +17,19 @@ function generateOtp(length = config.otp.length) {
   return crypto.randomInt(min, max).toString();
 }
 
+// key สำหรับ HMAC ของ OTP — derive จาก JWT_SECRET แบบแยกโดเมน (ไม่ใช้ secret ตัวเดียวกับที่เซ็น token ตรงๆ)
+// และไม่ต้องเพิ่ม env ใหม่ตอน deploy
+const OTP_HMAC_KEY = crypto.createHmac('sha256', config.jwt.secret).update('otp-hash:v1').digest();
+
 /**
- * Hash OTP ด้วย SHA-256
- * เหตุผลที่ไม่ใช้ bcrypt: OTP มี entropy ต่ำ (6 หลัก = ~20 bits)
- *   bcrypt cost 12 จะใช้เวลา ~250ms ต่อครั้ง verify
- *   SHA-256 + short expiry (10 นาที) + max attempts (5) เพียงพอแล้ว
+ * Hash OTP ด้วย HMAC-SHA256 (key ฝั่งเซิร์ฟเวอร์)
+ * OTP 6 หลักมีแค่ 10^6 ค่า ถ้าใช้ SHA-256 ล้วน ใครได้ตาราง otp_requests ไปไล่เดาเจอทั้งหมดในพริบตา
+ * HMAC ทำให้ต้องมี secret ด้วยจึงจะไล่ได้ — ไม่ใช้ bcrypt เพราะ ~250ms ต่อ verify ไม่คุ้ม
+ * (ความปลอดภัยหลักมาจาก expiry 10 นาที + จำกัดจำนวนครั้งที่ลอง)
+ * หมายเหตุ: OTP ที่ออกก่อนเปลี่ยนมาใช้ HMAC จะ verify ไม่ผ่าน (อายุ ≤ 10 นาที) ผู้ใช้ขอ OTP ใหม่ได้
  */
 function hashOtp(otp) {
-  return crypto.createHash('sha256').update(otp).digest('hex');
+  return crypto.createHmac('sha256', OTP_HMAC_KEY).update(String(otp)).digest('hex');
 }
 
 /**
@@ -33,7 +38,7 @@ function hashOtp(otp) {
  */
 function compareOtpHash(plainOtp, hashedOtp) {
   const computed = hashOtp(plainOtp);
-  if (computed.length !== hashedOtp.length) return false;
+  if (typeof hashedOtp !== 'string' || computed.length !== hashedOtp.length) return false;
   return crypto.timingSafeEqual(Buffer.from(computed), Buffer.from(hashedOtp));
 }
 
