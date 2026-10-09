@@ -1,7 +1,7 @@
 # Journal Watch — Angular frontend + Node backend + Playwright (chromium) + noVNC debug stack
 
 # ── Stage 1: build Angular (context "frontend" มาจาก additional_contexts ใน docker-compose.yml)
-FROM node:20-alpine AS frontend-build
+FROM node:22-alpine AS frontend-build
 WORKDIR /fe
 COPY --from=frontend package.json package-lock.json ./
 RUN npm ci
@@ -11,7 +11,7 @@ COPY --from=frontend public ./public
 RUN npm run build
 
 # ── Stage 2: backend (เสิร์ฟ frontend จาก /app/frontend ด้วย Express)
-FROM node:20-bookworm-slim
+FROM node:22-bookworm-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     xvfb fluxbox x11vnc x11-utils git python3 ca-certificates curl procps build-essential \
