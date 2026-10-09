@@ -4,6 +4,7 @@
  * เฉพาะ Admin และ SuperAdmin เท่านั้น
  */
 const db          = require('../config/database');
+const config      = require('../config');
 const { parsePagination, nonStringField, nonScalarField, likeContains } = require('../utils/input');
 
 // field ของผู้ใช้ที่ลง SQL ตรงๆ แต่ไม่บังคับว่าต้องเป็นข้อความ — ห้ามเป็น object/array (B45)
@@ -16,6 +17,16 @@ const STUDY_PLAN_CODES = [
   'Doc_1_1', 'Doc_1_2', 'Doc_2_1', 'Doc_2_2', 'Doc_P1_1_1', 'Doc_P1_1_2', 'Doc_P2_2_1', 'Doc_P2_2_2',
 ];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// อีเมลผู้ใช้ (Student/Supervisor) ต้องเป็นรูปแบบอีเมลและอยู่ในโดเมนที่ล็อกอินด้วย Google ได้ (GOOGLE_ALLOWED_DOMAIN)
+// ไม่งั้นสร้างบัญชีที่ล็อกอินไม่ได้ (เช่นพิมพ์แค่รหัสนิสิตไม่มี @โดเมน) คืนข้อความ error หรือ null ถ้าผ่าน
+function msuMailError(raw) {
+  const mail = String(raw ?? '').toLowerCase().trim();
+  if (!EMAIL_RE.test(mail)) return `รูปแบบ msu_mail ไม่ถูกต้อง (${raw}) ต้องมี @ และโดเมน เช่น name@${config.google.allowedDomain}`;
+  const domain = mail.split('@')[1];
+  if (!config.google.allowedDomains.map(d => d.toLowerCase()).includes(domain))
+    return `โดเมนของ msu_mail ไม่ได้รับอนุญาต (${raw}) ต้องเป็น @${config.google.allowedDomains.join(' หรือ @')}`;
+  return null;
+}
 const USER_SCALAR_FIELDS = ['prefix', 'phone', 'facebook_id', 'line_id', 'degree_level', 'curriculum_year', 'study_plan_code'];
 const MailService = require('../services/MailService');
 const OtpModel    = require('../models/OtpModel');
@@ -358,6 +369,10 @@ const [rows] = await db.query(
       const mailChanged = mailOf(merged.msu_mail) !== mailOf(current.msu_mail);
       if (mailChanged && req.user.role === 'Staff')
         return res.status(403).json({ success: false, message: 'การเปลี่ยนอีเมลต้องทำโดย Admin' });
+      if (mailChanged) {
+        const mailErr = msuMailError(merged.msu_mail);
+        if (mailErr) return res.status(400).json({ success: false, code: 'INVALID_EMAIL', message: mailErr });
+      }
 
       // degree_level/curriculum_year/study_plan_code เฉพาะนิสิต
       if (!['Student'].includes(current.role)) {
@@ -419,6 +434,9 @@ const [rows] = await db.query(
       const allowedRoles = ['Student', 'Supervisor'];
       if (!allowedRoles.includes(role))
         return res.status(400).json({ success: false, message: `Role ต้องเป็น ${allowedRoles.join(', ')}` });
+
+      const mailErr = msuMailError(msu_mail);
+      if (mailErr) return res.status(400).json({ success: false, code: 'INVALID_EMAIL', message: mailErr });
 
       const mailLower = msu_mail.toLowerCase().trim();
 
@@ -603,8 +621,8 @@ records = parse(req.file.buffer, {
 
           if (row.msu_mail) {
             const mail = row.msu_mail.toLowerCase().trim();
-            if (!EMAIL_RE.test(mail))
-              errors.push(`Row ${rowNum}: รูปแบบ msu_mail ไม่ถูกต้อง (${row.msu_mail})`);
+            const mailErr = msuMailError(row.msu_mail);
+            if (mailErr) errors.push(`Row ${rowNum}: ${mailErr}`);
             if (existingMailSet.has(mail))
               errors.push(`Row ${rowNum}: MSU Mail ${row.msu_mail} มีอยู่ในระบบแล้ว`);
             if (mailCount.get(mail) > 1) errors.push(`Row ${rowNum}: MSU Mail ${row.msu_mail} ซ้ำในไฟล์`);
