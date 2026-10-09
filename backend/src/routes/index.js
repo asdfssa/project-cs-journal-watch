@@ -14,9 +14,22 @@ const preT3Routes = require('./preT3Routes');
 const t3Routes = require('./t3Routes');
 const uploadRoutes = require('./uploadRoutes');
 const userRoutes = require('./userRoutes');
-// Health check
-router.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+// Health check — ตรวจ DB ด้วย (SELECT 1 ภายใน 3 วินาที) ไม่งั้น DB ล่มก็ยังตอบ ok
+// FE (server-status.service) ใช้ status === 'ok' แยก "เซิร์ฟเวอร์ล่ม" ออกจาก "ขัดข้องชั่วคราว"
+const db = require('../config/database');
+router.get('/health', async (req, res) => {
+  let timer;
+  try {
+    await Promise.race([
+      db.query('SELECT 1'),
+      new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('db timeout')), 3000); }),
+    ]);
+    res.json({ status: 'ok', db: 'ok', timestamp: new Date().toISOString() });
+  } catch {
+    res.status(503).json({ status: 'error', db: 'down', timestamp: new Date().toISOString() });
+  } finally {
+    clearTimeout(timer);
+  }
 });
 
 router.use('/auth', authRoutes);
