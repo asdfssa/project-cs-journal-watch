@@ -573,6 +573,16 @@ class PreT3Controller {
         return { code: 'INVALID_JOURNAL', message: `journal_snapshot.${f} จำเป็นต้องระบุ` };
       }
     }
+    // journal_url ต้องเป็น http(s) เท่านั้น (ถูกแสดงเป็นลิงก์ให้อาจารย์/เจ้าหน้าที่คลิก — กัน javascript:/data: และลิงก์หลอก) (X49)
+    if (js.journal_url != null && js.journal_url !== '') {
+      let url = typeof js.journal_url === 'string' ? js.journal_url.trim() : null;
+      // นิสิตมักพิมพ์ "www.example.com" ไม่มี scheme — เติม https:// ให้ (เฉพาะกรณีที่หน้าตาเป็นโดเมนล้วนๆ ไม่มี scheme อื่นนำหน้า เช่น javascript:)
+      if (url && !/^[a-z][a-z0-9+.-]*:/i.test(url) && /^[^\s/@:]+\.[^\s/@:]+(\/\S*)?$/.test(url)) url = `https://${url}`;
+      let ok = !!url && url.length <= 255;
+      if (ok) { try { ok = ['http:', 'https:'].includes(new URL(url).protocol); } catch { ok = false; } }
+      if (!ok) return { code: 'INVALID_JOURNAL', message: 'journal_snapshot.journal_url ต้องเป็นลิงก์ที่ขึ้นต้นด้วย http:// หรือ https:// (ไม่เกิน 255 ตัวอักษร)' };
+      js.journal_url = url;
+    }
     // เก็บเป็น XXXX-XXXX เสมอ (12345678 กับ 1234-5678 ต้องเป็นค่าเดียวกัน)
     const issn = normalizeIssn(js.issn);
     if (!issn) return { code: 'INVALID_JOURNAL', message: 'journal_snapshot.issn รูปแบบไม่ถูกต้อง (ต้องมี 8 หลัก)' };

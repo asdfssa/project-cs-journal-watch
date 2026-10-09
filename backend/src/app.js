@@ -77,6 +77,9 @@ app.use('/api/v3', notFoundHandler);
 const frontendDir = path.join(__dirname, '..', 'frontend');
 app.use(express.static(frontendDir, { index: false }));
 app.get(/^\/(?!api\/).*/, (req, res, next) => {
+  // path ที่มีนามสกุลไฟล์ (.js/.css/.png ฯลฯ) แต่ไม่มีไฟล์จริง = 404 ไม่ใช่ index.html — แท็บเก่าหลัง redeploy ขอ chunk เดิม
+  // แล้วได้ HTML กลับไปจะ import พังแบบงงๆ (X41) · route ของ Angular ไม่มีนามสกุลจึงไม่โดน
+  if (path.extname(req.path)) return res.status(404).type('text/plain').send('Not found');
   res.set('Cache-Control', 'no-cache');
   res.sendFile(path.join(frontendDir, 'index.html'), (err) => err && next());
 });
