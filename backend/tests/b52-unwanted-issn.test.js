@@ -35,7 +35,7 @@ const reset = () => { log.length = 0; state.dupRows = []; state.lockGot = 1; };
 
 test('getAll: ค้น "12345678" เทียบ issn แบบตัดขีดด้วย (เดิมไม่เจอ 1234-5678)', async () => {
   reset();
-  await Controller.getAll({ query: { search: '12345678' } }, makeRes(), (e) => { throw e; });
+  await Controller.getAll({ query: { search: '12345678' }, user: { role: 'Admin', sub: 1 } }, makeRes(), (e) => { throw e; });
   const [, sql, params] = log.find(([k, s]) => k === 'DB' && s.includes('COUNT(*)'));
   assert.match(sql, /REPLACE\(issn, '-', ''\) LIKE \?/);
   assert.deepEqual(params, ['%12345678%', '%12345678%', '%12345678%', '%12345678%']);
@@ -43,11 +43,11 @@ test('getAll: ค้น "12345678" เทียบ issn แบบตัดขี
 
 test('getAll: ค้นแบบมีขีด/ช่องว่างก็ตัดเป็นตัวเลขเทียบด้วย และค้นชื่อทั่วไปไม่โดน', async () => {
   reset();
-  await Controller.getAll({ query: { search: '1234 5678' } }, makeRes(), (e) => { throw e; });
+  await Controller.getAll({ query: { search: '1234 5678' }, user: { role: 'Admin', sub: 1 } }, makeRes(), (e) => { throw e; });
   assert.equal(log.find(([k, s]) => k === 'DB' && s.includes('COUNT(*)'))[2][2], '%12345678%');
 
   reset();
-  await Controller.getAll({ query: { search: 'Journal of X' } }, makeRes(), (e) => { throw e; });
+  await Controller.getAll({ query: { search: 'Journal of X' }, user: { role: 'Admin', sub: 1 } }, makeRes(), (e) => { throw e; });
   const [, sql, params] = log.find(([k, s]) => k === 'DB' && s.includes('COUNT(*)'));
   assert.ok(!sql.includes('REPLACE(issn'));
   assert.equal(params.length, 3);
