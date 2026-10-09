@@ -33,7 +33,12 @@ class ScopusService {
         }
       );
 
-      await scopusProxy.incrementUsage(keyObj.index, response.headers);
+      // บันทึก usage พังต้องไม่ทำให้ผลค้นที่ได้มาแล้วล้ม (เดิมอยู่ใน try เดียวกัน → กลายเป็น "Scopus API error")
+      try {
+        await scopusProxy.incrementUsage(keyObj.index, response.headers);
+      } catch (e) {
+        console.error('[ScopusService] บันทึก usage ไม่สำเร็จ:', e.message);
+      }
       const data = response.data['serial-metadata-response'];
 
       if (!data || !data.entry || !data.entry[0]) {
@@ -49,6 +54,12 @@ class ScopusService {
       }
       if (err.response?.status === 404) {
         return null;
+      }
+      // key ถูกปฏิเสธ (หมดอายุ/ถูกเพิก/ไม่มีสิทธิ์) → ตัด key นี้ออกแล้วลอง key ถัดไป ไม่ปล่อยให้ผู้ใช้เจอ 500
+      // (วนได้ไม่เกินจำนวน key เพราะแต่ละรอบตัดไป 1 ตัว แล้ว getNextKey จะ throw SCOPUS_QUOTA_EXCEEDED เมื่อหมด)
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        await scopusProxy.markKeyRejected(keyObj.index);
+        return ScopusService._fetchFromApi(issn);
       }
       throw new Error(`Scopus API error: ${err.message}`);
     }

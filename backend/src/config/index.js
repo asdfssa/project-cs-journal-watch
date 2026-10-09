@@ -90,6 +90,7 @@ module.exports = {
     slowMo: parseInt(process.env.SCRAPER_SLOW_MO, 10) || 400,
     maxConcurrent: parseInt(process.env.SCRAPER_MAX_CONCURRENT, 10) || 2,  // Chromium พร้อมกันสูงสุด
     maxQueue: parseInt(process.env.SCRAPER_MAX_QUEUE, 10) || 10,           // คิวรอเกินนี้ → 429 SCRAPER_BUSY
+    queueTimeoutMs: parseInt(process.env.SCRAPER_QUEUE_TIMEOUT_MS, 10) || 60000, // รอคิวนานเกินนี้ → 429 (Cloudflare ตัด request ที่ ~100 วินาที)
   },
 
   // CAPTCHA เมื่อค้นวารสารถี่ (Cloudflare Turnstile) — ไม่ตั้ง TURNSTILE_SECRET = ปิด

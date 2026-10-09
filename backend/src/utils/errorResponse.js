@@ -90,6 +90,10 @@ function parseError(err) {
     return { code: 'SCRAPER_BUSY', message: 'ระบบกำลังค้นหาให้ผู้ใช้อื่นอยู่ กรุณาลองใหม่อีกสักครู่', status: 429, raw: err.message };
   }
 
+  if (err.code === 'SCRAPER_USER_BUSY') {
+    return { code: 'SCRAPER_USER_BUSY', message: 'คุณมีการค้นหาที่กำลังดำเนินอยู่ กรุณารอให้เสร็จก่อนค้นรายการใหม่', status: 429, raw: err.message };
+  }
+
   // error ฝั่ง client จาก body-parser / http-errors (413 body ใหญ่เกิน, 415 encoding ไม่รองรับ ฯลฯ)
   if (err.expose && err.status >= 400 && err.status < 500) {
     const message = err.status === 413

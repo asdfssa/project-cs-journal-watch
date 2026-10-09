@@ -21,7 +21,9 @@ const config = require('../config');
 // ponytail: ตัวเลขจาก burst test จริง (เจอ 429 ครั้งแรกที่ concurrent request ตัวที่ 6)
 // ถ้า Elsevier เปลี่ยนเรต ต้องรัน scripts/test-scopus-rate-limit-burst.js ใหม่แล้วปรับเลขนี้
 const PER_SECOND_LIMIT = 5;
-const UNAVAILABLE_MS = 60 * 60 * 1000; // 1 ชม. — คงพฤติกรรมเดิมตอนเจอ 429 จริง
+const UNAVAILABLE_MS = 60 * 60 * 1000; // 1 ชม. — ใช้เมื่อ 429 และไม่รู้ว่า quota เหลือเท่าไร (ไม่มี header)
+const BURST_COOLDOWN_MS = 30 * 1000;  // 429 ที่ quota รายสัปดาห์ยังเหลือ = ชน throttle รายวินาที พักสั้นๆ พอ
+const REJECTED_MS = 24 * 60 * 60 * 1000; // 401/403: key ใช้ไม่ได้ พัก 1 วัน (ค่อยลองใหม่หลังแก้ key หรือรีสตาร์ท)
 const DEFAULT_WEEKLY_LIMIT = 20000;
 
 const STATE_DIR = path.join(__dirname, '..', '..', 'data');
@@ -124,11 +126,23 @@ class ScopusProxyService {
     const quotaExhausted = keyObj.weeklyRemaining !== null && keyObj.weeklyRemaining <= 0;
     const resetMs = keyObj.weeklyResetAt ? keyObj.weeklyResetAt * 1000 : null;
 
+    const quotaKnownLeft = keyObj.weeklyRemaining !== null && keyObj.weeklyRemaining > 0;
     keyObj.unavailableUntil = (quotaExhausted && resetMs && resetMs > Date.now())
       ? resetMs
-      : Date.now() + UNAVAILABLE_MS;
+      : Date.now() + (quotaKnownLeft ? BURST_COOLDOWN_MS : UNAVAILABLE_MS);
 
     await this._persist();
+  }
+
+  /**
+   * key ถูก Elsevier ปฏิเสธ (401/403) — พักยาวเพื่อไม่ให้ทุกคำขอไปชน key ที่ใช้ไม่ได้ซ้ำๆ
+   */
+  async markKeyRejected(keyIndex) {
+    const keyObj = this.keys[keyIndex];
+    if (!keyObj) return;
+    console.error(`[ScopusProxy] key #${keyIndex} ถูกปฏิเสธ (401/403) — พัก 24 ชั่วโมง ตรวจ key ใน .env`);
+    keyObj.unavailableUntil = Date.now() + REJECTED_MS;
+    try { await this._persist(); } catch (_) { /* state เขียนพังไม่ควรบังคับให้คำขอล้ม */ }
   }
 
   _applyRateLimitHeaders(keyObj, rateLimitHeaders) {

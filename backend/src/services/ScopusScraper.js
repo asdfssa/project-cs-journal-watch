@@ -55,7 +55,8 @@ class ScopusScraper {
 // await page.screenshot({ path: 'scopus-debug.png', fullPage: true });
 // console.log('[ScopusScraper] screenshot saved: scopus-debug.png');
 
-    await ScopusScraper._searchByIssn(page, issn);
+    const found = await ScopusScraper._searchByIssn(page, issn);
+    if (!found) return null; // ไม่พบ ISSN นี้ใน Scopus → 404 (เดิม timeout รอตารางผลลัพธ์ ~20 วินาทีแล้ว 500)
     const data = await ScopusScraper._extractSourceDetails(page, issn);
     return data;
 
@@ -79,7 +80,14 @@ class ScopusScraper {
     await issnInput.type(issn, { delay: 50 });
 
     await page.locator('#searchTermsSubmit').click();
-    await page.waitForSelector('table#sourceResults tbody tr', { timeout: 15000 });
+    try {
+      await page.waitForSelector('table#sourceResults tbody tr', { timeout: 15000 });
+    } catch (e) {
+      // ตารางผลลัพธ์ไม่ขึ้นภายใน 15 วินาที = ถือว่าไม่พบ (ยังแยกจากหน้าเว็บเปลี่ยน/ถูกบล็อกไม่ได้ จึง log ไว้ดู)
+      if (e.name !== 'TimeoutError') throw e;
+      console.warn(`[ScopusScraper] ไม่พบตารางผลลัพธ์สำหรับ ISSN ${issn} — ถือว่าไม่พบวารสาร`);
+      return false;
+    }
 
     const firstRow = page.locator('table#sourceResults tbody tr').first();
     const firstLink = firstRow.locator("a[title='View details for this source.']");
@@ -87,6 +95,7 @@ class ScopusScraper {
 
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(3000);
+    return true;
   }
 
   static async _extractSourceDetails(page, issn) {

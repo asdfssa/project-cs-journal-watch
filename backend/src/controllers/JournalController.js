@@ -7,6 +7,7 @@ const TCIService = require('../services/TCIService');
 const ScopusScraper = require('../services/ScopusScraper');
 const TCIScraper = require('../services/TCIScraper');
 const { serverError } = require('../utils/errorResponse');
+const { claimUserScrape } = require('../services/scrapeQueue');
 
 class JournalController {
 
@@ -141,7 +142,9 @@ class JournalController {
       const err = JournalController._validateIssn(issn);
       if (err) return res.status(400).json({ success: false, message: err });
 
-      const result = await ScopusScraper.getJournalByIssn(issn);
+      const release = claimUserScrape(req.user.sub);
+      let result;
+      try { result = await ScopusScraper.getJournalByIssn(issn); } finally { release(); }
       if (!result) {
         return res.status(404).json({
           success: false,
@@ -168,7 +171,9 @@ class JournalController {
       const err = JournalController._validateIssn(issn);
       if (err) return res.status(400).json({ success: false, message: err });
 
-      const result = await TCIScraper.getJournalByIssn(issn);
+      const release = claimUserScrape(req.user.sub);
+      let result;
+      try { result = await TCIScraper.getJournalByIssn(issn); } finally { release(); }
       if (!result) {
         return res.status(404).json({
           success: false,
