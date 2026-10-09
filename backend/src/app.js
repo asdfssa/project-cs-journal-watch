@@ -34,7 +34,7 @@ app.use(
         styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://cdn.jsdelivr.net', 'https://accounts.google.com/gsi/style'],
         fontSrc: ["'self'", 'data:', 'https://fonts.gstatic.com', 'https://cdn.jsdelivr.net'],
         imgSrc: ["'self'", 'data:', 'blob:', 'https://*.googleusercontent.com'],
-        connectSrc: ["'self'", 'https://accounts.google.com/gsi/', 'https://cloudflareinsights.com', 'https://challenges.cloudflare.com'],
+        connectSrc: ["'self'", 'https://accounts.google.com/gsi/', 'https://cloudflareinsights.com', 'https://challenges.cloudflare.com', ...config.csp.connectExtra],
         frameSrc: ['https://accounts.google.com/gsi/', 'https://challenges.cloudflare.com'],
         objectSrc: ["'none'"],
         baseUri: ["'self'"],

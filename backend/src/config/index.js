@@ -61,6 +61,12 @@ module.exports = {
     },
   },
 
+  // origin ของ API ที่ frontend (คนละ origin กับ API) เรียกข้ามโดเมน — ต้องอยู่ใน CSP connect-src (X27)
+  // ค่าเริ่มต้น = โดเมน API จริง · คั่นหลายค่าด้วย , · ตั้งเป็นค่าว่างเพื่อปิด
+  csp: {
+    connectExtra: (process.env.CSP_CONNECT_EXTRA ?? 'https://api.farmlnwza007.online').split(',').map(o => o.trim()).filter(Boolean),
+  },
+
   cors: {
     // รับได้หลาย origin คั่นด้วย , (frontend ที่เสิร์ฟจาก container เดียวกันเป็น same-origin ไม่ต้องใส่)
     origin: (process.env.CORS_ORIGIN || 'http://localhost:4200').split(',').map(o => o.trim()),
