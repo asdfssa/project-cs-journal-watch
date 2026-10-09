@@ -7,6 +7,15 @@ const db          = require('../config/database');
 const { parsePagination, nonStringField, nonScalarField } = require('../utils/input');
 
 // field ของผู้ใช้ที่ลง SQL ตรงๆ แต่ไม่บังคับว่าต้องเป็นข้อความ — ห้ามเป็น object/array (B45)
+// CSV import: จำกัดจำนวนแถว + ค่า enum ที่คอลัมน์ users รับ (ผิด → แจ้งรายแถว ไม่ปล่อยไปชน MySQL แล้ว 500 ทั้งก้อน)
+const MAX_IMPORT_ROWS = 2000;
+const DEGREE_LEVELS = ['Master', 'Doctoral'];
+const CURRICULUM_YEARS = ['2560', '2566'];
+const STUDY_PLAN_CODES = [
+  'Master_A1', 'Master_A2', 'Master_B', 'Master_P1A1', 'Master_P1A2', 'Master_P2B',
+  'Doc_1_1', 'Doc_1_2', 'Doc_2_1', 'Doc_2_2', 'Doc_P1_1_1', 'Doc_P1_1_2', 'Doc_P2_2_1', 'Doc_P2_2_2',
+];
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const USER_SCALAR_FIELDS = ['prefix', 'phone', 'facebook_id', 'line_id', 'degree_level', 'curriculum_year', 'study_plan_code'];
 const MailService = require('../services/MailService');
 const OtpModel    = require('../models/OtpModel');
@@ -515,8 +524,17 @@ records = parse(req.file.buffer, {
 
         if (!records.length)
           return res.status(400).json({ success: false, message: 'ไฟล์ CSV ว่างเปล่า' });
+        if (records.length > MAX_IMPORT_ROWS)
+          return res.status(400).json({ success: false, code: 'TOO_MANY_ROWS', message: `ไฟล์มี ${records.length} แถว เกินที่รองรับ (สูงสุด ${MAX_IMPORT_ROWS} แถวต่อไฟล์) กรุณาแบ่งไฟล์` });
 
         const errors = [];
+
+        // นับ msu_mail ในไฟล์ครั้งเดียว (เดิม filter ทั้งไฟล์ต่อแถว = O(n²))
+        const mailCount = new Map();
+        for (const r of records) {
+          const m = r.msu_mail?.toLowerCase().trim();
+          if (m) mailCount.set(m, (mailCount.get(m) || 0) + 1);
+        }
 
         // Batch prefetch: ดึงข้อมูลที่ต้องตรวจสอบทั้งหมดใน 2 queries แทนการ query ต่อ row
         const allMails = records
@@ -563,14 +581,22 @@ records = parse(req.file.buffer, {
 
           if (row.msu_mail) {
             const mail = row.msu_mail.toLowerCase().trim();
+            if (!EMAIL_RE.test(mail))
+              errors.push(`Row ${rowNum}: รูปแบบ msu_mail ไม่ถูกต้อง (${row.msu_mail})`);
             if (existingMailSet.has(mail))
               errors.push(`Row ${rowNum}: MSU Mail ${row.msu_mail} มีอยู่ในระบบแล้ว`);
-
-            const dupInFile = records.filter((r, idx) =>
-              idx !== i && r.msu_mail?.toLowerCase().trim() === mail
-            );
-            if (dupInFile.length) errors.push(`Row ${rowNum}: MSU Mail ${row.msu_mail} ซ้ำในไฟล์`);
+            if (mailCount.get(mail) > 1) errors.push(`Row ${rowNum}: MSU Mail ${row.msu_mail} ซ้ำในไฟล์`);
           }
+
+          // ค่า enum/ความยาวของคอลัมน์ users — ผิดแล้วบอกแถวที่ผิด (เดิม MySQL error 1265 → 500 ทั้งก้อน)
+          if (row.degree_level && !DEGREE_LEVELS.includes(row.degree_level))
+            errors.push(`Row ${rowNum}: degree_level "${row.degree_level}" ไม่ถูกต้อง (ใช้ ${DEGREE_LEVELS.join(' / ')})`);
+          if (row.curriculum_year && !CURRICULUM_YEARS.includes(row.curriculum_year))
+            errors.push(`Row ${rowNum}: curriculum_year "${row.curriculum_year}" ไม่ถูกต้อง (ใช้ ${CURRICULUM_YEARS.join(' / ')})`);
+          if (row.study_plan_code && !STUDY_PLAN_CODES.includes(row.study_plan_code))
+            errors.push(`Row ${rowNum}: study_plan_code "${row.study_plan_code}" ไม่ถูกต้อง`);
+          if (row.phone && row.phone.length > 20) errors.push(`Row ${rowNum}: phone ยาวเกิน 20 ตัวอักษร`);
+          if (row.prefix && row.prefix.length > 50) errors.push(`Row ${rowNum}: prefix ยาวเกิน 50 ตัวอักษร`);
 
           if (row.role === 'Student') {
             if (row.advisor_major_mail) {

@@ -14,6 +14,8 @@ const MYSQL_ERRORS = {
   ER_DATA_TOO_LONG:           { code: 'DATA_TOO_LONG',          message: 'ข้อมูลที่ส่งมายาวเกินกำหนด', status: 400 },
   ER_INCORRECT_DATETIME_VALUE:{ code: 'INVALID_DATETIME',       message: 'รูปแบบวันที่-เวลาไม่ถูกต้อง', status: 400 },
   ER_TRUNCATED_WRONG_VALUE:   { code: 'INVALID_VALUE',          message: 'ค่าข้อมูลไม่ถูกต้อง (ค่าไม่ตรงกับชนิดคอลัมน์)', status: 400 },
+  WARN_DATA_TRUNCATED:        { code: 'INVALID_VALUE',          message: 'ค่าข้อมูลไม่ถูกต้อง (ค่าไม่อยู่ในรายการที่กำหนด)', status: 400 },
+  ER_TRUNCATED_WRONG_VALUE_FOR_FIELD: { code: 'INVALID_VALUE',   message: 'ค่าข้อมูลไม่ถูกต้อง (ค่าไม่ตรงกับชนิดคอลัมน์)', status: 400 },
   ER_WARN_DATA_OUT_OF_RANGE:  { code: 'VALUE_OUT_OF_RANGE',     message: 'ค่าข้อมูลเกินช่วงที่รองรับ', status: 400 },
   ER_PARSE_ERROR:             { code: 'DB_QUERY_ERROR',         message: 'คำสั่ง SQL ผิดพลาด กรุณาแจ้ง developer', status: 500 },
   ER_ACCESS_DENIED_ERROR:     { code: 'DB_AUTH_ERROR',          message: 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้ (auth failed)', status: 500 },

@@ -11,6 +11,9 @@ const crypto = require('crypto');
 const { parse } = require('csv-parse/sync');
 const { serverError } = require('../utils/errorResponse');
 const { parsePagination, normalizeIssn, nonStringField } = require('../utils/input');
+const { toMysqlDate } = require('../utils/date');
+
+const MAX_IMPORT_ROWS = 2000;
 const { verifyFileType, MIME_TO_EXT } = require('../middlewares/upload');
 
 // ลบไฟล์แบบไม่ throw — ใช้ใน multer callback (Express 4 จับ error ใน callback ไม่ได้ → unhandled rejection)
@@ -290,32 +293,45 @@ class UnwantedJournalController {
 
         if (!records.length)
           return res.status(400).json({ success: false, message: 'ไฟล์ CSV ว่างเปล่า' });
+        if (records.length > MAX_IMPORT_ROWS)
+          return res.status(400).json({ success: false, code: 'TOO_MANY_ROWS', message: `ไฟล์มี ${records.length} แถว เกินที่รองรับ (สูงสุด ${MAX_IMPORT_ROWS} แถวต่อไฟล์) กรุณาแบ่งไฟล์` });
 
         const errors = [];
         release = await acquireWriteLock();
 
-        records.forEach(r => { r._issn = r.issn?.trim() ? normalizeIssn(r.issn) : null; });
+        records.forEach(r => {
+          r._issn = r.issn?.trim() ? normalizeIssn(r.issn) : null;
+          r._date = toMysqlDate(r.recorded_date); // null = ไม่ได้ใส่, undefined = รูปแบบ/วันที่ผิด
+        });
+
+        // ISSN ที่มีอยู่แล้วใน DB — query ครั้งเดียว (เดิมต่อแถว) · นับซ้ำในไฟล์ด้วย Map (เดิม filter ต่อแถว = O(n²))
+        const fileIssns = new Map();
+        for (const r of records) if (r._issn) fileIssns.set(r._issn, (fileIssns.get(r._issn) || 0) + 1);
+        const existingIssns = new Set();
+        if (fileIssns.size) {
+          const [dbRows] = await db.query(
+            'SELECT issn FROM msu_unwanted_journals WHERE issn IN (?)',
+            [[...fileIssns.keys()].flatMap(i => [i, i.replace('-', '')])]
+          );
+          for (const r of dbRows) existingIssns.add(normalizeIssn(r.issn));
+        }
         for (let i = 0; i < records.length; i++) {
           const row = records[i];
           const rowNum = i + 2;
 
           if (!row.journal_name?.trim()) errors.push(`Row ${rowNum}: ไม่มี journal_name`);
-          if (!row.recorded_date?.trim()) errors.push(`Row ${rowNum}: ไม่มี recorded_date`);
+          if (row.journal_name && row.journal_name.length > 255) errors.push(`Row ${rowNum}: journal_name ยาวเกิน 255 ตัวอักษร`);
+          if (row.publisher && row.publisher.length > 255) errors.push(`Row ${rowNum}: publisher ยาวเกิน 255 ตัวอักษร`);
+          if (row._date === null) errors.push(`Row ${rowNum}: ไม่มี recorded_date`);
+          else if (row._date === undefined) errors.push(`Row ${rowNum}: recorded_date "${row.recorded_date}" ไม่ถูกต้อง (ใช้ YYYY-MM-DD)`);
 
           if (row.issn?.trim() && !row._issn) errors.push(`Row ${rowNum}: รูปแบบ ISSN ไม่ถูกต้อง (${row.issn})`);
 
           // เช็คซ้ำใน DB
-          if (row._issn) {
-            if (await issnExists(row._issn)) errors.push(`Row ${rowNum}: ISSN ${row.issn} มีอยู่ในรายการแล้ว`);
-          }
+          if (row._issn && existingIssns.has(row._issn)) errors.push(`Row ${rowNum}: ISSN ${row.issn} มีอยู่ในรายการแล้ว`);
 
           // เช็คซ้ำในไฟล์เดียวกัน (เทียบหลัง normalize — 12345678 กับ 1234-5678 คือตัวเดียวกัน)
-          if (row._issn) {
-            const dupInFile = records.filter((r, idx) =>
-              idx !== i && r._issn === row._issn
-            );
-            if (dupInFile.length) errors.push(`Row ${rowNum}: ISSN ${row.issn} ซ้ำในไฟล์`);
-          }
+          if (row._issn && fileIssns.get(row._issn) > 1) errors.push(`Row ${rowNum}: ISSN ${row.issn} ซ้ำในไฟล์`);
         }
 
         if (errors.length) {
@@ -341,7 +357,7 @@ class UnwantedJournalController {
                 row.journal_name.trim(),
                 row.publisher?.trim() || null,
                 row.note?.trim() || null,
-                row.recorded_date.trim(),
+                row._date,
                 req.user.sub,
               ]
             );
