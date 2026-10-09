@@ -191,18 +191,29 @@ class T3Controller {
       return { error: { status: 400, code: 'NO_MAJOR_ADVISOR', message: 'บัญชีนี้ยังไม่มีที่ปรึกษาหลัก (Major Advisor) กรุณาติดต่อ Admin' } };
     }
 
-    const t3Id = await T3Model.create(
-      studentId,
-      pre_t3_id,
-      paper_and_research_details,
-      publication_details,
-      journal_metrics,
-      {
-        majorAdvisorId: majorAdvisor.advisor_id,
-        coAdvisor1Id:   co1Advisor?.advisor_id || null,
-        coAdvisor2Id:   co2Advisor?.advisor_id || null,
+    let t3Id;
+    try {
+      t3Id = await T3Model.create(
+        studentId,
+        pre_t3_id,
+        paper_and_research_details,
+        publication_details,
+        journal_metrics,
+        {
+          majorAdvisorId: majorAdvisor.advisor_id,
+          coAdvisor1Id:   co1Advisor?.advisor_id || null,
+          coAdvisor2Id:   co2Advisor?.advisor_id || null,
+        }
+      );
+    } catch (err) {
+      if (err.code === 'T3_ALREADY_EXISTS') {
+        return { error: { status: 409, code: err.code, message: 'Pre-T3 นี้มีคำขอ T3 ที่รออนุมัติหรืออนุมัติแล้ว ไม่สามารถยื่นซ้ำได้' } };
       }
-    );
+      if (err.code === 'PRE_T3_NOT_APPROVED') {
+        return { error: { status: 400, code: err.code, message: 'Pre-T3 ต้องได้รับการอนุมัติก่อน' } };
+      }
+      throw err;
+    }
 
     return { t3Id, student, majorAdvisor, journal_snapshot, paper_and_research_details };
   }

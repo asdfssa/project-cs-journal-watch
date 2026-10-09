@@ -150,4 +150,19 @@ const scrapeLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-module.exports = { loginLimiter, googleLimiter, otpLimiter, registerLimiter, forgotPasswordLimiter, scrapeLimiter, refreshLimiter };
+// 10 submits per 15 min per user — key ด้วย user id (ใช้หลัง requireAuth) ไม่ใช่ IP เพราะนิสิตหลัง NAT เดียวกันต้องไม่แย่งโควตากัน
+const submitLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  skip: skipLocalhost,
+  keyGenerator: (req) => `user:${req.user.sub}`,
+  message: {
+    success: false,
+    code: 'RATE_LIMIT',
+    message: 'ยื่นคำขอเกินจำนวนครั้งที่กำหนด กรุณารอ 15 นาทีแล้วลองใหม่',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+module.exports = { submitLimiter, loginLimiter, googleLimiter, otpLimiter, registerLimiter, forgotPasswordLimiter, scrapeLimiter, refreshLimiter };

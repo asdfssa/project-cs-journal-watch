@@ -62,6 +62,24 @@ class T3Model {
     const { majorAdvisorId, coAdvisor1Id = null, coAdvisor2Id = null } = advisorIds;
 
     return withTransaction(async (conn) => {
+      // lock แถว Pre-T3 ก่อน — กดซ้ำพร้อมกัน/ชนกับ cancel จะต่อคิวที่นี่ (B29)
+      const [preRows] = await conn.query(
+        `SELECT overall_status FROM pre_t3_requests WHERE pre_t3_id = ? FOR UPDATE`,
+        [preT3Id]
+      );
+      if (!preRows.length || preRows[0].overall_status !== 'Approved') {
+        throw Object.assign(new Error('Pre-T3 is not Approved'), { code: 'PRE_T3_NOT_APPROVED' });
+      }
+      // Rejected/Cancelled ไม่นับ → ยื่น T3 ใหม่บน Pre-T3 เดิมได้
+      const [dup] = await conn.query(
+        `SELECT 1 FROM t3_requests
+          WHERE pre_t3_id = ? AND overall_status IN ('Pending', 'Approved') LIMIT 1`,
+        [preT3Id]
+      );
+      if (dup.length) {
+        throw Object.assign(new Error('T3 already exists for this Pre-T3'), { code: 'T3_ALREADY_EXISTS' });
+      }
+
       const [result] = await conn.query(
         `INSERT INTO t3_requests
            (pre_t3_id, student_id,

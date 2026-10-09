@@ -8,6 +8,7 @@ const { requireNumericId } = require('../middlewares/validation');
 router.param('id', requireNumericId);
 const PreT3Controller = require('../controllers/PreT3Controller');
 const { requireAuth, requireRole } = require('../middlewares/auth');
+const { submitLimiter } = require('../middlewares/rateLimit');
 
 // -------------------------------------------------------
 // นิสิตยื่น Pre-T3 ใหม่
@@ -17,6 +18,7 @@ router.post(
   '/',
   requireAuth,
   requireRole('Student'),
+  submitLimiter,
   PreT3Controller.submit
 );
 

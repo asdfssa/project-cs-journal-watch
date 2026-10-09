@@ -9,6 +9,7 @@ router.param('id', requireNumericId);
 const T3Controller  = require('../controllers/T3Controller');
 const { requireAuth, requireRole } = require('../middlewares/auth');
 const { uploadT3FieldsMemory } = require('../middlewares/upload');
+const { submitLimiter } = require('../middlewares/rateLimit');
 
 // multer error handler (เหมือนกับใน uploadRoutes)
 const handleMulterError = (err, req, res, next) => {
@@ -29,6 +30,7 @@ router.post(
   '/',
   requireAuth,
   requireRole('Student'),
+  submitLimiter,
   T3Controller.submit
 );
 
@@ -45,6 +47,7 @@ router.post(
   '/with-files',
   requireAuth,
   requireRole('Student'),
+  submitLimiter,
   uploadT3FieldsMemory,
   handleMulterError,
   T3Controller.submitWithFiles

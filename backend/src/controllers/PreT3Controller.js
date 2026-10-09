@@ -17,8 +17,13 @@ const { advisorViewFields } = require('../models/_approvalHelpers');
 const MailService = require('../services/MailService');
 const db          = require('../config/database');
 const { serverError } = require('../utils/errorResponse');
-const { parsePagination } = require('../utils/input');
+const { parsePagination, normalizeIssn } = require('../utils/input');
 const { toMysqlDate } = require('../utils/date');
+
+const DUPLICATE_BODY = {
+  code: 'PRE_T3_DUPLICATE',
+  message: 'คุณมี Pre-T3 ของวารสาร ISSN นี้ที่รออนุมัติหรืออนุมัติแล้ว ไม่สามารถยื่นซ้ำได้',
+};
 
 class PreT3Controller {
   // ============================================================
@@ -98,17 +103,23 @@ class PreT3Controller {
         abstract:     article_info?.abstract     || null,
       };
 
-      const preT3Id = await PreT3Model.create(
-        studentId,
-        journal_snapshot,
-        checklist_data,
-        {
-          majorAdvisorId: majorAdvisor.advisor_id,
-          coAdvisor1Id:   co1Advisor?.advisor_id || null,
-          coAdvisor2Id:   co2Advisor?.advisor_id || null,
-        },
-        articleInfoData,
-      );
+      let preT3Id;
+      try {
+        preT3Id = await PreT3Model.create(
+          studentId,
+          journal_snapshot,
+          checklist_data,
+          {
+            majorAdvisorId: majorAdvisor.advisor_id,
+            coAdvisor1Id:   co1Advisor?.advisor_id || null,
+            coAdvisor2Id:   co2Advisor?.advisor_id || null,
+          },
+          articleInfoData,
+        );
+      } catch (err) {
+        if (err.code === 'PRE_T3_DUPLICATE') return res.status(409).json({ success: false, ...DUPLICATE_BODY });
+        throw err;
+      }
 
       // แจ้ง Advisor ทางอีเมล
       const advisorUser = await UserModel.findById(majorAdvisor.advisor_id);
@@ -413,7 +424,13 @@ class PreT3Controller {
         abstract:     article_info?.abstract     || null,
       };
 
-      const ok = await PreT3Model.resubmit(preT3Id, journal_snapshot, checklist_data, articleInfoData);
+      let ok;
+      try {
+        ok = await PreT3Model.resubmit(preT3Id, journal_snapshot, checklist_data, articleInfoData);
+      } catch (err) {
+        if (err.code === 'PRE_T3_DUPLICATE') return res.status(409).json({ success: false, ...DUPLICATE_BODY });
+        throw err;
+      }
       if (!ok) {
         return res.status(400).json({ success: false, code: 'INVALID_STATE', message: 'สามารถยื่นซ้ำได้เฉพาะรายการที่ถูกปฏิเสธเท่านั้น' });
       }
@@ -534,6 +551,10 @@ class PreT3Controller {
         return { code: 'INVALID_JOURNAL', message: `journal_snapshot.${f} จำเป็นต้องระบุ` };
       }
     }
+    // เก็บเป็น XXXX-XXXX เสมอ (12345678 กับ 1234-5678 ต้องเป็นค่าเดียวกัน)
+    const issn = normalizeIssn(js.issn);
+    if (!issn) return { code: 'INVALID_JOURNAL', message: 'journal_snapshot.issn รูปแบบไม่ถูกต้อง (ต้องมี 8 หลัก)' };
+    js.issn = issn;
     if (!['Scopus', 'TCI'].includes(js.indexed_database)) {
       return { code: 'INVALID_JOURNAL', message: 'journal_snapshot.indexed_database ต้องเป็น Scopus หรือ TCI' };
     }

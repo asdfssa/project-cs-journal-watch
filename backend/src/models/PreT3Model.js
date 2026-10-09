@@ -36,6 +36,18 @@ const CHECKLIST_COLUMNS = [
   'chk_still_indexed',
 ];
 
+// ISSN เดียวกันที่ Pending/Approved อยู่แล้วของนิสิตคนนี้ (ไม่นับ excludeId) — เทียบทั้งแบบมี/ไม่มีขีด
+// เพราะแถวเก่าอาจเก็บไว้ก่อนมี normalize
+async function hasActiveSameIssn(conn, studentId, issn, excludeId = 0) {
+  const [rows] = await conn.query(
+    `SELECT 1 FROM pre_t3_requests
+      WHERE student_id = ? AND issn IN (?, ?) AND pre_t3_id <> ?
+        AND overall_status IN ('Pending', 'Approved') LIMIT 1`,
+    [studentId, issn, issn.replace('-', ''), excludeId]
+  );
+  return rows.length > 0;
+}
+
 class PreT3Model {
   // ============================================================
   // CREATE
@@ -54,6 +66,12 @@ class PreT3Model {
     const { majorAdvisorId, coAdvisor1Id = null, coAdvisor2Id = null } = advisorIds;
 
     return withTransaction(async (conn) => {
+      // lock แถว user ให้ยื่นพร้อมกันของนิสิตคนเดียวต่อคิว ก่อนเช็คซ้ำ (B29)
+      await conn.query(`SELECT user_id FROM users WHERE user_id = ? FOR UPDATE`, [studentId]);
+      if (await hasActiveSameIssn(conn, studentId, journalSnapshot.issn)) {
+        throw Object.assign(new Error('Duplicate Pre-T3 for ISSN'), { code: 'PRE_T3_DUPLICATE' });
+      }
+
       const [result] = await conn.query(
         `INSERT INTO pre_t3_requests
            (student_id,
@@ -469,6 +487,16 @@ class PreT3Model {
    */
   static async resubmit(preT3Id, journalSnapshot, checklistData, articleInfo) {
     return withTransaction(async (conn) => {
+      // เปลี่ยน ISSN ตอนยื่นซ้ำต้องไม่ไปชนกับ Pre-T3 อื่นที่ยัง active (B29)
+      const [own] = await conn.query(
+        `SELECT student_id FROM pre_t3_requests WHERE pre_t3_id = ? FOR UPDATE`, [preT3Id]
+      );
+      if (!own.length) return false;
+      await conn.query(`SELECT user_id FROM users WHERE user_id = ? FOR UPDATE`, [own[0].student_id]);
+      if (await hasActiveSameIssn(conn, own[0].student_id, journalSnapshot.issn, preT3Id)) {
+        throw Object.assign(new Error('Duplicate Pre-T3 for ISSN'), { code: 'PRE_T3_DUPLICATE' });
+      }
+
       const [result] = await conn.query(
         `UPDATE pre_t3_requests
             SET issn              = ?,
