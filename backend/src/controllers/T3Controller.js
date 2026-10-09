@@ -408,6 +408,12 @@ class T3Controller {
       if (!['approve', 'reject'].includes(action)) {
         return res.status(400).json({ success: false, code: 'INVALID_ACTION', message: 'action ต้องเป็น approve หรือ reject' });
       }
+      // วันที่ผิดรูปแบบ/ไม่มีจริง → 400 (เดิมชน MySQL แล้วได้ 500)
+      const meetingDate = toMysqlDate(meeting_date);
+      if (meetingDate === undefined) {
+        return res.status(400).json({ success: false, code: 'INVALID_DATE', message: 'meeting_date ต้องเป็นวันที่รูปแบบ YYYY-MM-DD' });
+      }
+
       if (action === 'approve' && (!meeting_no || !meeting_date)) {
         return res.status(400).json({ success: false, code: 'MEETING_REQUIRED', message: 'กรุณาระบุ meeting_no และ meeting_date' });
       }
@@ -425,7 +431,7 @@ class T3Controller {
         return res.status(400).json({ success: false, code: 'INVALID_STATE', message: `T3 นี้อยู่ในสถานะ ${row.overall_status} แล้ว` });
       }
 
-      const result = await T3Model.facultyReview(t3Id, action, meeting_no, toMysqlDate(meeting_date), remark);
+      const result = await T3Model.facultyReview(t3Id, action, meeting_no, meetingDate, remark);
       if (!result) {
         return res.status(409).json({ success: false, code: 'INVALID_STATE', message: 'T3 นี้ถูกเปลี่ยนสถานะไปแล้ว กรุณารีเฟรชหน้า' });
       }
