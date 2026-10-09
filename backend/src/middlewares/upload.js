@@ -12,7 +12,8 @@
  *   3. ตอน serve ไฟล์กลับ ต้องบังคับ Content-Disposition: attachment เสมอ (ดู UploadController)
  */
 const multer = require('multer');
-const { fromFile: fileTypeFromFile, fromBuffer: fileTypeFromBuffer } = require('file-type');
+// file-type v22 เป็น ESM-only → โหลดแบบ dynamic import (require ไม่ได้)
+const loadFileType = () => import('file-type');
 
 // ประเภทไฟล์ที่อนุญาต
 const ALLOWED_MIME_TYPES = [
@@ -65,6 +66,7 @@ const uploadT3FieldsMemory = multer({
  * @returns {Promise<boolean>}
  */
 async function verifyFileType(source) {
+  const { fileTypeFromBuffer, fileTypeFromFile } = await loadFileType();
   const detected = Buffer.isBuffer(source)
     ? await fileTypeFromBuffer(source)
     : await fileTypeFromFile(source);
