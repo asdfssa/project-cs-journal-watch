@@ -23,6 +23,9 @@ const pool = mysql.createPool({
   // ใช้ ['DATE'] ไม่ใช่ true: true จะทำให้ TIMESTAMP/DATETIME (created_at, decided_at ฯลฯ) กลายเป็น "YYYY-MM-DD HH:MM:SS"
   // ไม่มี Z แล้วเบราว์เซอร์อ่านเป็นเวลาท้องถิ่น → ทุกหน้าที่แสดงเวลาเพี้ยน 7 ชม.
   dateStrings: ['DATE'],
+  // DECIMAL (weight_score, impact_factor, citescore) คืนเป็น number ตามที่ FE ประกาศไว้ (เดิม mysql2 คืนเป็นสตริง "0.60")
+  // ปลอดภัยกับ DECIMAL(10,4) ของระบบนี้ — ไม่มีคอลัมน์ที่เกินความแม่นยำของ double
+  decimalNumbers: true,
 });
 
 // ทดสอบ connection ตอน startup
