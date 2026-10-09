@@ -5,13 +5,13 @@
 ## 1. X27 — CORS / CSP สำหรับโดเมน api ⚠️
 ขอโทษครับ ข้อ E ในเอกสารผมคัดข้อความเดิมจากรายงานบั๊กมา (คืน `/api/v3` + proxy) ทั้งที่ตกลงกันแล้วว่าใช้ `https://api.farmlnwza007.online/api/v3` ต่อ — **ถือตามที่ตกลงกัน**
 
-สถานะตอนนี้ (ตรวจแล้ว):
-- CSP `connectSrc` ยังไม่มี `https://api.farmlnwza007.online` → **BE จะเพิ่ม** (แก้ `backend/src/app.js`)
-- CORS: `credentials: true` มีอยู่แล้ว แต่ `CORS_ORIGIN` ในเครื่องจริงคือ `http://localhost:4200` อย่างเดียว (ทดสอบ preflight จาก `journal.*` ได้ `Access-Control-Allow-Origin` ว่าง) → **BE จะตั้ง** `CORS_ORIGIN=http://localhost:4200,https://journal.farmlnwza007.online`
+**BE แก้และ deploy ขึ้นระบบจริงแล้ว** ✅ (ทดสอบผ่านโดเมน `api.farmlnwza007.online` จริงแล้ว):
+- CSP `connect-src` เพิ่ม `https://api.farmlnwza007.online` แล้ว (`backend/src/app.js`)
+- CORS: `CORS_ORIGIN=http://localhost:4200,https://journal.farmlnwza007.online` + `credentials: true` · preflight จาก `journal.*` ได้ `Access-Control-Allow-Origin: https://journal.farmlnwza007.online` และ `Access-Control-Allow-Credentials: true`
 - คุกกี้ refresh: ไม่ต้องแก้ `journal.*` กับ `api.*` อยู่ใน **site เดียวกัน** (โดเมนหลัก `farmlnwza007.online` เหมือนกัน) คุกกี้ `SameSite=Strict` จึงยังถูกส่งกับ request ข้าม origin ที่ใส่ `withCredentials` ได้ · คุกกี้เป็น host-only ของ `api.*`, `HttpOnly`, `Secure` (production), `path=/api/v3/auth` → ถูกส่งเฉพาะ `/auth/*` ตามที่ FE ทำอยู่
 - FE ต้อง: `withCredentials: true` กับ `/auth/refresh`, `/auth/logout` (และ `/auth/login`, `/auth/verify-otp`, `/auth/google` เพราะ BE ตั้งคุกกี้ตอนล็อกอินสำเร็จ — ถ้าไม่ใส่ เบราว์เซอร์จะไม่เก็บคุกกี้)
 
-จะแจ้งอีกทีเมื่อ deploy ค่าทั้งสองแล้ว
+เหลือฝั่ง FE: ใส่ `withCredentials` ตามข้างบน แล้วทดสอบ X28 ในเบราว์เซอร์จริงได้เลย
 
 ## 2. X28 — refresh ไม่มีคุกกี้ → status อะไร
 `POST /auth/refresh` (ทดสอบแล้ว):
@@ -28,9 +28,12 @@
 → BE ไม่เคยตอบ 400/403 จาก refresh · **logout เฉพาะ 401** ก็พอ (400/403 ที่ FE เผื่อไว้ไม่เป็นไร) · **429/5xx/network error ห้าม logout** ให้ลองใหม่ภายหลัง
 
 ## 3. X39 — ปฏิเสธ Staff ที่ Pending
-ยังไม่มี endpoint · `/suspend` รับเฉพาะ Active · เสนอ 2 ทาง (ตัดสินใจแล้วจะแจ้ง):
-- **ข. ให้ `/suspend` รับบัญชี Pending ได้** (ที่ BE แนะนำ): แก้บรรทัดเดียว ไม่เปลี่ยน schema · ผลลัพธ์บัญชีเป็น `Suspended` (กรองดูได้) และ**คนที่ถูกปฏิเสธสมัครซ้ำด้วยอีเมลเดิมไม่ได้** (กันสแปมเดิมวนมา) · response เดิม: `{ success: true, message: 'ระงับบัญชีเรียบร้อยแล้ว' }` · FE เปลี่ยนแค่ข้อความปุ่มเป็น "ปฏิเสธ" เมื่อสถานะ Pending
-- **ก. เพิ่ม `PATCH /manage/users/:id/reject` ที่ลบแถวทิ้ง**: รายชื่อสะอาด แต่สมัครซ้ำได้ไม่จำกัด · ต้องใช้ DB ที่ `account_status` ไม่มีค่า `Rejected` (มีแค่ Pending/Active/Suspended) จึงเป็น "ลบ" ไม่ใช่ "ตั้งสถานะ"
+**ตัดสินใจแล้ว: ทาง ข. — `PATCH /manage/users/:id/suspend` รับบัญชี Pending ได้แล้ว (deploy แล้ว)** ✅
+- เรียก `PATCH /manage/users/:id/suspend` กับบัญชีที่ `account_status = 'Pending'` → บัญชีกลายเป็น `Suspended` (ไม่มี endpoint `reject` แยก ไม่เปลี่ยน schema)
+- response: `200 { success: true, message: 'ปฏิเสธบัญชีที่รออนุมัติเรียบร้อยแล้ว', data: { pending_approvals: 0 } }` (บัญชี Active ที่ถูกระงับยังได้ข้อความเดิม `ระงับบัญชีเรียบร้อยแล้ว`)
+- สิทธิ์: **Staff ที่สมัครรออนุมัติปฏิเสธได้โดย Admin/SuperAdmin เท่านั้น** (Staff ไม่มีสิทธิ์ระงับ/ปฏิเสธ Staff ด้วยกัน → 403) · นิสิต/อาจารย์ที่ Pending ปฏิเสธได้โดย Staff ด้วย
+- ผลของการปฏิเสธ: คนที่ถูกปฏิเสธ**สมัครซ้ำด้วยอีเมลเดิมไม่ได้** (ได้ 403 `ACCOUNT_SUSPENDED`) กรองดูได้ด้วย `?status=Suspended` · อนุมัติบัญชีที่ถูกปฏิเสธไปแล้วผ่าน `/approve` → 400 (Admin ยังคืนสถานะผ่าน `/activate` ได้ถ้าเปลี่ยนใจ)
+- ที่ FE ต้องทำ: เมื่อแถวเป็น Pending ให้แสดงปุ่ม "ปฏิเสธ" เรียก `/suspend` (ปุ่มระงับเดิมของ Active ไม่เปลี่ยน)
 
 ## 4. X40 — role ใน JWT
 - access token payload มี field **`role`** (และ `sub`, `username`, `firstName`, `lastName`, `msuMail`, `degreeLevel`, `type: "access"`, `iat`, `exp`, `iss`) — ตัวอย่างจริง: `{"sub":7,"role":"Student","firstName":"Stu1","lastName":"T","msuMail":"stu1@msu.ac.th","degreeLevel":"Master","type":"access",...}` → FE decode role ใหม่จาก token ได้เลย
@@ -58,7 +61,7 @@
 
 ## 7. X44 / X45 — รายชื่อผู้ใช้
 - **staff ใช้ `GET /manage/users` ได้เหมือน admin** (Staff, Admin, SuperAdmin เข้าได้): query `role`, `status`, `search` (ชื่อ/นามสกุล/อีเมล), `page`, `limit` (ค่าเริ่มต้น 20, สูงสุด 1000) · response `{ data: { users: [...], pagination: { total, page, limit, totalPages } } }` · ไม่มี Admin/SuperAdmin ในรายการ · นิสิตแต่ละคนมี `advisors: { Major: {...}, Co_1: {...}, Co_2: {...} }`
-- **`student_count` ของอาจารย์: ตอนนี้ยังไม่มี** → **BE จะเพิ่ม** `student_count` (นับนิสิตที่เป็น Major / Co_1 / Co_2 ของอาจารย์คนนั้น) ในแถว `role = Supervisor` ของ `GET /manage/users`
+- **`student_count` ของอาจารย์: เพิ่มแล้ว (deploy แล้ว)** ✅ แถว `role = "Supervisor"` ของ `GET /manage/users` มี `student_count` เป็นตัวเลข = จำนวนนิสิตที่อาจารย์คนนั้นเป็น Major / Co_1 / Co_2 (นับคนละครั้งแม้ถือหลายช่อง, ไม่มีนิสิต = 0) · แถว role อื่นไม่มี field นี้ · นับจากฐานข้อมูลทั้งหมด ไม่ขึ้นกับหน้าที่โหลด จึงใช้กับการแบ่งหน้าได้ · ตัวอย่าง `{"user_id":10,"role":"Supervisor","first_name":"Sup1","advisors":{},"student_count":4,...}`
 - `GET /admin/admins` **รับ `page`/`limit`** (response `{ data: { admins: [...], pagination: {...} } }`) — SuperAdmin เท่านั้น
 
 ## 8. X48 — กฎรหัสผ่าน
