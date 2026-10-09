@@ -51,6 +51,29 @@ const uploadEvidence = multer({
   limits: { fileSize: 10 * 1024 * 1024, files: 1, fields: 10, fieldSize: 64 * 1024 },
 }).single('evidence_file');
 
+// เขียนตาราง msu_unwanted_journals ทีละคน (ล็อกระดับ MySQL ข้าม connection/instance) — คอลัมน์ issn เป็นแค่ INDEX
+// ไม่ใช่ UNIQUE การ "เช็คซ้ำแล้วค่อย insert" จึงชนกันได้ถ้าสองคำขอมาพร้อมกัน (B52)
+const WRITE_LOCK = 'msu_unwanted_journals_write';
+async function acquireWriteLock() {
+  const conn = await db.getConnection();
+  try {
+    const [[r]] = await conn.query('SELECT GET_LOCK(?, 10) AS got', [WRITE_LOCK]);
+    if (r.got !== 1) throw Object.assign(new Error('unwanted-journals write lock timeout'), { code: 'LOCK_TIMEOUT' });
+  } catch (e) { conn.release(); throw e; }
+  return async () => {
+    try { await conn.query('SELECT RELEASE_LOCK(?)', [WRITE_LOCK]); } finally { conn.release(); }
+  };
+}
+
+// ISSN (normalize แล้ว) ซ้ำกับแถวอื่นไหม — เทียบทั้งแบบมี/ไม่มีขีด เผื่อแถวเก่าเก็บไม่มีขีด
+async function issnExists(issn, exceptId = 0) {
+  const [rows] = await db.query(
+    'SELECT unwanted_id FROM msu_unwanted_journals WHERE issn IN (?, ?) AND unwanted_id != ? LIMIT 1',
+    [issn, issn.replace('-', ''), exceptId]
+  );
+  return rows.length > 0;
+}
+
 class UnwantedJournalController {
 
   // ============================================================
@@ -73,9 +96,9 @@ class UnwantedJournalController {
           unwanted_id, issn, journal_name, publisher,
           note, recorded_date, created_at
          FROM msu_unwanted_journals
-         WHERE issn = ?
+         WHERE issn IN (?, ?)
          LIMIT 1`,
-        [issn]
+        [issn, issn.replace('-', '')]
       );
 
       const found = rows.length > 0;
@@ -103,9 +126,16 @@ class UnwantedJournalController {
       const params = [];
 
       if (search) {
-        where.push('(journal_name LIKE ? OR issn LIKE ? OR publisher LIKE ?)');
         const like = `%${search}%`;
-        params.push(like, like, like);
+        // ISSN เก็บเป็น XXXX-XXXX → ค้น "12345678" ต้องเทียบแบบตัดขีดด้วย ไม่งั้นไม่เจอ
+        const digits = String(search).replace(/[\s-]/g, '');
+        if (digits.length >= 4 && /^[0-9Xx]+$/.test(digits)) {
+          where.push("(journal_name LIKE ? OR issn LIKE ? OR REPLACE(issn, '-', '') LIKE ? OR publisher LIKE ?)");
+          params.push(like, like, `%${digits}%`, like);
+        } else {
+          where.push('(journal_name LIKE ? OR issn LIKE ? OR publisher LIKE ?)');
+          params.push(like, like, like);
+        }
       }
 
       const whereSQL = where.join(' AND ');
@@ -156,6 +186,7 @@ class UnwantedJournalController {
         return res.status(400).json({ success: false, message: err.message });
       }
 
+      let release = null;
       try {
         // เช็ค magic bytes จริง — fileFilter เช็คได้แค่ Content-Type ที่ client ส่งมา ปลอมได้
         if (req.file && !(await verifyFileType(req.file.path))) {
@@ -191,12 +222,8 @@ class UnwantedJournalController {
         }
 
         if (issnNorm) {
-          const [dup] = await db.query(
-            `SELECT unwanted_id FROM msu_unwanted_journals
-             WHERE issn = ?`,
-            [issnNorm]
-          );
-          if (dup.length) {
+          release = await acquireWriteLock();
+          if (await issnExists(issnNorm)) {
             if (req.file) removeFile(req.file.path);
             return res.status(400).json({ success: false, message: `ISSN ${issn} มีอยู่ในรายการแล้ว` });
           }
@@ -224,7 +251,10 @@ class UnwantedJournalController {
         return res.status(201).json({ success: true, message: 'เพิ่มวารสารเรียบร้อยแล้ว' });
       } catch (err2) {
         if (req.file) removeFile(req.file.path);
+        if (err2.code === 'LOCK_TIMEOUT') return res.status(503).json({ success: false, code: 'BUSY', message: 'ระบบกำลังบันทึกรายการอื่นอยู่ กรุณาลองใหม่อีกครั้ง' });
         next(err2);
+      } finally {
+        if (release) await release();
       }
     });
   }
@@ -244,6 +274,7 @@ class UnwantedJournalController {
       if (err) return res.status(400).json({ success: false, message: 'อัปโหลดไฟล์ไม่สำเร็จ: ' + err.message });
       if (!req.file) return res.status(400).json({ success: false, message: 'กรุณาแนบไฟล์ CSV' });
 
+      let release = null;
       try {
         let records;
         try {
@@ -261,6 +292,7 @@ class UnwantedJournalController {
           return res.status(400).json({ success: false, message: 'ไฟล์ CSV ว่างเปล่า' });
 
         const errors = [];
+        release = await acquireWriteLock();
 
         records.forEach(r => { r._issn = r.issn?.trim() ? normalizeIssn(r.issn) : null; });
         for (let i = 0; i < records.length; i++) {
@@ -274,12 +306,7 @@ class UnwantedJournalController {
 
           // เช็คซ้ำใน DB
           if (row._issn) {
-            const [dup] = await db.query(
-              `SELECT unwanted_id FROM msu_unwanted_journals
-               WHERE issn = ?`,
-              [row._issn]
-            );
-            if (dup.length) errors.push(`Row ${rowNum}: ISSN ${row.issn} มีอยู่ในรายการแล้ว`);
+            if (await issnExists(row._issn)) errors.push(`Row ${rowNum}: ISSN ${row.issn} มีอยู่ในรายการแล้ว`);
           }
 
           // เช็คซ้ำในไฟล์เดียวกัน (เทียบหลัง normalize — 12345678 กับ 1234-5678 คือตัวเดียวกัน)
@@ -334,7 +361,12 @@ class UnwantedJournalController {
           message: `Import สำเร็จ ${imported} รายการ`,
           data: { imported },
         });
-      } catch (err) { next(err); }
+      } catch (err) {
+        if (err.code === 'LOCK_TIMEOUT') return res.status(503).json({ success: false, code: 'BUSY', message: 'ระบบกำลังบันทึกรายการอื่นอยู่ กรุณาลองใหม่อีกครั้ง' });
+        next(err);
+      } finally {
+        if (release) await release();
+      }
     });
   }
 
@@ -351,6 +383,7 @@ class UnwantedJournalController {
         return res.status(400).json({ success: false, message: err.message });
       }
 
+      let release = null;
       try {
         // เช็ค magic bytes จริง — fileFilter เช็คได้แค่ Content-Type ที่ client ส่งมา ปลอมได้
         if (req.file && !(await verifyFileType(req.file.path))) {
@@ -404,11 +437,8 @@ class UnwantedJournalController {
 
         // เช็ค ISSN ซ้ำกับ record อื่น (schema เป็นแค่ INDEX ไม่ใช่ UNIQUE เลย DB ไม่กันให้)
         if (merged.issn && merged.issn !== cur.issn) {
-          const [dup] = await db.query(
-            `SELECT unwanted_id FROM msu_unwanted_journals WHERE issn = ? AND unwanted_id != ?`,
-            [merged.issn, id]
-          );
-          if (dup.length) {
+          release = await acquireWriteLock();
+          if (await issnExists(merged.issn, Number(id))) {
             if (req.file) removeFile(req.file.path);
             return res.status(400).json({ success: false, message: `ISSN ${merged.issn} มีอยู่ในรายการแล้ว` });
           }
@@ -445,7 +475,10 @@ class UnwantedJournalController {
         return res.json({ success: true, message: 'แก้ไขวารสารเรียบร้อยแล้ว' });
       } catch (err2) {
         if (req.file) removeFile(req.file.path);
+        if (err2.code === 'LOCK_TIMEOUT') return res.status(503).json({ success: false, code: 'BUSY', message: 'ระบบกำลังบันทึกรายการอื่นอยู่ กรุณาลองใหม่อีกครั้ง' });
         next(err2);
+      } finally {
+        if (release) await release();
       }
     });
   }
