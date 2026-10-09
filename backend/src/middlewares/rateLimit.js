@@ -59,10 +59,10 @@ const loginLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// 30 attempts per 15 min per IP (Google OAuth — ไม่มี brute force risk)
+// 100 attempts per 15 min per IP (Google OAuth — ไม่มี brute force risk; นิสิตทั้งตึกอยู่หลัง NAT เดียวกันจึงต้องเผื่อโควตาร่วม)
 const googleLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 30,
+  max: 100,
   skip: skipLocalhost,
   keyGenerator: clientIp,
   message: {
