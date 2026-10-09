@@ -34,6 +34,19 @@ async function isUnwantedIssn(issn) {
   return rows.length > 0;
 }
 
+// ปริญญาเอก: ผ่านได้เฉพาะ Scopus Q1/Q2 (เกณฑ์จริงอยู่ที่ฝั่ง FE ด้วย แต่ API ต้องกันเอง)
+// shortcut: ตรวจจากค่าใน journal_snapshot ที่ client ส่งมา ไม่ได้ดึง Scopus ซ้ำ, ถ้าต้องกันการปลอมค่า ให้ดึงจาก ScopusService ตรวจที่ server
+function doctoralCriteriaError(student, js) {
+  if (student.degree_level !== 'Doctoral') return null;
+  if (js.indexed_database !== 'Scopus') {
+    return { code: 'DOCTORAL_SCOPUS_ONLY', message: 'นิสิตปริญญาเอกต้องใช้วารสารที่อยู่ในฐานข้อมูล Scopus เท่านั้น' };
+  }
+  if (!/^Q[12]$/i.test(String(js.quartile_or_tier || '').trim())) {
+    return { code: 'DOCTORAL_QUARTILE_TOO_LOW', message: 'นิสิตปริญญาเอกต้องใช้วารสาร Scopus Quartile Q1 หรือ Q2 เท่านั้น' };
+  }
+  return null;
+}
+
 const DUPLICATE_BODY = {
   code: 'PRE_T3_DUPLICATE',
   message: 'คุณมี Pre-T3 ของวารสาร ISSN นี้ที่รออนุมัติหรืออนุมัติแล้ว ไม่สามารถยื่นซ้ำได้',
@@ -77,6 +90,9 @@ class PreT3Controller {
           missing,
         });
       }
+
+      const criteria = doctoralCriteriaError(student, journal_snapshot);
+      if (criteria) return res.status(400).json({ success: false, ...criteria });
 
       // ดึง Advisor จาก DB
       const [advisorRows] = await db.query(
@@ -435,6 +451,10 @@ class PreT3Controller {
       if (row.overall_status !== 'Rejected') {
         return res.status(400).json({ success: false, code: 'INVALID_STATE', message: 'สามารถยื่นซ้ำได้เฉพาะรายการที่ถูกปฏิเสธเท่านั้น' });
       }
+
+      const me = await UserModel.findById(studentId);
+      const criteria = me && doctoralCriteriaError(me, journal_snapshot);
+      if (criteria) return res.status(400).json({ success: false, ...criteria });
 
       // article_info — รับจาก Frontend (นิสิตกรอกเอง)
       const articleInfoData = {
