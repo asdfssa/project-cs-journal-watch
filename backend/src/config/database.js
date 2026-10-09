@@ -26,7 +26,13 @@ const pool = mysql.createPool({
   // DECIMAL (weight_score, impact_factor, citescore) คืนเป็น number ตามที่ FE ประกาศไว้ (เดิม mysql2 คืนเป็นสตริง "0.60")
   // ปลอดภัยกับ DECIMAL(10,4) ของระบบนี้ — ไม่มีคอลัมน์ที่เกินความแม่นยำของ double
   decimalNumbers: true,
+  // Date ↔ DATETIME/TIMESTAMP เป็น UTC เสมอ ไม่ขึ้นกับเขตเวลาของเครื่องที่รัน Node
+  // (เดิมเป็น 'local': รัน Node บน Windows UTC+7 กับ MySQL UTC ทำให้ OTP expires_at เลื่อนไป 7 ชม.)
+  timezone: 'Z',
 });
+
+// NOW()/CURRENT_TIMESTAMP ฝั่ง MySQL ก็ต้องเป็น UTC ด้วย ไม่ว่า DB server จะตั้งเขตเวลาอะไร
+pool.pool.on('connection', (conn) => conn.query("SET time_zone = '+00:00'"));
 
 // ทดสอบ connection ตอน startup
 pool
