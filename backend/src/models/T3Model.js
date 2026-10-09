@@ -360,7 +360,10 @@ class T3Model {
          JOIN users u ON u.user_id = t.student_id
          JOIN pre_t3_requests p ON p.pre_t3_id = t.pre_t3_id
         ${where}
-        ORDER BY t.updated_at DESC
+        -- เรียงตามเวลาที่อาจารย์หลักตัดสิน (updated_at เปลี่ยนตามการแก้อย่างอื่นด้วย เช่น ยกเลิก/ยื่นซ้ำ)
+        ORDER BY (SELECT maj_o.decided_at FROM request_approvals maj_o
+                   WHERE maj_o.request_type = 'T3' AND maj_o.request_id = t.t3_id
+                     AND maj_o.step = 'Advisor') DESC, t.t3_id DESC
         LIMIT ? OFFSET ?`,
       [...params, limit, offset]
     );
@@ -395,7 +398,7 @@ class T3Model {
           AND ra.step = 'Faculty_Committee'
         WHERE 1=1
           ${statusCondition}
-        ORDER BY t.updated_at DESC
+        ORDER BY ra.decided_at DESC, t.t3_id DESC
         LIMIT ? OFFSET ?`,
       [...statusParams, limit, offset]
     );

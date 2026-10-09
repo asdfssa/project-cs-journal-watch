@@ -320,7 +320,10 @@ class PreT3Model {
          FROM pre_t3_requests p
          JOIN users u ON u.user_id = p.student_id
         ${where}
-        ORDER BY p.updated_at DESC
+        -- เรียงตามเวลาที่อาจารย์หลักตัดสิน (updated_at เปลี่ยนตามการแก้อย่างอื่นด้วย เช่น ยกเลิก/ยื่นซ้ำ)
+        ORDER BY (SELECT maj_o.decided_at FROM request_approvals maj_o
+                   WHERE maj_o.request_type = 'Pre_T3' AND maj_o.request_id = p.pre_t3_id
+                     AND maj_o.step = 'Advisor') DESC, p.pre_t3_id DESC
         LIMIT ? OFFSET ?`,
       [...params, limit, offset]
     );
@@ -352,7 +355,7 @@ class PreT3Model {
           AND ra.step = 'Faculty_Committee'
         WHERE 1=1
           ${statusCondition}
-        ORDER BY p.updated_at DESC
+        ORDER BY ra.decided_at DESC, p.pre_t3_id DESC
         LIMIT ? OFFSET ?`,
       [...statusParams, limit, offset]
     );
