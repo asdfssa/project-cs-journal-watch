@@ -164,9 +164,24 @@ const [rows] = await db.query(
         }
       }
 
+      // จำนวนนิสิตในความดูแลของอาจารย์แต่ละคน (Major + Co_1 + Co_2) — นับคนละครั้งแม้ถือหลายช่อง (X44)
+      const supervisorIds = rows.filter(r => r.role === 'Supervisor').map(r => r.user_id);
+      const studentCount = {};
+      if (supervisorIds.length > 0) {
+        const [cntRows] = await db.query(
+          `SELECT advisor_id, COUNT(DISTINCT student_id) AS n
+             FROM advisor_assignments
+            WHERE advisor_id IN (?) AND is_active = 1
+            GROUP BY advisor_id`,
+          [supervisorIds]
+        );
+        for (const c of cntRows) studentCount[c.advisor_id] = Number(c.n);
+      }
+
       const usersWithAdvisors = rows.map(u => ({
         ...u,
         advisors: advisorMap[u.user_id] || {},
+        ...(u.role === 'Supervisor' && { student_count: studentCount[u.user_id] || 0 }),
       }));
 
       return res.json({
@@ -230,9 +245,11 @@ const [rows] = await db.query(
         return res.status(403).json({ success: false, message: 'ไม่สามารถระงับ Admin ได้' });
       if (staffTouchingStaff(req, target[0]))
         return res.status(403).json({ success: false, message: 'Staff ไม่สามารถระงับบัญชี Staff ได้ กรุณาติดต่อ Admin' });
-      // ระงับได้เฉพาะบัญชีที่ใช้งานอยู่ — บัญชี Pending (เช่น Staff ที่สมัครรออนุมัติ) ต้องอนุมัติหรือปฏิเสธแทน
-      if (target[0].account_status !== 'Active')
-        return res.status(400).json({ success: false, message: 'ระงับได้เฉพาะบัญชีที่มีสถานะ Active เท่านั้น' });
+      // ระงับได้เฉพาะ Active · บัญชี Pending (Staff ที่สมัครรออนุมัติ) ใช้ endpoint นี้เป็น "ปฏิเสธ" ได้ด้วย (X39)
+      // ผลคือ Suspended — คนที่ถูกปฏิเสธสมัครซ้ำด้วยอีเมลเดิมไม่ได้ (register-staff ตอบ ACCOUNT_SUSPENDED)
+      const wasPending = target[0].account_status === 'Pending';
+      if (target[0].account_status !== 'Active' && !wasPending)
+        return res.status(400).json({ success: false, message: 'ระงับได้เฉพาะบัญชีที่มีสถานะ Active หรือ Pending เท่านั้น' });
 
       await db.query(
         `UPDATE users SET account_status = 'Suspended' WHERE user_id = ?`,
@@ -257,7 +274,7 @@ const [rows] = await db.query(
         success: true,
         message: pendingApprovals
           ? `ระงับบัญชีเรียบร้อยแล้ว แต่ยังมี ${pendingApprovals} คำขอที่รออาจารย์ท่านนี้อยู่ กรุณาเปลี่ยนอาจารย์ที่ปรึกษาของนิสิตที่เกี่ยวข้อง`
-          : 'ระงับบัญชีเรียบร้อยแล้ว',
+          : (wasPending ? 'ปฏิเสธบัญชีที่รออนุมัติเรียบร้อยแล้ว' : 'ระงับบัญชีเรียบร้อยแล้ว'),
         data: { pending_approvals: pendingApprovals },
       });
     } catch (err) { next(err); }
