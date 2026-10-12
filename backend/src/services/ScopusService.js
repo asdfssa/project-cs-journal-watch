@@ -6,6 +6,7 @@
 const axios = require('axios');
 const config = require('../config');
 const scopusProxy = require('./ScopusProxyService');
+const { pickIssns } = require('../utils/input');
 
 class ScopusService {
 
@@ -208,7 +209,7 @@ class ScopusService {
     }
 
     return {
-      issn,
+      ...pickIssns(entry['prism:issn'], entry['prism:eIssn'], issn),
       journal_name: entry['dc:title'] || '',
       publisher: entry['dc:publisher'] || null,
       database_source: 'Scopus',

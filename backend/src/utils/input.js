@@ -44,6 +44,17 @@ function normalizeIssn(value) {
 }
 
 /**
+ * คู่ ISSN ของวารสาร (ตัวเลขล้วน ไม่มีขีด) — issn = p-ISSN ของวารสารเสมอ ไม่ใช่ตัวที่ผู้ใช้พิมพ์ค้น
+ * ไม่งั้น p-ISSN กับ e-ISSN ของวารสารเดียวกันจะยื่น Pre-T3 ซ้ำได้ (เหมือนที่ TCI ทำอยู่แล้ว)
+ * ไม่มี p-ISSN → ใช้ e-ISSN, ไม่มีทั้งคู่ → ใช้ตัวที่พิมพ์ค้น
+ */
+function pickIssns(printRaw, onlineRaw, typed) {
+  const clean = (v) => String(v ?? '').replace(/[^0-9Xx]/g, '').toUpperCase();
+  const print = clean(printRaw), online = clean(onlineRaw);
+  return { issn: print || online || clean(typed), eissn: print && online ? online : null };
+}
+
+/**
  * ตัวเลขทศนิยมที่เป็นทางเลือก (เช่น impact_factor, citescore):
  *  - undefined / null / "" / ช่องว่างล้วน (ช่องฟอร์มที่ไม่ได้กรอก) → null
  *  - ตัวเลข หรือสตริงตัวเลข (เช่น "12.5") ที่ >= 0 และ < max → Number
@@ -59,4 +70,4 @@ function optionalDecimal(value, max) {
   return Number.isFinite(n) && n >= 0 && n < max ? n : NaN;
 }
 
-module.exports = { parsePagination, nonStringField, nonScalarField, likeContains, normalizeIssn, optionalDecimal };
+module.exports = { parsePagination, nonStringField, nonScalarField, likeContains, normalizeIssn, pickIssns, optionalDecimal };

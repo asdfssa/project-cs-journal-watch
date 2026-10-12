@@ -6,6 +6,7 @@
 const { chromium } = require('playwright');
 const config = require('../config');
 const { withScrapeSlot } = require('./scrapeQueue');
+const { pickIssns } = require('../utils/input');
 
 class ScopusScraper {
 
@@ -205,8 +206,13 @@ class ScopusScraper {
       bestPercentile = best.percentile;
     }
 
+    // หน้า Source details มีบรรทัดเดียว "ISSN: 1057-5987 E-ISSN: 1545-8601"
+    const issnLi = page.locator("xpath=//li[contains(., 'ISSN:')]");
+    const issnText = await issnLi.count() > 0 ? await issnLi.first().innerText() : '';
+
     return {
-      issn,
+      ...pickIssns(issnText.match(/(?<![-A-Za-z])ISSN:\s*([0-9]{4}-?[0-9]{3}[0-9Xx])/)?.[1],
+                   issnText.match(/E-ISSN:\s*([0-9]{4}-?[0-9]{3}[0-9Xx])/)?.[1], issn),
       journal_name: title,
       publisher,
       database_source: 'Scopus',
