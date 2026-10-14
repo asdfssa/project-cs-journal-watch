@@ -911,7 +911,7 @@ records = parse(req.file.buffer, {
   // POST /api/admin/admins
   // สร้าง Admin ใหม่ (username + password)
   // Body: { username, password, first_name, last_name, msu_mail }
-  // เฉพาะ SuperAdmin (บังคับที่ adminRoutes)
+  // Admin และ SuperAdmin ทำได้ (สร้างได้แค่ role Admin)
   // ============================================================
   static async createAdmin(req, res, next) {
     try {
@@ -1051,10 +1051,6 @@ records = parse(req.file.buffer, {
   static async updateAdmin(req, res, next) {
     try {
       const { id } = req.params;
-      // Admin แก้ได้เฉพาะของตัวเอง (หน้าโปรไฟล์) — จัดการ Admin คนอื่นเป็นสิทธิ์ SuperAdmin
-      if (req.user.role !== 'SuperAdmin' && Number(id) !== req.user.sub)
-        return res.status(403).json({ success: false, message: 'แก้ไขข้อมูล Admin คนอื่นได้เฉพาะ SuperAdmin' });
-
       const [target] = await db.query(
         `SELECT user_id, role, prefix, first_name, last_name, msu_mail
          FROM users
@@ -1063,6 +1059,10 @@ records = parse(req.file.buffer, {
       );
       if (!target.length)
         return res.status(404).json({ success: false, message: 'ไม่พบผู้ใช้' });
+
+      // Admin แก้ SuperAdmin ไม่ได้ (ยกเว้นบัญชีตัวเอง) — SuperAdmin เป็นตำแหน่งสูงสุด
+      if (req.user.role === 'Admin' && target[0].role === 'SuperAdmin')
+        return res.status(403).json({ success: false, message: 'ไม่สามารถแก้ไข SuperAdmin ได้' });
 
       if (!['Admin', 'SuperAdmin'].includes(target[0].role))
         return res.status(400).json({ success: false, message: 'ผู้ใช้นี้ไม่ใช่ Admin' });
@@ -1084,7 +1084,6 @@ records = parse(req.file.buffer, {
       if (!merged.last_name)  return res.status(400).json({ success: false, message: 'นามสกุลห้ามว่าง' });
       if (!merged.msu_mail)   return res.status(400).json({ success: false, message: 'อีเมลห้ามว่าง' });
 
-      // อีเมลของ Admin ใช้รับ OTP login/รีเซ็ตรหัสผ่าน — การแก้ Admin คนอื่นถูกจำกัดให้ SuperAdmin ไว้ด้านบนแล้ว
       const mailChanged = mailOf(merged.msu_mail) !== mailOf(cur.msu_mail);
 
       // อีเมลนี้คือช่องทางรับ OTP ของ login/รีเซ็ตรหัสผ่าน — เปลี่ยนแล้วใครคุมอีเมลใหม่ก็ยึดบัญชีได้
@@ -1124,17 +1123,12 @@ records = parse(req.file.buffer, {
   }
 
   // ============================================================
-  // DELETE /api/admin/admins/:id  (hard delete — SuperAdmin only)
+  // DELETE /api/admin/admins/:id  (hard delete — Admin/SuperAdmin ลบ Admin ได้ แต่ลบ SuperAdmin ไม่ได้)
   // ============================================================
   static async deleteAdmin(req, res, next) {
     try {
       const { id } = req.params;
       const callerId   = req.user.sub;
-      const callerRole = req.user.role;
-
-      // เฉพาะ SuperAdmin เท่านั้น
-      if (callerRole !== 'SuperAdmin')
-        return res.status(403).json({ success: false, message: 'เฉพาะ SuperAdmin เท่านั้นที่ลบ Admin ได้' });
 
       if (Number(id) === callerId)
         return res.status(400).json({ success: false, message: 'ไม่สามารถลบบัญชีตัวเองได้' });
