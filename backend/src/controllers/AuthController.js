@@ -20,6 +20,10 @@ class AuthController {
   /**
    * POST /api/auth/login
    * Body: { username, password }
+   *
+   * เรียกจาก: routes/authRoutes.js — loginLimiter → loginValidator → handleValidation → ที่นี่ (path จริงคือ /api/v3/auth/login)
+   * รับจาก req.body: username, password (validator trim/ตัวพิมพ์เล็กให้แล้ว)
+   * ส่งต่อ: AuthService.login({ username, password }) · ตอบ { otpToken, maskedEmail, expiresIn } · error → next(err) → errorHandler
    */
   static async login(req, res, next) {
     try {
@@ -49,6 +53,10 @@ class AuthController {
    * Body:   { otpCode }
    * → set refresh token ใน httpOnly cookie
    * → return access token ใน body
+   *
+   * เรียกจาก: routes/authRoutes.js — otpLimiter → requireOtpToken → verifyOtpValidator → handleValidation → ที่นี่
+   * รับ: req.otpUserId (จาก requireOtpToken), req.body.otpCode
+   * ส่งต่อ: AuthService.verifyOtp({ userId, otpCode }) · refreshToken ที่ได้ใส่ cookie jw_refresh_token, accessToken + user ตอบใน body
    */
   static async verifyOtp(req, res, next) {
     try {
@@ -76,6 +84,9 @@ class AuthController {
 
   /**
    * POST /api/auth/resend-otp
+   *
+   * เรียกจาก: routes/authRoutes.js — otpLimiter → requireOtpToken → ที่นี่
+   * ส่งต่อ: AuthService.resendOtp({ userId: req.otpUserId }) · ตอบ { maskedEmail, expiresIn } · ติด cooldown จะได้ OTP_COOLDOWN (429 + retryAfter) ผ่าน errorHandler
    */
   static async resendOtp(req, res, next) {
     try {
@@ -98,6 +109,9 @@ class AuthController {
    * Body: { idToken }
    * → set refresh token ใน httpOnly cookie
    * → return access token ใน body
+   *
+   * เรียกจาก: routes/authRoutes.js — googleLimiter → googleLoginValidator → handleValidation → ที่นี่ (นิสิต/อาจารย์/เจ้าหน้าที่ — Admin ต้องใช้ login ปกติ)
+   * ส่งต่อ: AuthService.googleLogin({ idToken }) · ผลตอบเหมือน verifyOtp (cookie refresh + accessToken/user ใน body)
    */
   static async googleLogin(req, res, next) {
     try {
@@ -126,6 +140,10 @@ class AuthController {
    * POST /api/auth/refresh
    * Cookie: jw_refresh_token
    * → ออก access token ใหม่ + rotate refresh token
+   *
+   * เรียกจาก: routes/authRoutes.js — refreshLimiter → ที่นี่ (ไม่ผ่าน requireAuth เพราะเรียกตอน access token หมดอายุ)
+   * รับ: cookie jw_refresh_token ส่งต่อ AuthService.refreshToken({ refreshToken })
+   * ผล: accessToken ใหม่ใน body · result.refreshToken ไม่ null = rotate cookie ใหม่ · null = ช่วงผ่อนผัน ไม่แตะ cookie · AuthError 401 → ล้าง cookie
    */
   static async refresh(req, res, next) {
     try {
@@ -158,6 +176,10 @@ class AuthController {
 
   /**
  * GET /api/auth/me
+ *
+ * เรียกจาก: routes/authRoutes.js — requireAuth → ที่นี่ (ฝั่ง frontend เรียกหลัง login/refresh เพื่อรู้ข้อมูลผู้ใช้ปัจจุบัน)
+ * รับ: req.user.sub (จาก requireAuth) → UserModel.findById · ถ้าเป็น Student เรียก UserModel.findAdvisorsByStudentId เพิ่มแล้วตอบ advisors[]
+ * ตอบข้อมูลไม่เท่ากันตาม role: ทุก role ได้ข้อมูลพื้นฐาน, Admin/SuperAdmin เพิ่ม username, Student เพิ่มระดับปริญญา/หลักสูตร/อาจารย์ที่ปรึกษา
  */
 static async me(req, res, next) {
   try {
@@ -209,6 +231,9 @@ static async me(req, res, next) {
   /**
    * POST /api/auth/logout
    * → revoke refresh token + clear cookie
+   *
+   * เรียกจาก: routes/authRoutes.js (ไม่มี requireAuth — logout ได้แม้ access token หมดอายุแล้ว)
+   * ส่งต่อ: AuthService.logout({ refreshToken จาก cookie }) แล้วล้าง cookie เสมอ
    */
   static async logout(req, res, next) {
     try {
@@ -229,6 +254,9 @@ static async me(req, res, next) {
   /**
    * POST /api/auth/forgot-password
    * Body: { username }
+   *
+   * เรียกจาก: routes/authRoutes.js — forgotPasswordLimiter → forgotPasswordValidator → handleValidation → ที่นี่
+   * ส่งต่อ: AuthService.requestPasswordReset({ username }) · ตอบ resetOtpToken + expiresIn เหมือนกันทุกกรณี (ไม่บอกว่ามี username นี้หรือไม่)
    */
   static async forgotPassword(req, res, next) {
     try {
@@ -254,6 +282,10 @@ static async me(req, res, next) {
    * POST /api/auth/reset-password
    * Header: Authorization: Bearer <resetOtpToken>
    * Body: { otpCode, newPassword, confirmPassword }
+   *
+   * เรียกจาก: routes/authRoutes.js — otpLimiter → requirePasswordResetToken → resetPasswordValidator → handleValidation → ที่นี่
+   * รับ: req.resetUserId (จาก requirePasswordResetToken), req.body.otpCode + newPassword
+   * ส่งต่อ: AuthService.resetPassword({ userId, otpCode, newPassword }) · สำเร็จแล้วล้าง cookie refresh ของ session ปัจจุบัน
    */
   static async resetPassword(req, res, next) {
     try {
@@ -278,6 +310,9 @@ static async me(req, res, next) {
 
   /**
    * POST /api/auth/register-staff
+   *
+   * เรียกจาก: routes/authRoutes.js — registerLimiter → googleLoginValidator → handleValidation → ที่นี่
+   * ส่งต่อ: AuthService.registerStaff({ idToken }) · สร้างบัญชี Staff สถานะ Pending แล้วตอบ 201 — ยังไม่ออก token (ต้องรอ Admin อนุมัติผ่าน AdminController.approveUser)
    */
   static async registerStaff(req, res, next) {
     try {

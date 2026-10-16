@@ -8,10 +8,18 @@ const config = require('../config');
 const { withScrapeSlot } = require('./scrapeQueue');
 const { pickIssns } = require('../utils/input');
 
+/**
+ * เส้นสำรองของ ScopusService: เปิด Chromium (Playwright) เข้า scopus.com/sources.uri แล้วอ่านข้อมูลวารสารจากหน้าเว็บ
+ * เรียกจาก: JournalController.scrapeScopus เท่านั้น (ผ่านคิว withScrapeSlot) · ผลมีรูปแบบเดียวกับ ScopusService แต่ fetch_method = 'Scraping'
+ */
 class ScopusScraper {
 
   // ===== Public =====
 
+  /**
+   * @param {string} issn
+   * @returns {Promise<object|null>} null = ไม่พบ ISSN นี้ใน Scopus · รอคิวเต็ม → throw 'SCRAPER_BUSY'
+   */
   static async getJournalByIssn(issn) {
     const cleanIssn = issn.replace('-', '').trim();
     return withScrapeSlot(() => ScopusScraper._scrape(cleanIssn));
@@ -19,6 +27,10 @@ class ScopusScraper {
 
   // ===== Scraping =====
 
+  /**
+   * เรียกจาก: getJournalByIssn (ภายใน withScrapeSlot) · เปิด browser → เปิดหน้า Sources → _searchByIssn → _extractSourceDetails · ปิด browser ใน finally เสมอ
+   * @param {string} issn ตัวเลข/X ล้วน ไม่มีขีด
+   */
   static async _scrape(issn) {
   const browser = await chromium.launch({
     headless: config.scraper.headless,
@@ -66,6 +78,10 @@ class ScopusScraper {
   }
 }
 
+  /**
+   * เรียกจาก: _scrape · กรอก ISSN ในฟอร์มค้นหาแล้วเปิดหน้ารายละเอียดของผลลัพธ์แรก
+   * @returns {Promise<boolean>} false = ไม่พบตารางผลลัพธ์ภายในเวลาที่กำหนด
+   */
   static async _searchByIssn(page, issn) {
     await page.locator('#srcResultComboDrp-button').click();
     await page.waitForTimeout(500);
@@ -99,6 +115,11 @@ class ScopusScraper {
     return true;
   }
 
+  /**
+   * เรียกจาก: _scrape · อ่านชื่อ/ผู้จัดพิมพ์/CiteScore/SJR/SNIP/subject area/ช่วงการครอบคลุมจากหน้ารายละเอียด และเรียก _extractQuartiles
+   * @param {import('playwright').Page} page
+   * @param {string} issn
+   */
   static async _extractSourceDetails(page, issn) {
     const title = (await page.locator('h2.jnlTitle').first().innerText()).trim();
 
@@ -231,6 +252,11 @@ class ScopusScraper {
     };
   }
 
+  /**
+   * เรียกจาก: _extractSourceDetails · อ่านตาราง CiteScore rank ต่อสาขา (rank, percentile) แล้วคำนวณ quartile ให้รูปแบบเดียวกับที่ ScopusService ให้
+   * @param {string|number} citeScoreYear ปีของ CiteScore
+   * @param {object[]} subjectAreas ใช้จับคู่ชื่อสาขากับ asjcCode
+   */
   static async _extractQuartiles(page, citeScoreYear, subjectAreas = []) {
     const rows = page.locator('tbody#CSCategoryTBody tr');
     const count = await rows.count();
@@ -278,12 +304,18 @@ class ScopusScraper {
 
   // ===== Helpers =====
 
+  /**
+   * ดึงตัวเลขตัวแรกจากข้อความ (ตัดเครื่องหมาย , ออก) · เรียกจาก: _extractQuartiles และการอ่านค่าในหน้ารายละเอียด
+   */
   static _extractFirstNumber(text) {
     if (!text) return null;
     const m = text.replace(/,/g, '').match(/\d+(\.\d+)?/);
     return m ? parseFloat(m[0]) : null;
   }
 
+  /**
+   * แปลง percentile เป็น Q1–Q4 เหมือน ScopusService._computeQuartile · เรียกจาก: _extractQuartiles
+   */
   static _computeQuartile(percentile) {
     if (percentile === null || percentile === undefined) return null;
     const p = parseFloat(percentile);

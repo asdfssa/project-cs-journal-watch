@@ -11,6 +11,12 @@ const config = require('./config');
 const routes = require('./routes');
 const { errorHandler, notFoundHandler } = require('./middlewares/errorHandler');
 const cookieParser = require('cookie-parser');
+/**
+ * ภาพรวมเส้นทางของ request (ไล่จากบนลงล่างตามลำดับที่ app.use ด้านล่าง):
+ *   helmet/CSP → cors → ทำ query ให้เป็นค่าเดียว → body parser/cookie → /api/v3 (routes/index.js) → notFoundHandler → ไฟล์ static ของ Angular → errorHandler
+ * ใน /api/v3: router → middlewares (rateLimit, requireAuth, requireRole, validator) → controller → model/service → ตอบ JSON
+ * error ที่ส่ง next(err) ไปจบที่ middlewares/errorHandler.js · ถูก require จาก server.js (ที่ listen) และจากเทสต์
+ */
 const app = express();
 
 // Trust proxy (สำหรับเอา real IP ตอน deploy หลัง reverse proxy)

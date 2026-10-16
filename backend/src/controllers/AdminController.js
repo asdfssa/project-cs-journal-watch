@@ -16,7 +16,32 @@ const STUDY_PLAN_CODES = [
   'Master_A1', 'Master_A2', 'Master_B', 'Master_P1A1', 'Master_P1A2', 'Master_P2B',
   'Doc_1_1', 'Doc_1_2', 'Doc_2_1', 'Doc_2_2', 'Doc_P1_1_1', 'Doc_P1_1_2', 'Doc_P2_2_1', 'Doc_P2_2_2',
 ];
+// สาขาวิชาของนิสิต (users.department เป็น ENUM) — ปริญญาเอกมีเฉพาะ 3 สาขาแรก
+const DOCTORAL_DEPARTMENTS = ['วิทยาการคอมพิวเตอร์', 'เทคโนโลยีสารสนเทศ', 'สื่อนฤมิต'];
+const DEPARTMENTS = [...DOCTORAL_DEPARTMENTS, 'สารสนเทศและนวัตกรรมดิจิทัล', 'นิเทศศาสตร์สร้างสรรค์ดิจิทัล'];
+/**
+ * ตรวจชื่อสาขาวิชาของนิสิตให้อยู่ในรายการ DEPARTMENTS และปริญญาเอกต้องอยู่ใน DOCTORAL_DEPARTMENTS
+ * เรียกจาก: AdminController.updateUser, createUser, importUsers (เฉพาะแถวที่เป็น Student)
+ * @param {string|null} department
+ * @param {string|null} degreeLevel 'Master' | 'Doctoral'
+ * @returns {string|null} ข้อความ error (ผู้เรียกตอบ 400) · null = ผ่าน
+ */
+// คืนข้อความ error หรือ null ถ้าผ่าน (ไม่ระบุสาขา = ผ่าน)
+function departmentError(department, degreeLevel) {
+  if (!department) return null;
+  if (!DEPARTMENTS.includes(department))
+    return `department "${department}" ไม่ถูกต้อง (ใช้ ${DEPARTMENTS.join(' / ')})`;
+  if (degreeLevel === 'Doctoral' && !DOCTORAL_DEPARTMENTS.includes(department))
+    return `สาขา "${department}" ไม่มีในระดับปริญญาเอก (ใช้ ${DOCTORAL_DEPARTMENTS.join(' / ')})`;
+  return null;
+}
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/**
+ * ตรวจรูปแบบอีเมลและโดเมนต้องอยู่ใน config.google.allowedDomains (ไม่งั้นผู้ใช้ล็อกอินด้วย Google ไม่ได้)
+ * เรียกจาก: AdminController.updateUser (เมื่ออีเมลเปลี่ยน), createUser, importUsers (ทุกแถว)
+ * @param {string} raw อีเมลตามที่ผู้ใช้กรอก
+ * @returns {string|null} ข้อความ error · null = ผ่าน
+ */
 // อีเมลผู้ใช้ (Student/Supervisor) ต้องเป็นรูปแบบอีเมลและอยู่ในโดเมนที่ล็อกอินด้วย Google ได้ (GOOGLE_ALLOWED_DOMAIN)
 // ไม่งั้นสร้างบัญชีที่ล็อกอินไม่ได้ (เช่นพิมพ์แค่รหัสนิสิตไม่มี @โดเมน) คืนข้อความ error หรือ null ถ้าผ่าน
 function msuMailError(raw) {
@@ -27,18 +52,39 @@ function msuMailError(raw) {
     return `โดเมนของ msu_mail ไม่ได้รับอนุญาต (${raw}) ต้องเป็น @${config.google.allowedDomains.join(' หรือ @')}`;
   return null;
 }
-const USER_SCALAR_FIELDS = ['prefix', 'phone', 'facebook_id', 'line_id', 'degree_level', 'curriculum_year', 'study_plan_code'];
+const USER_SCALAR_FIELDS = ['prefix', 'phone', 'facebook_id', 'line_id', 'degree_level', 'curriculum_year', 'study_plan_code', 'department'];
 const MailService = require('../services/MailService');
 const OtpModel    = require('../models/OtpModel');
 const RefreshTokenModel = require('../models/RefreshTokenModel');
 const bcryptjs    = require('bcryptjs');
 
+/**
+ * กฎ: Staff จัดการได้เฉพาะ Student/Supervisor — ถ้าผู้ทำเป็น Staff และเป้าหมายเป็น Staff ด้วยให้ปฏิเสธ (ต้องให้ Admin ทำ)
+ * เรียกจาก: AdminController.suspendUser, activateUser, updateUser
+ * @param {import('express').Request} req ใช้ req.user.role
+ * @param {{role:string}} target แถวผู้ใช้ที่ถูกแตะ
+ */
 // Staff จัดการได้เฉพาะ Student/Supervisor — แก้/ระงับ/คืนสถานะ Staff คนอื่นต้องเป็น Admin
 const staffTouchingStaff = (req, target) => req.user.role === 'Staff' && target.role === 'Staff';
+/**
+ * ทำให้อีเมลเป็นรูปเทียบกันได้ (trim + ตัวพิมพ์เล็ก) · เรียกจาก: updateUser, updateAdvisors, updateAdmin
+ */
 const mailOf = (v) => String(v ?? '').trim().toLowerCase();
 
+/**
+ * Controller ฝั่งผู้ดูแล — ผูกใน 2 router: routes/adminRoutes.js (/api/v3/admin: stats + จัดการ Admin, เฉพาะ Admin/SuperAdmin)
+ *   และ routes/userManageRoutes.js (/api/v3/manage/users: จัดการผู้ใช้ทั่วไป, Admin/SuperAdmin/Staff — approve จำกัด Admin/SuperAdmin)
+ * ทุก method อ่านผู้ทำจาก req.user (sub, role) ที่ requireAuth ใส่ไว้ และ req.params.id ที่ requireNumericId ตรวจแล้ว
+ * ไม่มี Model แยก: query ตาราง users / advisor_assignments / request_approvals ตรงๆ ผ่าน config/database · error ส่ง next(err) ไป middlewares/errorHandler
+ * ผลข้างเคียงที่ออกนอกตาราง: OtpModel / RefreshTokenModel (ตัด OTP และ session เมื่อเปลี่ยนอีเมลบัญชี), MailService (อีเมลแจ้งอนุมัติ)
+ */
 class AdminController {
 
+  /**
+   * เรียกจาก: routes/adminRoutes.js — GET /stats (Admin, SuperAdmin) · ใช้แสดงหน้า dashboard ของผู้ดูแล
+   * รวมสถิติด้วย query ขนานกัน: จำนวนผู้ใช้ตาม role/สถานะ, Pre-T3 และ T3 ตามสถานะ, จำนวนวารสารไม่พึงประสงค์
+   * และสถานะ Scopus API key จาก ScopusProxyService.getStatus() (ถ้าดึงไม่ได้ ตอบรายการว่าง)
+   */
   // ============================================================
   // GET /api/admin/stats
   // ============================================================
@@ -112,6 +158,12 @@ class AdminController {
     } catch (err) { next(err); }
   }
 
+  /**
+   * เรียกจาก: routes/userManageRoutes.js — GET / (Admin, SuperAdmin, Staff)
+   * รับ query: role?, status?, search? (ชื่อ/อีเมล ผ่าน likeContains), page, limit (parsePagination เพดาน 1000) · ไม่รวม Admin/SuperAdmin
+   * เติมอาจารย์ที่ปรึกษาของนิสิตแต่ละคน (advisors) และจำนวนนิสิตในความดูแลของอาจารย์ (student_count)
+   * ตอบ { data: { users, pagination } }
+   */
   // ============================================================
   // GET /api/manage/users
   // Query params: role, status, search, page, limit
@@ -145,7 +197,7 @@ const [rows] = await db.query(
           u.user_id, u.prefix, u.first_name, u.last_name,
           u.msu_mail, u.role, u.degree_level, u.account_status,
           u.phone, u.facebook_id, u.line_id,
-          u.curriculum_year, u.study_plan_code,
+          u.curriculum_year, u.study_plan_code, u.department,
           u.created_at
          FROM users u
          WHERE ${whereSQL}
@@ -210,6 +262,10 @@ const [rows] = await db.query(
     } catch (err) { next(err); }
   }
 
+  /**
+   * เรียกจาก: routes/userManageRoutes.js — PATCH /:id/approve (เฉพาะ Admin, SuperAdmin)
+   * เปลี่ยนสถานะ Pending → Active (เช่น Staff ที่สมัครผ่าน AuthService.registerStaff) แล้วส่งอีเมลแจ้ง MailService.sendAccountApproved แบบไม่รอผล
+   */
   // ============================================================
   // PATCH /api/manage/users/:id/approve  (Pending → Active)
   // ============================================================
@@ -238,6 +294,11 @@ const [rows] = await db.query(
     } catch (err) { next(err); }
   }
 
+  /**
+   * เรียกจาก: routes/userManageRoutes.js — PATCH /:id/suspend
+   * ห้ามระงับตัวเอง/Admin · Staff ระงับ Staff ไม่ได้ · ระงับได้จาก Active หรือ Pending (Pending = ปฏิเสธคำสมัคร)
+   * ถ้าเป็นอาจารย์ (Supervisor) จะนับคำขอที่ยังรออาจารย์คนนี้ แล้วส่ง data.pending_approvals กลับเพื่อให้ไปเปลี่ยนอาจารย์ที่ปรึกษา
+   */
   // ============================================================
   // PATCH /api/manage/users/:id/suspend
   // ============================================================
@@ -291,6 +352,9 @@ const [rows] = await db.query(
     } catch (err) { next(err); }
   }
 
+  /**
+   * เรียกจาก: routes/userManageRoutes.js — PATCH /:id/activate · คืนสถานะ Suspended → Active (ไม่ใช้กับ Admin · Staff แตะ Staff ไม่ได้)
+   */
   // ============================================================
   // PATCH /api/manage/users/:id/activate  (Suspended → Active)
   // ============================================================
@@ -317,6 +381,12 @@ const [rows] = await db.query(
     } catch (err) { next(err); }
   }
 
+  /**
+   * เรียกจาก: routes/userManageRoutes.js — PATCH /:id (Admin/SuperAdmin/Staff) — ใช้กับ Student/Supervisor/Staff ไม่ใช้กับ Admin
+   * รับ req.body (ส่งเฉพาะ field ที่แก้ ที่ไม่ส่งใช้ค่าเดิม): prefix, first_name, last_name, msu_mail, phone, facebook_id, line_id, degree_level, curriculum_year, study_plan_code, department
+   * เปลี่ยน msu_mail ได้เฉพาะ Admin (เป็นกุญแจของ Google login) และทำให้ OTP 'password_reset' ที่ค้างอยู่ใช้ไม่ได้ (OtpModel.invalidateActive)
+   * ข้อมูลระดับปริญญา/หลักสูตร/สาขาเก็บเฉพาะ Student — role อื่นถูกตั้งเป็น null
+   */
   // ============================================================
   // PATCH /api/manage/users/:id  — แก้ไขข้อมูล
   // Body: { prefix, first_name, last_name, phone, degree_level }
@@ -329,7 +399,7 @@ const [rows] = await db.query(
       const [target] = await db.query(
         `SELECT user_id, prefix, first_name, last_name, msu_mail,
                 phone, facebook_id, line_id,
-                degree_level, curriculum_year, study_plan_code, role
+                degree_level, curriculum_year, study_plan_code, department, role
          FROM users
          WHERE user_id = ?`,
         [id]
@@ -358,6 +428,7 @@ const [rows] = await db.query(
         degree_level:    body.degree_level    !== undefined ? body.degree_level    : current.degree_level,
         curriculum_year: body.curriculum_year !== undefined ? body.curriculum_year : current.curriculum_year,
         study_plan_code: body.study_plan_code !== undefined ? body.study_plan_code : current.study_plan_code,
+        department:      body.department      !== undefined ? body.department      : current.department,
       };
 
       // Validate required fields
@@ -379,13 +450,17 @@ const [rows] = await db.query(
         merged.degree_level    = null;
         merged.curriculum_year = null;
         merged.study_plan_code = null;
+        merged.department      = null;
+      } else if (body.department !== undefined || body.degree_level !== undefined) {
+        const deptErr = departmentError(merged.department, merged.degree_level);
+        if (deptErr) return res.status(400).json({ success: false, code: 'INVALID_DEPARTMENT', message: deptErr });
       }
 
       await db.query(
         `UPDATE users SET
           prefix = ?, first_name = ?, last_name = ?, msu_mail = ?,
           phone = ?, facebook_id = ?, line_id = ?,
-          degree_level = ?, curriculum_year = ?, study_plan_code = ?
+          degree_level = ?, curriculum_year = ?, study_plan_code = ?, department = ?
          WHERE user_id = ?`,
         [
           merged.prefix || null,
@@ -398,6 +473,7 @@ const [rows] = await db.query(
           merged.degree_level || null,
           merged.curriculum_year || null,
           merged.study_plan_code || null,
+          merged.department || null,
           id,
         ]
       );
@@ -407,6 +483,12 @@ const [rows] = await db.query(
     } catch (err) { next(err); }
   }
   
+  /**
+   * เรียกจาก: routes/userManageRoutes.js — POST /single (Admin/SuperAdmin/Staff)
+   * รับ req.body: role (Student|Supervisor), first_name, last_name, msu_mail (+ prefix, phone, degree_level, curriculum_year, study_plan_code, department, advisor_major_mail, advisor_co1_mail)
+   * ตรวจ msuMailError/departmentError → อีเมลต้องไม่ซ้ำ → (Student) หา user_id อาจารย์จากอีเมล
+   *   → ใน transaction เดียว: INSERT users (Active) + INSERT advisor_assignments ของ Major/Co_1 (ถ้าระบุ) · ตอบ 201 { user_id }
+   */
 // ============================================================
   // POST /api/manage/users/single — เพิ่ม user ทีละคน
   // Body: { role, first_name, last_name, msu_mail, prefix?,
@@ -417,7 +499,7 @@ const [rows] = await db.query(
     try {
       const {
         role, first_name, last_name, msu_mail, prefix,
-        phone, degree_level, curriculum_year, study_plan_code,
+        phone, degree_level, curriculum_year, study_plan_code, department,
         advisor_major_mail, advisor_co1_mail,
       } = req.body;
 
@@ -437,6 +519,9 @@ const [rows] = await db.query(
 
       const mailErr = msuMailError(msu_mail);
       if (mailErr) return res.status(400).json({ success: false, code: 'INVALID_EMAIL', message: mailErr });
+
+      const deptErr = role === 'Student' ? departmentError(department, degree_level) : null;
+      if (deptErr) return res.status(400).json({ success: false, code: 'INVALID_DEPARTMENT', message: deptErr });
 
       const mailLower = msu_mail.toLowerCase().trim();
 
@@ -488,14 +573,15 @@ if (role === 'Student') {
           `INSERT INTO users
              (msu_mail,
               role, prefix, first_name, last_name,
-              phone, degree_level, curriculum_year, study_plan_code,
+              phone, degree_level, curriculum_year, study_plan_code, department,
               account_status)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Active')`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Active')`,
           [
             mailLower, role,
             prefix || null, first_name.trim(), last_name.trim(),
             phone || null,
             degree_level || null, curriculum_year || null, study_plan_code || null,
+            role === 'Student' ? (department || null) : null,
           ]
         );
         newUserId = result.insertId;
@@ -531,6 +617,12 @@ if (role === 'Student') {
     } catch (err) { next(err); }
   }
 
+  /**
+   * เรียกจาก: routes/userManageRoutes.js — POST /import (Admin/SuperAdmin/Staff)
+   * รับ multipart: ไฟล์ CSV field 'file' (≤ 2 MB, ≤ MAX_IMPORT_ROWS แถว) คอลัมน์ role, first_name, last_name, msu_mail, (prefix, phone, degree_level, curriculum_year, study_plan_code, department, advisor_major_mail, advisor_co1_mail)
+   * ลำดับ: parse → prefetch อีเมลที่มีอยู่แล้วและอาจารย์ที่อ้างถึง (2 query) → ตรวจทุกแถว all-or-nothing (เก็บ errors[] รายแถว)
+   *   → ไม่มี error จึง INSERT ทุกแถว (users + advisor_assignments) ใน transaction เดียว · ตอบ { data: { imported } }
+   */
   // ============================================================
   // POST /api/manage/users/import — import CSV
   // multipart/form-data: file = CSV file
@@ -635,6 +727,10 @@ records = parse(req.file.buffer, {
             errors.push(`Row ${rowNum}: curriculum_year "${row.curriculum_year}" ไม่ถูกต้อง (ใช้ ${CURRICULUM_YEARS.join(' / ')})`);
           if (row.study_plan_code && !STUDY_PLAN_CODES.includes(row.study_plan_code))
             errors.push(`Row ${rowNum}: study_plan_code "${row.study_plan_code}" ไม่ถูกต้อง`);
+          if (row.role === 'Student') {
+            const deptErr = departmentError(row.department, row.degree_level);
+            if (deptErr) errors.push(`Row ${rowNum}: ${deptErr}`);
+          }
           if (row.phone && row.phone.length > 20) errors.push(`Row ${rowNum}: phone ยาวเกิน 20 ตัวอักษร`);
           if (row.prefix && row.prefix.length > 50) errors.push(`Row ${rowNum}: prefix ยาวเกิน 50 ตัวอักษร`);
 
@@ -674,14 +770,15 @@ records = parse(req.file.buffer, {
               `INSERT INTO users
                  (msu_mail,
                   role, prefix, first_name, last_name,
-                  phone, degree_level, curriculum_year, study_plan_code,
+                  phone, degree_level, curriculum_year, study_plan_code, department,
                   account_status)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Active')`,
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Active')`,
               [
                 mailLower, row.role,
                 row.prefix || null, row.first_name.trim(), row.last_name.trim(),
                 row.phone || null,
                 row.degree_level || null, row.curriculum_year || null, row.study_plan_code || null,
+                row.role === 'Student' ? (row.department || null) : null,
               ]
             );
             const newUserId = result.insertId;
@@ -734,6 +831,12 @@ records = parse(req.file.buffer, {
     });
   }
 
+  /**
+   * เรียกจาก: routes/userManageRoutes.js — PATCH /:id/advisors (Admin/SuperAdmin/Staff) · :id คือนิสิต
+   * รับ req.body: advisor_major_mail?, advisor_co1_mail?, advisor_co2_mail? (ไม่ส่ง = คงเดิม, '' เฉพาะ Co = ถอด, Major ถอดไม่ได้)
+   * ใน transaction: ล็อกนิสิต → แก้ advisor_assignments → ย้าย approver_id ของคำขอ Pre-T3/T3 ที่ยัง Pending ในขั้นนั้นตามไปด้วย (request_approvals)
+   * ถอด Co ที่ยังมีคำขอรออยู่ → 409 ADVISOR_HAS_PENDING_REQUESTS · ตอบ { data: { requests_reassigned } }
+   */
   // ============================================================
   // PATCH /api/manage/users/:id/advisors
   // Body: { advisor_major_mail?, advisor_co1_mail?, advisor_co2_mail? }
@@ -854,6 +957,10 @@ records = parse(req.file.buffer, {
     } catch (err) { next(err); }
   }
 
+  /**
+   * เรียกจาก: routes/adminRoutes.js — GET /admins (Admin, SuperAdmin)
+   * รับ query: status?, search? (username/ชื่อ/อีเมล), page, limit · แสดงเฉพาะ role Admin และ SuperAdmin
+   */
   // ============================================================
   // GET /api/admin/admins
   // Query params: status, search, page, limit
@@ -907,6 +1014,11 @@ records = parse(req.file.buffer, {
     } catch (err) { next(err); }
   }
 
+  /**
+   * เรียกจาก: routes/adminRoutes.js — POST /admins (Admin, SuperAdmin) — สร้างได้เฉพาะ role Admin
+   * รับ req.body: username (4-50 ตัว), password (8-128 ตัว มีพิมพ์ใหญ่/เล็ก/ตัวเลข — กฎเดียวกับ validators/authValidator), first_name, last_name, msu_mail
+   * username/อีเมลต้องไม่ซ้ำ → bcrypt (12 รอบ) → INSERT users (Active) · ตอบ 201 { user_id } · บัญชีนี้เข้าสู่ระบบด้วย AuthService.login (รหัสผ่าน + OTP)
+   */
   // ============================================================
   // POST /api/admin/admins
   // สร้าง Admin ใหม่ (username + password)
@@ -972,6 +1084,9 @@ records = parse(req.file.buffer, {
     } catch (err) { next(err); }
   }
 
+  /**
+   * เรียกจาก: routes/adminRoutes.js — PATCH /admins/:id/suspend · ห้ามระงับตัวเอง · Admin ระงับ SuperAdmin ไม่ได้ · ระงับได้เฉพาะ Active
+   */
   // ============================================================
   // PATCH /api/admin/admins/:id/suspend  (Admin → Suspended)
   // Admin และ SuperAdmin ทำได้ แต่แตะ SuperAdmin ไม่ได้
@@ -1011,6 +1126,9 @@ records = parse(req.file.buffer, {
     } catch (err) { next(err); }
   }
 
+  /**
+   * เรียกจาก: routes/adminRoutes.js — PATCH /admins/:id/activate · คืนสถานะ Suspended → Active · Admin แตะ SuperAdmin ไม่ได้
+   */
   // ============================================================
   // PATCH /api/admin/admins/:id/activate  (Suspended → Active)
   // ============================================================
@@ -1044,6 +1162,11 @@ records = parse(req.file.buffer, {
     } catch (err) { next(err); }
   }
 
+  /**
+   * เรียกจาก: routes/adminRoutes.js — PATCH /admins/:id (หลัง passwordConfirmLimiter) · Admin แก้ SuperAdmin ไม่ได้
+   * รับ req.body: prefix?, first_name?, last_name?, msu_mail?, current_password? (บังคับเมื่อเปลี่ยนอีเมล — ตรวจกับรหัสผ่านของผู้กด ไม่ใช่เจ้าของบัญชีที่ถูกแก้)
+   * เปลี่ยนอีเมล → OtpModel.invalidateActive + RefreshTokenModel.revokeAllByUserId (ตัดทุก session) · ตอบ data.relogin_required
+   */
   // ============================================================
   // PATCH /api/admin/admins/:id  — แก้ไขข้อมูล Admin
   // Body: { prefix?, first_name?, last_name?, msu_mail? }
@@ -1122,6 +1245,9 @@ records = parse(req.file.buffer, {
     } catch (err) { next(err); }
   }
 
+  /**
+   * เรียกจาก: routes/adminRoutes.js — DELETE /admins/:id · ลบถาวร เฉพาะ role Admin (ห้ามลบตัวเอง/SuperAdmin)
+   */
   // ============================================================
   // DELETE /api/admin/admins/:id  (hard delete — Admin/SuperAdmin ลบ Admin ได้ แต่ลบ SuperAdmin ไม่ได้)
   // ============================================================

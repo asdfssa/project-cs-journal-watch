@@ -43,6 +43,11 @@ const T3_FIELDS = [
   'peer_review_result',
 ];
 
+/**
+ * multer fileFilter: ปฏิเสธไฟล์ที่ Content-Type ไม่อยู่ใน ALLOWED_MIME_TYPES ตั้งแต่ก่อนอ่านเนื้อไฟล์
+ * เรียกจาก: multer (ภายใน uploadT3FieldsMemory) · error ที่โยน (message มีคำว่า 'ประเภทไฟล์') ถูก handleMulterError ใน routes/t3Routes.js แปลงเป็น 400 INVALID_FILE_TYPE
+ * หมายเหตุ: เช็คได้แค่ header ที่ client ส่ง — การตรวจจริงทำที่ detectAllowedMime/verifyFileType หลังได้ Buffer
+ */
 const fileFilter = (req, file, cb) => {
   if (ALLOWED_MIME_TYPES.includes(file.mimetype)) {
     cb(null, true);
@@ -51,6 +56,11 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
+/**
+ * multer middleware รับ multipart ของ T3 ไว้ใน RAM (ไฟล์ละไม่เกิน 10 MB, สูงสุด 6 ไฟล์ตามชื่อใน T3_FIELDS)
+ * เรียกจาก: routes/t3Routes.js (POST /t3/with-files) ต่อจาก requireAuth → requireRole('Student') → submitLimiter
+ * ส่งต่อ: `req.files[fieldName][0]` (มี .buffer, .mimetype, .size) + `req.body` (ฟิลด์ข้อความเป็น JSON string) → T3Controller.submitWithFiles
+ */
 // Memory storage — ใช้กับ endpoint ที่ยังไม่มี t3_id (submit + upload พร้อมกัน)
 const uploadT3FieldsMemory = multer({
   storage: multer.memoryStorage(),
@@ -64,6 +74,8 @@ const uploadT3FieldsMemory = multer({
  * Content-Type/นามสกุลที่ client ส่งมา ซึ่งปลอมได้) — รับได้ทั้ง path บน disk หรือ Buffer
  * @param {string|Buffer} source
  * @returns {Promise<boolean>}
+ *
+ * เรียกจาก: UnwantedJournalController (ตรวจไฟล์หลักฐานที่ multer เขียนลงดิสก์แล้ว ส่ง path เข้ามา) — wrapper ของ detectAllowedMime ที่คืน boolean
  */
 async function verifyFileType(source) {
   return !!(await detectAllowedMime(source));
@@ -74,6 +86,8 @@ async function verifyFileType(source) {
  * แทน MIME ที่ client ประกาศ
  * @param {string|Buffer} source
  * @returns {Promise<string|null>}
+ *
+ * เรียกจาก: T3Controller (ตรวจ Buffer ของไฟล์แนบก่อนเขียนลงดิสก์ แล้วใช้ MIME ที่ได้เลือกนามสกุลผ่าน MIME_TO_EXT) · verifyFileType ในไฟล์นี้
  */
 async function detectAllowedMime(source) {
   const { fileTypeFromBuffer, fileTypeFromFile } = await loadFileType();

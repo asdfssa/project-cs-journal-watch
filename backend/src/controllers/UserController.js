@@ -13,8 +13,17 @@ const UserModel = require('../models/UserModel');
 const { serverError } = require('../utils/errorResponse');
 const { nonScalarField, likeContains } = require('../utils/input');
 
+/**
+ * Controller โปรไฟล์ของผู้ใช้ที่ login — ผูกใน routes/userRoutes.js (base path /api/v3/user) ทุก role เข้าได้ (requireAuth → requireRole(...ALL_ROLES))
+ * ใช้ req.user.sub (จาก requireAuth) เป็น user_id เสมอ จึงแก้/ดูได้เฉพาะของตัวเอง · error ส่ง next(err) ไป middlewares/errorHandler
+ */
 class UserController {
 
+  /**
+   * เรียกจาก: routes/userRoutes.js — GET /profile
+   * UserModel.findById(req.user.sub) · เป็น Student เพิ่ม UserModel.findAdvisorsByStudentId · Admin/SuperAdmin เพิ่ม username
+   * ตอบ { data: { userId, role, prefix, firstName, lastName, department, msuMail, phone, facebookId, lineId, accountStatus, ... } }
+   */
   // ============================================================
   // GET /api/user/profile
   // Role: Student, Supervisor, Staff, Admin, SuperAdmin
@@ -71,6 +80,11 @@ class UserController {
     }
   }
 
+  /**
+   * เรียกจาก: routes/userRoutes.js — PATCH /profile
+   * รับ req.body: { phone?, facebook_id?, line_id? } เท่านั้น (field อื่นถูกเมิน — ต้องให้ Admin/Staff แก้ผ่าน AdminController.updateUser)
+   * nonScalarField กัน object/array → 400 INVALID_INPUT · field ที่ไม่ส่งใช้ค่าเดิม แล้ว UPDATE users โดยตรง
+   */
   // ============================================================
   // PATCH /api/user/profile
   // Role: Student, Supervisor, Staff, Admin, SuperAdmin
@@ -124,6 +138,11 @@ class UserController {
     }
   }
 
+  /**
+   * เรียกจาก: routes/userRoutes.js — GET /staff (หน้าบุคลากร/ช่องทางติดต่อ)
+   * รับ query: search? (ค้นชื่อ/นามสกุล/อีเมล ผ่าน likeContains) · แสดงเฉพาะ role Staff ที่ Active
+   * ตอบ { data: { staff: [{ userId, prefix, firstName, lastName, department, msuMail, phone, facebookId, lineId }], total } }
+   */
   // ============================================================
   // GET /api/user/staff
   // Role: ทุก role ที่ login แล้ว

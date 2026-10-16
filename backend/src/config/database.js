@@ -5,6 +5,10 @@
 const mysql = require('mysql2/promise');
 const config = require('./index');
 
+/**
+ * connection pool ของ MySQL ที่ export ออกไปให้ทุก Model/Controller เรียก db.query(...) หรือ db.getConnection() (ใช้ใน withTransaction ของ models/_approvalHelpers.js)
+ * ตอนโหลดไฟล์นี้จะทดลองต่อ DB ทันที ต่อไม่ได้ → process.exit(1)
+ */
 const pool = mysql.createPool({
   host: config.db.host,
   port: config.db.port,

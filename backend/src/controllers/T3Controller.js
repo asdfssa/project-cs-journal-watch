@@ -16,7 +16,7 @@ const fs   = require('fs/promises');
 const T3Model     = require('../models/T3Model');
 const PreT3Model  = require('../models/PreT3Model');
 const UserModel   = require('../models/UserModel');
-const { advisorViewFields } = require('../models/_approvalHelpers');
+const { advisorViewFields, advisorsAllApproved } = require('../models/_approvalHelpers');
 const MailService = require('../services/MailService');
 const db          = require('../config/database');
 const { serverError } = require('../utils/errorResponse');
@@ -42,6 +42,12 @@ const INNOVATION_TYPE_MAP = [
   [/policy.*public/i,   'Policy_Public'],
 ];
 
+/**
+ * แปลงข้อความ innovation_type ที่ frontend ส่งมา (label ไทยพร้อมคำอังกฤษในวงเล็บ) เป็นค่า enum ของฐานข้อมูล
+ * เรียกจาก: T3Controller._validateAndCreate
+ * @param {*} value
+ * @returns {'Commercial'|'Social_Economic'|'Policy_Public'|'None'}
+ */
 function normalizeInnovationType(value) {
   if (typeof value !== 'string' || !value) return 'None';
   // label จริงของ FE สั้นกว่านี้มาก — ตัดไว้กัน `.*` backtrack แบบ O(n²) กับ input ยาว (ReDoS)
@@ -58,6 +64,12 @@ const NATIONAL_TIER_MAP = {
   '2': 'National_TCI_Tier2',
 };
 
+/**
+ * หาชนิดวารสารของ T3 จาก Pre-T3 ที่ Approved แล้ว (ไม่เชื่อค่าจาก client) — ผลใช้เป็น publication_details.type และหา weight_score จาก WEIGHT_BY_TYPE
+ * เรียกจาก: T3Controller._validateAndCreate
+ * @param {object} preT3 ผลจาก PreT3Model.findById (อ่าน indexed_database, quartile_or_tier)
+ * @returns {string|null} null = ระบุไม่ได้ (controller ตอบ 400 INVALID_TIER)
+ */
 function derivePublicationType(preT3) {
   if (preT3?.indexed_database === 'Scopus') return 'International_Journal';
   if (preT3?.indexed_database === 'TCI') {
@@ -78,15 +90,38 @@ const WEIGHT_BY_TYPE = {
   Intl_Journal_Faculty_Recognized: 0.1,
 };
 
+/**
+ * แปลงสถานะการตีพิมพ์จาก client ('accepted' | 'published') เป็นค่า enum ของฐานข้อมูล
+ * เรียกจาก: T3Controller._validateAndCreate และ T3Controller.submitWithFiles (เลือกชุดไฟล์ที่บังคับจาก REQUIRED_FILES)
+ * @returns {'Published'|'Accepted'}
+ */
 // Frontend sends lowercase 'accepted'/'published'; the DB enum is capitalized.
 function normalizePubStatus(value) {
   return value && /published/i.test(value) ? 'Published' : 'Accepted';
 }
 
-// ไฟล์หลักฐานที่ต้องแนบทุกครั้งที่ยื่น T3 (ที่เหลือเป็นทางเลือก)
-const REQUIRED_FILES = ['acceptance_letter', 'full_paper'];
+// ไฟล์หลักฐานที่ต้องแนบตามสถานะการตีพิมพ์ (ที่เหลือเป็นทางเลือก)
+// Accepted → หนังสือตอบรับ + ฉบับเต็ม; Published → ฉบับเต็ม + หน้าปกวารสาร + สารบัญ (ไม่ต้องมีหนังสือตอบรับ)
+const REQUIRED_FILES = {
+  Accepted:  ['acceptance_letter', 'full_paper'],
+  Published: ['full_paper', 'journal_cover', 'table_of_contents'],
+};
 
+/**
+ * Controller ของ T3 — ถูกผูกใน routes/t3Routes.js (base path /api/v3/t3) หลัง requireAuth → requireRole
+ * ทุก method: อ่านผู้ใช้จาก req.user (sub, role) → เรียก T3Model (ข้อมูล) / PreT3Model (ตรวจ Pre-T3 ที่อ้างถึง) / UserModel / MailService (อีเมลแจ้งเตือน ไม่รอผล)
+ * ตอบ JSON รูป { success, data | code, message } · error ที่ไม่คาดคิดส่งเข้า utils/errorResponse.serverError
+ */
 class T3Controller {
+  /**
+   * ตรวจข้อมูลและสร้าง T3 — แยกออกมาจาก submitWithFiles
+   * เรียกจาก: T3Controller.submitWithFiles เท่านั้น (ส่ง studentId = req.user.sub, body ที่ parse JSON แล้ว, และ afterInsert สำหรับเขียนไฟล์)
+   * ลำดับ: ตรวจ field จำเป็น → optionalDecimal ของ impact_factor/citescore → PreT3Model.findById (ต้องเป็นของนิสิตและ Approved)
+   *   → derive type/weight_score จาก Pre-T3 → UserModel.findById → หาอาจารย์หลักจาก advisor_assignments → T3Model.create(…, afterInsert)
+   * แก้ค่าใน body ตรงๆ (innovation_type, type, weight_score, status) — ค่าที่แก้คือค่าที่ส่งต่อให้ T3Model.create
+   * @returns {Promise<{error:{status:number,code:string,message:string}}|{t3Id:number, student:object, majorAdvisor:object, journal_snapshot:object, paper_and_research_details:object}>}
+   *   error = ให้ผู้เรียกตอบ HTTP ตาม status · สำเร็จ = ผู้เรียกใช้ส่งอีเมลหาอาจารย์หลักต่อ
+   */
   // ============================================================
   // Shared validation + creation ใช้ร่วมกันโดย submit() และ submitWithFiles()
   // คืน { error: {status, code, message} } ถ้า validate ไม่ผ่าน
@@ -215,6 +250,9 @@ class T3Controller {
     return { t3Id, student, majorAdvisor, journal_snapshot, paper_and_research_details };
   }
 
+  /**
+   * เรียกจาก: routes/t3Routes.js — GET /my (Student) · T3Model.findByStudentId(req.user.sub) → _formatRow ทีละแถว
+   */
   // ============================================================
   // GET /api/t3/my
   // Role: Student
@@ -233,6 +271,10 @@ class T3Controller {
     }
   }
 
+  /**
+   * เรียกจาก: routes/t3Routes.js — GET /pending (Supervisor, Staff)
+   * Supervisor → T3Model.findPendingForAdvisor แล้วแนบ my_role/can_review (advisorViewFields) · Staff → T3Model.findPendingForFaculty
+   */
   // ============================================================
   // GET /api/t3/pending
   // Role: Supervisor → ของนิสิตตัวเอง
@@ -258,6 +300,10 @@ class T3Controller {
     }
   }
 
+  /**
+   * เรียกจาก: routes/t3Routes.js — GET /:id (ทุก role ที่ login)
+   * รับ req.params.id (requireNumericId ตรวจแล้ว) → T3Model.findById · Student ต้องเป็นเจ้าของ, Supervisor ต้องเป็นอาจารย์ในคำร้องนี้ (หลักหรือร่วม)
+   */
   // ============================================================
   // GET /api/t3/:id
   // Role: Student (ของตัวเอง), Supervisor (ของนิสิตตัวเอง), Staff/Admin (ทุกคน)
@@ -293,6 +339,13 @@ class T3Controller {
     }
   }
 
+  /**
+   * เรียกจาก: routes/t3Routes.js — PATCH /:id/advisor-review (Supervisor)
+   * รับ req.body: { action: 'approve'|'reject', remark? (บังคับตอน reject) }
+   * ลำดับ: T3Model.findById → สถานะต้อง Pending → advisorViewFields (ต้องเป็นอาจารย์หลักที่ยังไม่ตัดสิน) → T3Model.advisorReview
+   *   → อีเมล: reject แจ้งนิสิต · approve ครบแจ้งนิสิตและ Staff ทุกคน · แจ้งอาจารย์ร่วมว่าอาจารย์หลักตัดสินแล้ว (MailService.sendT3Notification)
+   * ตอบ { data: { overall_status, all_advisor_approved } } · สถานะเปลี่ยนระหว่างทาง 409
+   */
   // ============================================================
   // PATCH /api/t3/:id/advisor-review
   // Role: Supervisor
@@ -395,6 +448,11 @@ class T3Controller {
     }
   }
 
+  /**
+   * เรียกจาก: routes/t3Routes.js — PATCH /:id/faculty-review (Staff) — ผลสุดท้ายของ T3 ไม่มีขั้นถัดไป
+   * รับ req.body: { action, meeting_no?, meeting_date?, remark? } · meeting_date ผ่าน utils/date.toMysqlDate แล้วส่งต่อ T3Model.facultyReview
+   * แล้วส่งอีเมลผลสุดท้ายให้นิสิต (faculty_approved / faculty_rejected)
+   */
   // ============================================================
   // PATCH /api/t3/:id/faculty-review
   // Role: Staff
@@ -473,9 +531,13 @@ class T3Controller {
     }
   }
 
+  /**
+   * เรียกจาก: routes/t3Routes.js — PATCH /:id/cancel (Student เจ้าของ)
+   * ตรวจ: สถานะต้อง Pending/Rejected · Pending ที่อาจารย์อนุมัติครบแล้วยกเลิกไม่ได้ (advisorsAllApproved) → T3Model.cancel
+   */
   // ============================================================
   // PATCH /api/t3/:id/cancel
-  // Role: Student (เฉพาะของตัวเอง, สถานะ Pending หรือ Rejected)
+  // Role: Student (เฉพาะของตัวเอง, Rejected หรือ Pending ที่ advisor ยังอนุมัติไม่ครบ)
   // ============================================================
   static async cancel(req, res) {
     try {
@@ -497,6 +559,14 @@ class T3Controller {
         });
       }
 
+      if (row.overall_status === 'Pending' && await advisorsAllApproved('T3', t3Id)) {
+        return res.status(400).json({
+          success: false,
+          code: 'ADVISOR_APPROVED',
+          message: 'อาจารย์ที่ปรึกษาอนุมัติแล้ว ไม่สามารถยกเลิกได้ หากมีเหตุจำเป็นกรุณาติดต่อเจ้าหน้าที่',
+        });
+      }
+
       const ok = await T3Model.cancel(t3Id);
       if (!ok) {
         return res.status(400).json({
@@ -512,14 +582,22 @@ class T3Controller {
     }
   }
 
+  /**
+   * เรียกจาก: routes/t3Routes.js — POST /with-files (requireAuth → requireRole('Student') → submitLimiter → uploadT3FieldsMemory → handleMulterError)
+   * รับ: req.body (ค่า JSON เป็น string → tryParse) + req.files[ชื่อ field][0].buffer จาก multer (อยู่ใน RAM)
+   * ลำดับ: เช็คไฟล์บังคับตาม REQUIRED_FILES → ตรวจ magic bytes ทุกไฟล์ด้วย middlewares/upload.detectAllowedMime (เลือกนามสกุลจาก MIME_TO_EXT)
+   *   → _validateAndCreate พร้อม afterInsert ที่เขียนไฟล์ลง uploads/t3/{t3_id}/{field}/{uuid}.{ext} และ T3Model.upsertEvidenceFile ใน transaction เดียวกัน
+   *   → ถ้าล้ม: rollback T3 และลบโฟลเดอร์ไฟล์ · สำเร็จ: อีเมลหาอาจารย์หลัก (advisor_pending) ตอบ 201 { t3_id, uploaded }
+   */
   // ============================================================
   // POST /api/t3/with-files
   // Role: Student
   // Content-Type: multipart/form-data
   // Text fields (JSON string): pre_t3_id, journal_snapshot,
   //   paper_and_research_details, publication_details, journal_metrics
-  // File fields (optional): acceptance_letter, full_paper, journal_cover,
-  //   table_of_contents, database_evidence, peer_review_result
+  // File fields: บังคับตาม publication_details.status (ดู REQUIRED_FILES);
+  //   ที่เหลือใน acceptance_letter, full_paper, journal_cover,
+  //   table_of_contents, database_evidence, peer_review_result เป็นทางเลือก
   // ============================================================
   static async submitWithFiles(req, res) {
     try {
@@ -540,7 +618,7 @@ class T3Controller {
       };
 
       // ไฟล์หลักฐานบังคับ 2 ไฟล์ (X32) — เช็คฝั่ง server ไม่พึ่ง FE
-      const missing = REQUIRED_FILES.filter(f => !req.files?.[f]?.[0]);
+      const missing = REQUIRED_FILES[normalizePubStatus(body.publication_details?.status)].filter(f => !req.files?.[f]?.[0]);
       if (missing.length) {
         return res.status(400).json({
           success: false,
@@ -625,6 +703,11 @@ class T3Controller {
     }
   }
 
+  /**
+   * เรียกจาก: routes/t3Routes.js — GET /history (Supervisor, Staff)
+   * รับ query: status=Approved|Rejected, page, limit (parsePagination) · Supervisor → T3Model.findReviewedByAdvisor · Staff → T3Model.findReviewedByFaculty
+   * ตอบ { data: { items, total, page, limit, totalPages } }
+   */
   // ============================================================
   // GET /api/t3/history
   // Role: Supervisor → เห็นเฉพาะที่ตัวเองเคย approve/reject
@@ -660,6 +743,11 @@ class T3Controller {
     }
   }
 
+  /**
+   * จัดรูปแถวจาก T3Model เป็น response (เลือกเฉพาะ field ที่ frontend ใช้ · parseJson รองรับค่าที่อาจเป็น JSON string)
+   * เรียกจาก: getMyRequests, getPending, getById, getHistory
+   * @param {object} row ผลจาก T3Model.find* (ผ่าน _attachDerived แล้ว)
+   */
   // ============================================================
   // Helper
   // ============================================================

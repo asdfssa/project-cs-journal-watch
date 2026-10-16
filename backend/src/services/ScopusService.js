@@ -8,13 +8,27 @@ const config = require('../config');
 const scopusProxy = require('./ScopusProxyService');
 const { pickIssns } = require('../utils/input');
 
+/**
+ * ดึงข้อมูลวารสารจาก Scopus Serial Title API ด้วย API key หมุนเวียน (key มาจาก ScopusProxyService)
+ * เรียกจาก: JournalController.searchScopus เท่านั้น · ไม่มี key พร้อมใช้ → throw code 'SCOPUS_QUOTA_EXCEEDED' (จาก ScopusProxyService.getNextKey)
+ */
 class ScopusService {
 
+  /**
+   * @param {string} issn รูปแบบมีหรือไม่มีขีด
+   * @returns {Promise<object|null>} ข้อมูลวารสารรูปแบบเดียวกับ _parseApiResponse · null = ไม่พบใน Scopus
+   */
   static async getJournalByIssn(issn) {
     const cleanIssn = issn.replace('-', '').trim();
     return ScopusService._fetchFromApi(cleanIssn);
   }
 
+  /**
+   * เรียกจาก: getJournalByIssn (และเรียกตัวเองซ้ำเมื่อต้องเปลี่ยน key)
+   * ลำดับ: scopusProxy.getNextKey → ยิง GET /content/serial/title/issn/{issn} → scopusProxy.incrementUsage (อ่าน header โควตา) → _parseApiResponse
+   * 429 → markKeyUnavailable แล้วลอง key ถัดไป · 401/403 → markKeyRejected แล้วลอง key ถัดไป · 404 → null · อื่นๆ → throw 'Scopus API error: ...'
+   * @param {string} issn ตัวเลข/X ล้วน ไม่มีขีด
+   */
   static async _fetchFromApi(issn) {
     const keyObj = await scopusProxy.getNextKey();
 
@@ -68,6 +82,10 @@ class ScopusService {
 
   // ===== Helpers (port จาก Python) =====
 
+  /**
+   * แปลง percentile เป็น Q1–Q4 (>=75 Q1, >=50 Q2, >=25 Q3 ที่เหลือ Q4) · เรียกจาก: _parseApiResponse
+   * @returns {'Q1'|'Q2'|'Q3'|'Q4'|null}
+   */
   static _computeQuartile(percentile) {
     if (percentile === null || percentile === undefined) return null;
     const p = parseFloat(percentile);
@@ -78,6 +96,9 @@ class ScopusService {
     return 'Q4';
   }
 
+  /**
+   * ดึงรายการ citeScoreYearInfo จาก entry ของ Scopus ให้เป็น array เสมอ (API คืนทั้ง object เดี่ยว/array/ซ้อนกัน) · เรียกจาก: _parseApiResponse
+   */
   static _safeGetCiteScoreYearInfoList(entry) {
     const raw = entry?.citeScoreYearInfoList;
     const result = [];
@@ -100,6 +121,10 @@ class ScopusService {
     return result;
   }
 
+  /**
+   * ดึงรายการ citeScoreInfo ภายในปีที่เลือกให้เป็น array เสมอ · เรียกจาก: _parseApiResponse
+   * @param {object} csy หนึ่งรายการของ citeScoreYearInfo
+   */
   static _safeGetCiteScoreInfoList(csy) {
     const raw = csy?.citeScoreInformationList;
     const result = [];
@@ -122,6 +147,12 @@ class ScopusService {
     return result;
   }
 
+  /**
+   * แปลง entry ดิบของ Scopus เป็น object วารสารที่ระบบใช้ (ชื่อ, ISSN คู่ p/e ผ่าน pickIssns, CiteScore, SJR/SNIP, quartile ต่อสาขา, สถานะ discontinued ฯลฯ)
+   * เรียกจาก: _fetchFromApi · ผลส่งต่อไป JournalController._normalizeResponse
+   * @param {object} entry serial-metadata-response.entry[0]
+   * @param {string} issn ISSN ที่ผู้ใช้ค้น (ใช้เป็นค่าสำรองของ issn)
+   */
   static _parseApiResponse(entry, issn) {
     // Subject Areas
     const saRaw = entry['subject-area'] || [];

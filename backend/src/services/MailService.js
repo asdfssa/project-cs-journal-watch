@@ -35,12 +35,20 @@ if (config.mail.mode === 'smtp') {
   throw new Error(`MailService: config.mail.mode ต้องเป็น 'console' หรือ 'smtp' — ได้ค่า "${config.mail.mode}"`);
 }
 
+/**
+ * ส่งอีเมลของระบบ (mode 'console' = พิมพ์ลง log, 'smtp' = ส่งจริงด้วย nodemailer ตาม config.mail)
+ * ทุก send* คืน { success, mode, ... } และไม่ throw เมื่อส่งไม่สำเร็จ (คืน { success:false, error }) ผู้เรียกจึงเรียกแบบไม่รอผลได้
+ * ผู้เรียก: AuthService (sendOtp), PreT3Controller (sendPreT3Notification), T3Controller (sendT3Notification), AdminController (sendAccountApproved)
+ */
 class MailService {
   /**
    * ส่ง OTP ไปยัง email
    * @param {string} to - email ปลายทาง
    * @param {string} otpCode - OTP ตัวเลข
    * @param {string} purpose - 'login_2fa' | 'password_reset'
+   *
+   * เรียกจาก: AuthService._issueOtpForUser (purpose 'login_2fa') และ AuthService.requestPasswordReset (purpose 'password_reset') — เรียกแบบไม่ await
+   * @returns {Promise<{success:boolean, mode?:string, messageId?:string, error?:string}>}
    */
   static async sendOtp(to, otpCode, purpose = 'login_2fa') {
     const subject =
@@ -79,6 +87,9 @@ class MailService {
    * @param {string} event    - 'advisor_pending' | 'advisor_rejected' | 'advisor_approved' | 'faculty_pending' |
    *                            'faculty_approved' | 'faculty_rejected' | 'major_advisor_approved' | 'major_advisor_rejected'
    * @param {object} data     - { studentName, journalName, issn?, preT3Id, remark?, meetingNo?, meetingDate? }
+   *
+   * เรียกจาก: PreT3Controller (submit, advisorReview, facultyReview, resubmit) — เรียกแบบไม่ await
+   * เนื้อหาสร้างจาก _buildPreT3Content ตาม event · ผลเป็น { success, mode, messageId?, error? }
    */
   static async sendPreT3Notification(to, event, data) {
     const { subject, text, html } = MailService._buildPreT3Content(event, data);
@@ -124,6 +135,9 @@ class MailService {
    *                          'faculty_approved' | 'faculty_rejected' (มติคณะกรรมการ = ผลสุดท้ายของ T3) |
    *                          'major_advisor_approved' | 'major_advisor_rejected'
    * @param {object} data   - { studentName, journalName, articleTitle, t3Id, remark?, meetingNo?, meetingDate? }
+   *
+   * เรียกจาก: T3Controller (submitWithFiles, advisorReview, facultyReview) — เรียกแบบไม่ await
+   * เนื้อหาสร้างจาก _buildT3Content ตาม event · ผลเป็น { success, mode, messageId?, error? }
    */
   static async sendT3Notification(to, event, data) {
     const { subject, text, html } = MailService._buildT3Content(event, data);
@@ -154,6 +168,12 @@ class MailService {
     }
   }
 
+  /**
+   * เรียกจาก: sendT3Notification · เลือกหัวเรื่อง/ข้อความตาม event จากเทมเพลตภายใน
+   * @param {string} event
+   * @param {object} data { studentName, journalName, articleTitle, t3Id, remark?, meetingNo?, meetingDate? }
+   * @returns {{subject:string, text:string, html:string}}
+   */
   static _buildT3Content(event, data) {
     const { studentName, journalName, articleTitle, t3Id, remark, meetingNo, meetingDate } = data;
 
@@ -205,6 +225,12 @@ class MailService {
     };
   }
 
+  /**
+   * เรียกจาก: sendPreT3Notification · เลือกหัวเรื่อง/ข้อความตาม event จากเทมเพลตภายใน
+   * @param {string} event
+   * @param {object} data { studentName, journalName, issn?, preT3Id, remark?, meetingNo?, meetingDate? }
+   * @returns {{subject:string, text:string, html:string}}
+   */
   static _buildPreT3Content(event, data) {
     const { studentName, journalName, issn, preT3Id, remark, meetingNo, meetingDate } = data;
 
@@ -263,6 +289,8 @@ class MailService {
    * ส่งอีเมลแจ้งเตือนเมื่อบัญชีได้รับการอนุมัติ
    * @param {string} to        - email ปลายทาง
    * @param {string} fullName  - ชื่อ-นามสกุล ผู้ใช้
+   *
+   * เรียกจาก: AdminController (ตอนอนุมัติบัญชีผู้ใช้ที่รออนุมัติ) — เรียกแบบไม่รอผล
    */
   static async sendAccountApproved(to, fullName) {
     const subject = '[Journal Watch] บัญชีของคุณได้รับการอนุมัติแล้ว';
@@ -293,12 +321,18 @@ class MailService {
     }
   }
 
+  /**
+   * escape ตัวอักษร HTML ก่อนใส่ในอีเมล · เรียกจาก: _buildPreT3Html และ _buildOtpHtml
+   */
   static _escapeHtml(str) {
     return String(str).replace(/[&<>"']/g, (c) => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
     }[c]));
   }
 
+  /**
+   * สร้างกรอบ HTML ทั่วไปของอีเมลจาก title + ข้อความหลายบรรทัด · เรียกจาก: เทมเพลต Pre-T3/T3 และ sendAccountApproved
+   */
   static _buildPreT3Html(title, body) {
     const lines = body.split('\n').map(l => `<p style="margin:4px 0;">${MailService._escapeHtml(l)}</p>`).join('');
     return `
@@ -311,6 +345,9 @@ class MailService {
     `;
   }
 
+  /**
+   * สร้าง HTML ของอีเมล OTP · เรียกจาก: sendOtp
+   */
   static _buildOtpHtml(otpCode, expiresMin, title) {
     return `
       <div style="font-family:'Segoe UI',sans-serif;max-width:480px;margin:0 auto;padding:24px;background:#fff;border:1px solid #eee;border-radius:8px;">

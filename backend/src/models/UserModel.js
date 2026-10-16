@@ -6,6 +6,12 @@
 const db = require('../config/database');
 
 class UserModel {
+  /**
+   * ค้นผู้ใช้ด้วย username (รวม password_hash สำหรับตรวจรหัสผ่าน — ห้ามส่งออกไปทาง response)
+   * เรียกจาก: AuthService.login, AuthService.requestPasswordReset
+   * @param {string} username
+   * @returns {Promise<object|null>}
+   */
   static async findByUsername(username) {
     const [rows] = await db.query(
       `SELECT user_id, username, password_hash, msu_mail, role, first_name, last_name,
@@ -18,6 +24,13 @@ class UserModel {
     return rows[0] || null;
   }
 
+/**
+ * ค้นผู้ใช้ด้วย user_id (ข้อมูลโปรไฟล์/สถานะ ไม่มี password_hash)
+ * เรียกจาก: AuthService (verifyOtp, resendOtp, refreshToken, _refreshWithinGrace, resetPassword), AuthController.me, UserController.getProfile/updateProfile,
+ *   PreT3Controller + T3Controller (ดึงข้อมูลนิสิต/อาจารย์ที่ปรึกษาเพื่อทำ snapshot และส่งอีเมลแจ้งเตือน)
+ * @param {number} userId
+ * @returns {Promise<object|null>}
+ */
 static async findById(userId) {
   const [rows] = await db.query(
     `SELECT user_id, username, msu_mail, role, prefix,
@@ -32,6 +45,12 @@ static async findById(userId) {
   );
   return rows[0] || null;
 }
+  /**
+   * ค้นผู้ใช้ด้วยอีเมล มมส. (ใช้ตอน login/สมัครด้วย Google)
+   * เรียกจาก: AuthService.googleLogin, AuthService.registerStaff
+   * @param {string} msuMail
+   * @returns {Promise<object|null>}
+   */
   static async findByMsuMail(msuMail) {
     const [rows] = await db.query(
       `SELECT user_id, username, msu_mail,
@@ -45,6 +64,11 @@ static async findById(userId) {
     return rows[0] || null;
   }
 
+  /**
+   * สร้างบัญชี Staff สถานะ Pending (รอ Admin อนุมัติ) — ไม่มี username/password เพราะ Staff เข้าทาง Google
+   * เรียกจาก: AuthService.registerStaff
+   * @param {{msuMail:string, firstName:string, lastName:string}} p
+   */
   static async createPendingStaff({ msuMail, firstName, lastName }) {
     await db.query(
       `INSERT INTO users
@@ -54,6 +78,12 @@ static async findById(userId) {
     );
   }
 
+  /**
+   * ตั้ง password_hash ใหม่ (ผู้เรียกต้อง bcrypt มาแล้ว)
+   * เรียกจาก: AuthService.resetPassword
+   * @param {number} userId
+   * @param {string} passwordHash
+   */
   static async updatePassword(userId, passwordHash) {
     await db.query(
       `UPDATE users SET password_hash = ? WHERE user_id = ?`,
@@ -61,6 +91,12 @@ static async findById(userId) {
     );
   }
 
+  /**
+   * รายชื่ออาจารย์ที่ปรึกษาที่ active ของนิสิต เรียง Major → Co_1 → Co_2 (join advisor_assignments กับ users)
+   * เรียกจาก: AuthController.me, UserController.getProfile (เมื่อ role เป็น Student)
+   * @param {number} studentId
+   * @returns {Promise<object[]>} แต่ละแถวมี advisor_type, user_id, prefix, first_name, last_name, msu_mail, role
+   */
   static async findAdvisorsByStudentId(studentId) {
   const [rows] = await db.query(
     `SELECT aa.advisor_type,

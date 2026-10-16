@@ -4,13 +4,25 @@
  */
 const axios = require('axios');
 
+/**
+ * ดึงข้อมูลวารสารจาก TCI (Thai-Journal Citation Index) ผ่าน API ของ tci-thailand.org
+ * เรียกจาก: JournalController.searchTci เท่านั้น · เส้นสำรองคือ TCIScraper (ผลรูปแบบเดียวกัน ต่างที่ fetch_method)
+ */
 class TCIService {
 
+  /**
+   * @param {string} issn
+   * @returns {Promise<object|null>} null = ไม่พบหรือไม่มี ISSN ตรงเป๊ะ
+   */
   static async getJournalByIssn(issn) {
     const cleanIssn = issn.trim();
     return TCIService._fetchFromApi(cleanIssn);
   }
 
+  /**
+   * เรียกจาก: getJournalByIssn · POST list_all_journal ค้นด้วย ISSN → เลือกเฉพาะรายการที่ ISSN (issn หรือ eissn) ตรงกันเป๊ะ → _parseApiResponse
+   * error เครือข่าย/HTTP → throw 'TCI API error: ...'
+   */
   static async _fetchFromApi(issn) {
     try {
       const response = await axios.post(
@@ -54,6 +66,12 @@ class TCIService {
     }
   }
 
+  /**
+   * แปลงรายการวารสารดิบของ TCI เป็น object ที่ระบบใช้ (tci_tier, tci_status, tci_inactive = สถานะที่ไม่ใช่ active/name_changed ฯลฯ)
+   * เรียกจาก: _fetchFromApi · โครงสร้างผลเหมือน TCIScraper._parseJournal
+   * @param {object} journal รายการจาก response.data.journals
+   * @param {string} issn ISSN ที่ผู้ใช้ค้น (ค่าสำรองของ issn)
+   */
   static _parseApiResponse(journal, issn) {
     const tier = journal['tci_tier'] ? parseInt(journal['tci_tier']) : null;
     const status = journal['status'] || null;

@@ -20,7 +20,18 @@ const FIELD_TO_KEY = {
   peer_review_result: 'peer_review_result_path',
 };
 
+/**
+ * Controller ดาวน์โหลดไฟล์แนบของ T3 — ผูกใน routes/uploadRoutes.js (base path /api/v3/upload)
+ * การอัปโหลดไม่ได้อยู่ที่นี่: ไฟล์เข้าระบบพร้อมการยื่น T3 ที่ T3Controller.submitWithFiles
+ */
 class UploadController {
+  /**
+   * เรียกจาก: routes/uploadRoutes.js — GET /t3/:id/files/:field (requireAuth → requireRole ทุก role ที่ login)
+   * รับ: req.params.id (t3_id, requireNumericId ตรวจแล้ว), req.params.field (ชื่อ field เช่น full_paper ต้องอยู่ใน FIELD_TO_KEY), req.user (sub, role)
+   * ลำดับ: T3Model.findById → ตรวจสิทธิ์ (Student ต้องเป็นเจ้าของ, Supervisor ต้องเป็นอาจารย์ในคำร้อง) → หา path จาก journal_evidence_files[field]
+   *   → ตรวจว่าไฟล์อยู่บนดิสก์จริง (uploads/t3/{t3_id}/{field}/...) → res.download (บังคับ attachment)
+   * ตอบ error: 400 INVALID_FIELD · 404 NOT_FOUND/FILE_NOT_FOUND/FILE_MISSING · 403 FORBIDDEN
+   */
   // ============================================================
   // GET /api/upload/t3/:id/files/:field
   // Role: Student (ของตัวเอง), Supervisor (ของนิสิตตัวเอง), Staff/Admin

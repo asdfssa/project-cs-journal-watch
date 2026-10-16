@@ -21,7 +21,7 @@
  * ในระบบ — ดู master_list.md A7)
  */
 const db = require('../config/database');
-const { slotFromApproval, fetchApprovalsMap, reviewAdvisorSlot, withTransaction } = require('./_approvalHelpers');
+const { slotFromApproval, fetchApprovalsMap, reviewAdvisorSlot, withTransaction, advisorNotAllApprovedSql } = require('./_approvalHelpers');
 
 const FILE_TYPE_TO_KEY = {
   Acceptance_Letter:   'acceptance_letter_path',
@@ -52,6 +52,11 @@ class T3Model {
    * @param {Function} [afterInsert]       - async (conn, t3Id) รันใน transaction เดียวกัน (เช่น เขียนไฟล์แนบ + แถว evidence)
    *                                         ถ้า throw → rollback ทั้ง T3 (B30)
    * @returns {number} t3_id ที่สร้างใหม่
+   *
+   * เรียกจาก: T3Controller._validateAndCreate (ซึ่งถูกเรียกจาก T3Controller.submitWithFiles) หลัง validate และ derive ชนิด/น้ำหนักวารสารแล้ว
+   * ใน transaction เดียว: ล็อกแถว Pre-T3 (ต้อง Approved) → กัน T3 ซ้ำบน Pre-T3 เดียวกัน → INSERT t3_requests → INSERT request_approvals ทุก step
+   *   → afterInsert(conn, t3Id) ถ้ามี (controller ใช้เขียนไฟล์แนบ + upsertEvidenceFile ในทรานแซกชันนี้) · afterInsert throw = rollback ทั้งหมด
+   * throw Error code 'PRE_T3_NOT_APPROVED' หรือ 'T3_ALREADY_EXISTS' — controller แปลงเป็น 400 / 409
    */
   static async create(
     studentId,
@@ -185,6 +190,10 @@ class T3Model {
     };
   }
 
+  /**
+   * ดึง path ไฟล์แนบของหลาย T3 รวดเดียวจาก t3_evidence_files แล้วจัดเป็น { [t3_id]: { acceptance_letter_path, full_paper_path, ... } } (ไม่มีไฟล์ = null)
+   * เรียกจาก: T3Model._attachDerived · ผลกลายเป็น journal_evidence_files ใน response (ดาวน์โหลดจริงผ่าน UploadController.downloadFile)
+   */
   static async _fetchEvidenceFilesMap(t3Ids) {
     if (!t3Ids.length) return {};
     const [rows] = await db.query(
@@ -209,6 +218,12 @@ class T3Model {
     return map;
   }
 
+  /**
+   * ทางผ่านเดียวของผลอ่านทุก method ใน Model นี้ ก่อนส่งให้ T3Controller._formatRow
+   * ประกอบ journal_snapshot, student_snapshot, paper_and_research_details, publication_details, journal_metrics, journal_evidence_files และช่อง *_approval ของแต่ละแถว
+   * @param {object[]} rows แถวจาก t3_requests (JOIN users/pre_t3_requests แล้ว)
+   * @returns {Promise<object[]>}
+   */
   static async _attachDerived(rows) {
     if (!rows.length) return rows;
     const ids = rows.map(r => r.t3_id);
@@ -239,6 +254,15 @@ class T3Model {
   // Evidence files (t3_evidence_files)
   // ============================================================
 
+  /**
+   * บันทึก/แทนที่ path ไฟล์แนบ 1 ชนิดของ T3
+   * เรียกจาก: T3Controller.submitWithFiles (ผ่าน callback afterInsert ของ T3Model.create — ส่ง conn ของ transaction เข้ามาเพื่อให้ rollback ได้)
+   * @param {number} t3Id
+   * @param {string} fieldName ชื่อ field ของ multipart เช่น 'full_paper' (หรือรูป *_path)
+   * @param {string} filePath path แบบ relative จาก process.cwd() เช่น uploads/t3/12/full_paper/<uuid>.pdf
+   * @param {object} [conn] connection ของ transaction (ค่าเริ่มต้น pool)
+   * @returns {Promise<boolean>} false = ชื่อ field ไม่รู้จัก
+   */
   static async upsertEvidenceFile(t3Id, fieldName, filePath, conn = db) {
     const fileType = KEY_TO_FILE_TYPE[fieldName] || KEY_TO_FILE_TYPE[`${fieldName}_path`];
     if (!fileType) return false;
@@ -251,6 +275,11 @@ class T3Model {
     return true;
   }
 
+  /**
+   * ลบแถวไฟล์แนบ 1 ชนิด — ปัจจุบันยังไม่มีที่ไหนเรียกใช้ (เตรียมไว้สำหรับเปลี่ยน/ลบไฟล์ภายหลัง) และไม่ได้ลบไฟล์บนดิสก์
+   * @param {number} t3Id
+   * @param {string} fieldName
+   */
   static async removeEvidenceFile(t3Id, fieldName) {
     const fileType = KEY_TO_FILE_TYPE[fieldName] || KEY_TO_FILE_TYPE[`${fieldName}_path`];
     if (!fileType) return false;
@@ -267,6 +296,9 @@ class T3Model {
 
   /**
    * ดึง T3 ตาม ID (พร้อมชื่อนิสิต)
+   *
+   * เรียกจาก: T3Controller (getById, advisorReview, facultyReview, cancel) และ UploadController.downloadFile (ตรวจสิทธิ์ก่อนส่งไฟล์)
+   * @returns {Promise<object|null>} ผ่าน _attachDerived แล้ว
    */
   static async findById(t3Id) {
     const [rows] = await db.query(
@@ -288,6 +320,9 @@ class T3Model {
 
   /**
    * ดึง T3 ทั้งหมดของนิสิตคนนึง (เรียงใหม่สุดก่อน)
+   *
+   * เรียกจาก: T3Controller.getMyRequests (GET /t3/my)
+   * @param {number} studentId req.user.sub ของนิสิต
    */
   static async findByStudentId(studentId) {
     const [rows] = await db.query(
@@ -306,7 +341,11 @@ class T3Model {
   }
 
   /**
-   * ดึงรายการที่รอ Advisor คนนี้อนุมัติ — เฉพาะอาจารย์หลัก (อาจารย์ร่วมไม่มีสิทธิ์ตัดสิน จึงไม่เห็นในคิวนี้)
+   * ดึงรายการที่อยู่ในคิวของอาจารย์คนนี้ — อาจารย์หลัก (กดตัดสินได้) และอาจารย์ร่วม (ดูอย่างเดียว)
+   * แยกสิทธิ์ด้วย my_role / can_review ที่ controller แนบให้ (advisorViewFields) ไม่ใช่ด้วยการซ่อนรายการ
+   *
+   * เรียกจาก: T3Controller.getPending เมื่อ role = Supervisor (GET /t3/pending)
+   * @param {number} advisorId req.user.sub ของอาจารย์
    */
   static async findPendingForAdvisor(advisorId) {
     const [rows] = await db.query(
@@ -320,7 +359,7 @@ class T3Model {
           AND EXISTS (
             SELECT 1 FROM request_approvals ra
              WHERE ra.request_type = 'T3' AND ra.request_id = t.t3_id
-               AND ra.step = 'Advisor'
+               AND ra.step IN ('Advisor','Co_Advisor_1','Co_Advisor_2')
                AND ra.approver_id = ? AND ra.status = 'Pending'
           )
         ORDER BY t.created_at ASC`,
@@ -335,6 +374,9 @@ class T3Model {
    * ใช้ EXISTS → ไม่ซ้ำแถว แม้อาจารย์คนเดียวถือหลายช่อง (เช่น เป็นทั้ง Co_1 และ Co_2)
    * @param {number} advisorId
    * @param {object} opts - { status: 'Approved'|'Rejected'|null, page, limit } — status = ผลของอาจารย์หลัก
+   *
+   * เรียกจาก: T3Controller.getHistory เมื่อ role = Supervisor (GET /t3/history)
+   * @returns {Promise<{rows:object[], total:number}>}
    */
   static async findReviewedByAdvisor(advisorId, { status = null, page = 1, limit = 20 } = {}) {
     const offset = (page - 1) * limit;
@@ -379,6 +421,9 @@ class T3Model {
   /**
    * ดึงประวัติที่ Staff (Faculty Com) เคยอนุมัติ/ปฏิเสธแล้ว
    * @param {object} opts - { status: 'Approved'|'Rejected'|null, page, limit }
+   *
+   * เรียกจาก: T3Controller.getHistory เมื่อ role = Staff (GET /t3/history)
+   * @returns {Promise<{rows:object[], total:number}>}
    */
   static async findReviewedByFaculty({ status = null, page = 1, limit = 20 } = {}) {
     const offset = (page - 1) * limit;
@@ -419,6 +464,8 @@ class T3Model {
 
   /**
    * ดึงรายการที่ advisor approve ครบแล้ว รอ Faculty Com
+   *
+   * เรียกจาก: T3Controller.getPending เมื่อ role = Staff (GET /t3/pending) · เฉพาะ T3 ที่อาจารย์อนุมัติครบและรอ Faculty Com
    */
   static async findPendingForFaculty() {
     const [rows] = await db.query(
@@ -448,6 +495,15 @@ class T3Model {
   // UPDATE — Advisor Review
   // ============================================================
 
+  /**
+   * เรียกจาก: T3Controller.advisorReview (หลังตรวจแล้วว่าผู้กดเป็นอาจารย์หลักที่ยังไม่ตัดสิน)
+   * ใน transaction: ล็อกแถว T3 → reviewAdvisorSlot → ถ้ามีคน reject ตั้ง overall_status = 'Rejected'
+   * @param {number} t3Id
+   * @param {number} advisorId req.user.sub
+   * @param {'approve'|'reject'} action
+   * @param {string|null} remark
+   * @returns {Promise<{anyRejected:boolean, allApproved:boolean, newOverallStatus:string}|null>} null = สถานะเปลี่ยนไปแล้ว (controller ตอบ 409)
+   */
   static async advisorReview(t3Id, advisorId, action, remark) {
     return withTransaction(async (conn) => {
       // ล็อค row + เช็ค overall_status สดในทรานแซกชันนี้ กัน race กับ cancel()/
@@ -478,6 +534,14 @@ class T3Model {
   /**
    * Faculty Com อนุมัติ/ปฏิเสธ พร้อม meeting_no, meeting_date — ผลนี้เป็นผลสุดท้าย
    * ของ T3 (A6: ตัด grad_school_* ออกทั้งหมด ไม่มี step ถัดจากนี้อีกแล้ว)
+   *
+   * เรียกจาก: T3Controller.facultyReview
+   * @param {number} t3Id
+   * @param {'approve'|'reject'} action
+   * @param {string|null} meetingNo เลขที่ประชุม (ตอน approve)
+   * @param {string|null} meetingDate 'YYYY-MM-DD' ที่ผ่าน utils/date.toMysqlDate แล้ว
+   * @param {string|null} remark
+   * @returns {Promise<{newOverallStatus:string, facultyApproved:boolean}|null>} null = สถานะเปลี่ยนไปแล้ว (controller ตอบ 409)
    */
   static async facultyReview(t3Id, action, meetingNo, meetingDate, remark) {
     if (!['approve', 'reject'].includes(action)) {
@@ -514,14 +578,19 @@ class T3Model {
 
   /**
    * เปลี่ยน overall_status เป็น 'Cancelled'
-   * ทำได้เฉพาะตอนสถานะ Pending หรือ Rejected เท่านั้น
+   * ทำได้เฉพาะตอน Rejected หรือ Pending ที่ advisor ยังอนุมัติไม่ครบ
+   *
+   * เรียกจาก: T3Controller.cancel (เงื่อนไขจริงอยู่ใน WHERE ของ UPDATE เพื่อกัน race กับอาจารย์กดอนุมัติ)
+   * @param {number} t3Id
+   * @returns {Promise<boolean>} false = เงื่อนไขไม่ผ่านในจังหวะที่ update
    */
   static async cancel(t3Id) {
     const [result] = await db.query(
       `UPDATE t3_requests
           SET overall_status = 'Cancelled'
         WHERE t3_id = ?
-          AND overall_status IN ('Pending', 'Rejected')`,
+          AND (overall_status = 'Rejected'
+               OR (overall_status = 'Pending' AND ${advisorNotAllApprovedSql('T3', 't3_id')}))`,
       [t3Id]
     );
     return result.affectedRows > 0;

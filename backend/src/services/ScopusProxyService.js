@@ -20,7 +20,9 @@ const config = require('../config');
 
 // ponytail: ตัวเลขจาก burst test จริง (เจอ 429 ครั้งแรกที่ concurrent request ตัวที่ 6)
 // ถ้า Elsevier เปลี่ยนเรต ต้องรัน scripts/test-scopus-rate-limit-burst.js ใหม่แล้วปรับเลขนี้
-const PER_SECOND_LIMIT = 5;
+// ตั้งทับได้ด้วย env SCOPUS_PER_SECOND_LIMIT (ใช้ทดสอบเทียบอัตรา) — นับเป็นจำนวนคำขอเต็มในหน้าต่าง 1 วินาทีที่เลื่อนไปเรื่อยๆ
+// ค่าทศนิยมจึงทำงานเหมือนปัดขึ้น (2.5 = 3 คำขอ/วินาที)
+const PER_SECOND_LIMIT = Number(process.env.SCOPUS_PER_SECOND_LIMIT) || 5;
 const UNAVAILABLE_MS = 60 * 60 * 1000; // 1 ชม. — ใช้เมื่อ 429 และไม่รู้ว่า quota เหลือเท่าไร (ไม่มี header)
 const BURST_COOLDOWN_MS = 30 * 1000;  // 429 ที่ quota รายสัปดาห์ยังเหลือ = ชน throttle รายวินาที พักสั้นๆ พอ
 const REJECTED_MS = 24 * 60 * 60 * 1000; // 401/403: key ใช้ไม่ได้ พัก 1 วัน (ค่อยลองใหม่หลังแก้ key หรือรีสตาร์ท)
@@ -32,6 +34,11 @@ const STATE_FILE = path.join(STATE_DIR, 'scopus-proxy-state.json');
 // รหัสแทน key ในไฟล์ state — ไม่เก็บ API key จริงลงดิสก์ (B49)
 const keyId = (key) => crypto.createHash('sha256').update(key).digest('hex').slice(0, 16);
 
+/**
+ * ตัวจัดการ API key ของ Scopus (singleton — module นี้ export instance เดียว)
+ * เรียกจาก: ScopusService (getNextKey → incrementUsage / markKeyUnavailable / markKeyRejected ต่อ 1 คำขอ) และ AdminController.getStats (getStatus สำหรับหน้า dashboard)
+ * state ของแต่ละ key เก็บในไฟล์ data/scopus-proxy-state.json โดยใช้ hash ของ key เป็นรหัส (ไม่เก็บ key จริง)
+ */
 class ScopusProxyService {
   constructor() {
     const persisted = this._loadState();
@@ -59,6 +66,10 @@ class ScopusProxyService {
   /**
    * ดึง key ถัดไปแบบ Round-robin
    * ข้าม key ที่: ล็อกจาก 429 จริงอยู่ / หมด weekly quota / ชน per-second throttle
+   *
+   * เรียกจาก: ScopusService._fetchFromApi (ทุกคำขอ และทุกครั้งที่ต้องเปลี่ยน key)
+   * @returns {Promise<{key:string, index:number}>} object ของ key ที่เลือก (ส่ง index ต่อให้ incrementUsage/markKey*)
+   * throw code 'SCOPUS_QUOTA_EXCEEDED' เมื่อไม่มี key ใดใช้ได้
    */
   async getNextKey() {
     const total = this.keys.length;
@@ -98,6 +109,10 @@ class ScopusProxyService {
    * เพิ่มนับ usage หลังใช้ key สำเร็จ
    * rateLimitHeaders: axios response.headers (lowercase keys) — ใช้ค่าจาก Elsevier
    * แทนการนับเอง เพราะแม่นกว่า (ยืนยันแล้วจากการทดสอบยิงจริง 500 request ไม่มี drift)
+   *
+   * เรียกจาก: ScopusService._fetchFromApi หลังได้ response สำเร็จ
+   * @param {number} keyIndex index จาก getNextKey
+   * @param {object} [rateLimitHeaders] response.headers ของ axios (อ่าน x-ratelimit-limit/remaining/reset)
    */
   async incrementUsage(keyIndex, rateLimitHeaders = null) {
     const keyObj = this.keys[keyIndex];
@@ -116,6 +131,10 @@ class ScopusProxyService {
    * 429 นี้เป็น weekly quota หมดจริงหรือแค่ burst throttle ชั่วคราว: ถ้า header บอกว่า
    * weeklyRemaining <= 0 จริง ล็อคยาวจนถึง weeklyResetAt แทนที่จะล็อคแค่ 1 ชม. คงที่
    * (ของเดิมปลดล็อคหลัง 1 ชม. แล้วโดน 429 ซ้ำวนไปเรื่อยๆ ทั้งที่ quota ยังไม่รีเซ็ตจริง)
+   *
+   * เรียกจาก: ScopusService._fetchFromApi เมื่อได้ HTTP 429
+   * @param {number} keyIndex
+   * @param {object} [rateLimitHeaders] header จาก error response ใช้แยกว่า quota รายสัปดาห์หมดจริงหรือแค่ชน throttle
    */
   async markKeyUnavailable(keyIndex, rateLimitHeaders = null) {
     const keyObj = this.keys[keyIndex];
@@ -131,11 +150,15 @@ class ScopusProxyService {
       ? resetMs
       : Date.now() + (quotaKnownLeft ? BURST_COOLDOWN_MS : UNAVAILABLE_MS);
 
+    console.warn(`[ScopusProxy] key #${keyIndex} ได้ 429 จาก Elsevier — พักถึง ${new Date(keyObj.unavailableUntil).toISOString()} (โควตารายสัปดาห์เหลือ ${keyObj.weeklyRemaining})`);
     await this._persist();
   }
 
   /**
    * key ถูก Elsevier ปฏิเสธ (401/403) — พักยาวเพื่อไม่ให้ทุกคำขอไปชน key ที่ใช้ไม่ได้ซ้ำๆ
+   *
+   * เรียกจาก: ScopusService._fetchFromApi เมื่อได้ HTTP 401/403
+   * @param {number} keyIndex
    */
   async markKeyRejected(keyIndex) {
     const keyObj = this.keys[keyIndex];
@@ -145,6 +168,10 @@ class ScopusProxyService {
     try { await this._persist(); } catch (_) { /* state เขียนพังไม่ควรบังคับให้คำขอล้ม */ }
   }
 
+  /**
+   * อัปเดต weeklyLimit/weeklyRemaining/weeklyResetAt ของ key จาก header ของ Elsevier
+   * เรียกจาก: incrementUsage, markKeyUnavailable
+   */
   _applyRateLimitHeaders(keyObj, rateLimitHeaders) {
     if (!rateLimitHeaders) return;
     const limit = parseInt(rateLimitHeaders['x-ratelimit-limit'], 10);
@@ -157,6 +184,9 @@ class ScopusProxyService {
 
   /**
    * ดูสถานะ keys ทั้งหมด (สำหรับ admin dashboard)
+   *
+   * เรียกจาก: AdminController.getStats (ใส่ใน apiKeyStats ของหน้า dashboard ผู้ดูแล)
+   * @returns {object[]} สถานะ key ละ 1 รายการ (ไม่มี key จริง เห็นแค่ 4 ตัวท้าย)
    */
   getStatus() {
     return this.keys.map(k => ({
@@ -172,16 +202,25 @@ class ScopusProxyService {
 
   // ===== Internal =====
 
+  /**
+   * key ถูกพักอยู่ (unavailableUntil ยังไม่ถึง) หรือไม่ · เรียกจาก: getNextKey, getStatus
+   */
   _isLocked(keyObj) {
     return keyObj.unavailableUntil !== null && Date.now() < keyObj.unavailableUntil;
   }
 
+  /**
+   * เช็คว่า key นี้ถูกใช้ถึง PER_SECOND_LIMIT ภายใน 1 วินาทีล่าสุดแล้วหรือยัง (ล้าง timestamp เก่าให้ด้วย) · เรียกจาก: getNextKey
+   */
   _isThrottled(keyObj) {
     const now = Date.now();
     keyObj.recentRequestTimestamps = keyObj.recentRequestTimestamps.filter(t => now - t < 1000);
     return keyObj.recentRequestTimestamps.length >= PER_SECOND_LIMIT;
   }
 
+  /**
+   * อ่าน state จากไฟล์ตอน constructor — ไม่มีไฟล์/ไฟล์เสียคืน {} · เรียกจาก: constructor
+   */
   _loadState() {
     try {
       const raw = fs.readFileSync(STATE_FILE, 'utf8');
@@ -191,6 +230,9 @@ class ScopusProxyService {
     }
   }
 
+  /**
+   * เขียน state ลงไฟล์ผ่านคิวเรียงลำดับ · เรียกจาก: constructor (ถ้าเจอรูปแบบเก่า), getNextKey, incrementUsage, markKeyUnavailable, markKeyRejected
+   */
   async _persist() {
     const snapshot = {};
     for (const k of this.keys) {
@@ -211,6 +253,9 @@ class ScopusProxyService {
     return task;
   }
 
+  /**
+   * เขียนไฟล์ชั่วคราวแล้ว rename ทับ (atomic) · เรียกจาก: _persist
+   */
   async _writeAtomic(snapshot) {
     await fs.promises.mkdir(STATE_DIR, { recursive: true });
     const tmpFile = `${STATE_FILE}.${process.pid}.tmp`;

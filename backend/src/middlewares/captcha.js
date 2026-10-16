@@ -14,6 +14,14 @@ const { clientIp } = require('./rateLimit');
 const VERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 const counters = new Map(); // user_id → { count, resetAt }
 
+/**
+ * ถาม Cloudflare Turnstile (siteverify) ว่า token ที่ client แนบมาใช้ได้ไหม
+ * เรียกจาก: captchaIfFrequent ในไฟล์นี้
+ * ส่งออกไป Cloudflare: secret (config.captcha.turnstileSecret) + response (token) + remoteip (ถ้ามี) · timeout 5 วินาที
+ * @param {string} token ค่าจาก header X-Captcha-Token
+ * @param {string} [ip] IP จริงของ client (จาก rateLimit.clientIp)
+ * @returns {Promise<boolean>} true = Cloudflare ยืนยัน · throw = ติดต่อ Cloudflare ไม่ได้ (ผู้เรียกตอบ 503)
+ */
 async function verifyTurnstile(token, ip) {
   const body = new URLSearchParams({ secret: config.captcha.turnstileSecret, response: token });
   if (ip) body.append('remoteip', ip);
@@ -22,6 +30,14 @@ async function verifyTurnstile(token, ip) {
   return data.success === true;
 }
 
+/**
+ * Middleware จำกัดการค้นวารสารถี่ๆ ต่อผู้ใช้ — เกินโควตาฟรีต้องผ่าน CAPTCHA
+ * เรียกจาก: routes/journalRoutes.js (GET /journal/scopus, /tci, /scopus/scrape, /tci/scrape) ต่อจาก requireAuth
+ * อ่าน req.user.sub (ที่ requireAuth ใส่ไว้) เป็น key ของตัวนับใน RAM: Map(user_id → { count, resetAt })
+ * ขั้นตอน: ไม่ตั้ง TURNSTILE_SECRET → ผ่านเลย · ยังไม่เกิน freeRequests → นับแล้วผ่าน
+ *   · เกินโควตา → ต้องมี header X-Captcha-Token → verifyTurnstile → ผ่านแล้วตั้งตัวนับใหม่ (นับ request นี้เป็น 1)
+ * ตอบ 428 CAPTCHA_REQUIRED / CAPTCHA_INVALID, 503 CAPTCHA_UNAVAILABLE · ผ่านแล้ว next() → (scrapeLimiter) → JournalController
+ */
 async function captchaIfFrequent(req, res, next) {
   const { turnstileSecret, freeRequests, windowMs } = config.captcha;
   if (!turnstileSecret) return next();

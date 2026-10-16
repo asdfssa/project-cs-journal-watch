@@ -10,6 +10,10 @@ const config = require('../config');
 /**
  * สร้าง OTP เป็นตัวเลขล้วน
  * ใช้ crypto.randomInt (cryptographically secure, ไม่ใช้ Math.random)
+ *
+ * เรียกจาก: services/AuthService (_issueOtpForUser ตอน login และ requestPasswordReset) — ค่า plain ส่งทางอีเมล ส่วนที่เก็บลง DB คือ hashOtp(otp)
+ * @param {number} [length] จำนวนหลัก (ค่าเริ่มต้น config.otp.length)
+ * @returns {string} เช่น '483920'
  */
 function generateOtp(length = config.otp.length) {
   const min = Math.pow(10, length - 1);
@@ -27,6 +31,10 @@ const OTP_HMAC_KEY = crypto.createHmac('sha256', config.jwt.secret).update('otp-
  * HMAC ทำให้ต้องมี secret ด้วยจึงจะไล่ได้ — ไม่ใช้ bcrypt เพราะ ~250ms ต่อ verify ไม่คุ้ม
  * (ความปลอดภัยหลักมาจาก expiry 10 นาที + จำกัดจำนวนครั้งที่ลอง)
  * หมายเหตุ: OTP ที่ออกก่อนเปลี่ยนมาใช้ HMAC จะ verify ไม่ผ่าน (อายุ ≤ 10 นาที) ผู้ใช้ขอ OTP ใหม่ได้
+ *
+ * เรียกจาก: services/AuthService ก่อนส่งให้ models/OtpModel บันทึกลง otp_requests.otp_hash
+ * @param {string|number} otp รหัสแบบ plain
+ * @returns {string} hex 64 ตัว
  */
 function hashOtp(otp) {
   return crypto.createHmac('sha256', OTP_HMAC_KEY).update(String(otp)).digest('hex');
@@ -35,6 +43,11 @@ function hashOtp(otp) {
 /**
  * เปรียบเทียบ hash แบบ constant-time
  * ป้องกัน timing attack ที่อาจเดา hash ได้จากเวลาที่ใช้
+ *
+ * เรียกจาก: services/AuthService (ขั้น verify OTP ของ login และ reset-password) — เอา hash จากแถวใน DB มาเทียบกับรหัสที่ผู้ใช้กรอก
+ * @param {string} plainOtp รหัสที่ผู้ใช้ส่งมา
+ * @param {string} hashedOtp hash ที่เก็บใน DB
+ * @returns {boolean}
  */
 function compareOtpHash(plainOtp, hashedOtp) {
   const computed = hashOtp(plainOtp);

@@ -5,6 +5,9 @@
 const { body } = require('express-validator');
 const config = require('../config');
 
+/**
+ * ใช้ที่: POST /auth/login (routes/authRoutes.js) ตามด้วย handleValidation · sanitize username ให้เป็นตัวพิมพ์เล็กก่อนถึง AuthController.login
+ */
 const loginValidator = [
   body('username')
     .trim()
@@ -17,6 +20,9 @@ const loginValidator = [
     .isLength({ min: 1, max: 128 }).withMessage('Invalid password length'),
 ];
 
+/**
+ * ใช้ที่: POST /auth/verify-otp → AuthController.verifyOtp อ่าน req.body.otpCode
+ */
 const verifyOtpValidator = [
   body('otpCode')
     .trim()
@@ -26,6 +32,9 @@ const verifyOtpValidator = [
     .isLength({ min: config.otp.length, max: config.otp.length }).withMessage(`OTP must be ${config.otp.length} digits`),
 ];
 
+/**
+ * ใช้ที่: POST /auth/google และ /auth/register-staff → AuthController.googleLogin / registerStaff อ่าน req.body.idToken
+ */
 const googleLoginValidator = [
   body('idToken')
     .trim()
@@ -33,6 +42,9 @@ const googleLoginValidator = [
     .isString().withMessage('Invalid token format'),
 ];
 
+/**
+ * ใช้ที่: POST /auth/forgot-password → AuthController.forgotPassword อ่าน req.body.username
+ */
 const forgotPasswordValidator = [
   body('username')
     .trim()
@@ -42,6 +54,9 @@ const forgotPasswordValidator = [
     .toLowerCase(),
 ];
 
+/**
+ * ใช้ที่: POST /auth/reset-password → AuthController.resetPassword อ่าน otpCode + newPassword (กฎรหัสผ่าน: 8-128 ตัว มีพิมพ์ใหญ่/เล็ก/ตัวเลข และ confirmPassword ต้องตรง)
+ */
 const resetPasswordValidator = [
   body('otpCode')
     .trim()

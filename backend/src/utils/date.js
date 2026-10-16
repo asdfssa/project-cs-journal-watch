@@ -7,6 +7,10 @@ const BANGKOK_DATE = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Bangkok', year: 'numeric', month: '2-digit', day: '2-digit',
 });
 
+/**
+ * เช็คว่า y-m-d เป็นวันที่มีจริงในปฏิทิน (กัน 2026-02-31 ที่ Date ปัดไปเดือนถัดไปเงียบๆ)
+ * เรียกจาก: toMysqlDate ในไฟล์นี้
+ */
 function isRealDate(y, m, d) {
   const dt = new Date(Date.UTC(y, m - 1, d));
   return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
@@ -20,6 +24,9 @@ function isRealDate(y, m, d) {
  *  - ISO datetime ไม่มี timezone → ใช้ส่วนวันที่ตามที่เขียน
  * @param {*} value
  * @returns {string|null|undefined} 'YYYY-MM-DD' · null = ไม่ได้ส่ง · undefined = รูปแบบ/วันที่ไม่ถูกต้อง (ผู้เรียกตอบ 400)
+ *
+ * เรียกจาก: PreT3Controller.facultyReview, T3Controller.facultyReview (meeting_date) และ UnwantedJournalController.importCsv (recorded_date ต่อแถว)
+ * ผลลัพธ์ส่งต่อให้ Model บันทึกลงคอลัมน์ DATE โดยตรง
  */
 function toMysqlDate(value) {
   if (value == null || value === '') return null;

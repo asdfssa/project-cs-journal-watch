@@ -9,8 +9,19 @@ const TCIScraper = require('../services/TCIScraper');
 const { serverError } = require('../utils/errorResponse');
 const { claimUserScrape } = require('../services/scrapeQueue');
 
+/**
+ * Controller ค้นข้อมูลวารสารจาก Scopus/TCI — ผูกใน routes/journalRoutes.js (base path /api/v3/journal) หลัง requireAuth → captchaIfFrequent (→ scrapeLimiter ของเส้น scrape)
+ * ทุก endpoint รับ ?issn= → _validateIssn → เรียก Service/Scraper → _normalizeResponse → ตอบ { success, data }
+ * ไม่ได้จับ error เอง: ส่ง next(err) ไป middlewares/errorHandler ซึ่งแปลงรหัส SCOPUS_QUOTA_EXCEEDED / SCRAPER_BUSY / SCRAPER_USER_BUSY ผ่าน utils/errorResponse
+ * frontend ใช้ API ก่อน แล้วสลับไปเส้น /scrape เมื่อ API ล้มหรือโควตาหมด (ดูคอมเมนต์ใน utils/errorResponse.js)
+ */
 class JournalController {
 
+  /**
+   * เรียกจาก: searchScopus, searchTci, scrapeScopus, scrapeTci
+   * @param {string} issn ค่าจาก req.query.issn
+   * @returns {string|null} ข้อความ error (ผู้เรียกตอบ 400) · null = รูปแบบถูกต้อง
+   */
   // ===== Validate ISSN =====
   static _validateIssn(issn) {
     if (!issn) return 'ISSN is required';
@@ -19,6 +30,11 @@ class JournalController {
     return null;
   }
 
+  /**
+   * เรียกจาก: ทุก endpoint ในไฟล์นี้ ก่อนตอบ client — ผลจาก ScopusService / TCIService / ScopusScraper / TCIScraper มี field ไม่เท่ากัน จึงจัดให้เป็นชุดเดียวกัน
+   * @param {object|null} data ผลจาก Service/Scraper
+   * @returns {object|null}
+   */
   // ===== Normalize Response =====
   /**
    * Normalize ข้อมูลจากทุก Service/Scraper ให้ออกมา schema เดียวกัน
@@ -80,6 +96,8 @@ class JournalController {
   /**
    * GET /api/journal/scopus?issn=xxxx-xxxx
    * ดึงข้อมูล Scopus ผ่าน API
+   *
+   * เรียกจาก: routes/journalRoutes.js — GET /scopus (ผ่าน Scopus API) · ส่งต่อ ScopusService.getJournalByIssn(issn) · ไม่พบ 404
    */
   static async searchScopus(req, res, next) {
     try {
@@ -107,6 +125,8 @@ class JournalController {
   /**
    * GET /api/journal/tci?issn=xxxx-xxxx
    * ดึงข้อมูล TCI ผ่าน API
+   *
+   * เรียกจาก: routes/journalRoutes.js — GET /tci (ผ่าน TCI API) · ส่งต่อ TCIService.getJournalByIssn(issn) · ไม่พบ 404
    */
   static async searchTci(req, res, next) {
     try {
@@ -138,6 +158,9 @@ class JournalController {
   /**
    * GET /api/journal/scopus/scrape?issn=xxxx-xxxx
    * ดึงข้อมูล Scopus ผ่าน Web Scraping
+   *
+   * เรียกจาก: routes/journalRoutes.js — GET /scopus/scrape (หลัง scrapeLimiter)
+   * claimUserScrape(req.user.sub) กันผู้ใช้คนเดียวสแครปซ้อนกัน แล้วเรียก ScopusScraper.getJournalByIssn(issn) และคืนสิทธิ์ใน finally
    */
   static async scrapeScopus(req, res, next) {
     try {
@@ -167,6 +190,9 @@ class JournalController {
   /**
    * GET /api/journal/tci/scrape?issn=xxxx-xxxx
    * ดึงข้อมูล TCI ผ่าน Web Scraping
+   *
+   * เรียกจาก: routes/journalRoutes.js — GET /tci/scrape (หลัง scrapeLimiter)
+   * claimUserScrape(req.user.sub) แล้วเรียก TCIScraper.getJournalByIssn(issn) และคืนสิทธิ์ใน finally
    */
   static async scrapeTci(req, res, next) {
     try {

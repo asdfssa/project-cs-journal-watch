@@ -6,6 +6,15 @@ const { AuthError } = require('../services/AuthService');
 const { parseError } = require('../utils/errorResponse');
 const logger = require('../utils/logger');
 
+/**
+ * Error middleware ตัวสุดท้ายของ app (app.use(errorHandler) ใน app.js)
+ * ถูกเรียกเมื่อ: middleware/controller เรียก next(err) หรือ throw ในฟังก์ชัน sync · (controller ส่วนใหญ่ catch เองแล้วเรียก utils/errorResponse.serverError จึงไม่ถึงที่นี่)
+ * AuthError (services/AuthService) → ตอบตาม statusCode/code/message ของมันเอง (+ retryAfter ถ้ามี)
+ * error อื่น → utils/errorResponse.parseError แปลงเป็น code/message ภาษาไทย + log · นอก production แนบ `debug` ใน body
+ * @param {Error} err
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ */
 function errorHandler(err, req, res, next) {
   // AuthError ที่เรา throw เอง — มี statusCode และ message ที่กำหนดไว้แล้ว
   if (err instanceof AuthError) {
@@ -43,6 +52,10 @@ function errorHandler(err, req, res, next) {
   return res.status(parsed.status || 500).json(body);
 }
 
+/**
+ * ตอบ 404 ROUTE_NOT_FOUND สำหรับ /api/v3/* ที่ไม่มี route ตรง (app.use('/api/v3', notFoundHandler) ใน app.js)
+ * ไม่รับ error — ถูกเรียกเมื่อไม่มี router ตัวไหนตอบ request ไปก่อน
+ */
 function notFoundHandler(req, res) {
   res.status(404).json({
     success: false,

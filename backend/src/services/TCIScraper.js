@@ -8,10 +8,18 @@ const { withScrapeSlot } = require('./scrapeQueue');
 
 const TCI_BASE = 'https://tci-thailand.org';
 
+/**
+ * เส้นสำรองของ TCIService: เปิด Chromium เข้า tci-thailand.org/journal_list แล้วดักผลจาก API ที่หน้าเว็บเรียกเอง
+ * เรียกจาก: JournalController.scrapeTci เท่านั้น (ผ่านคิว withScrapeSlot) · ผลมีรูปแบบเดียวกับ TCIService แต่ fetch_method = 'Scraping'
+ */
 class TCIScraper {
 
   // ===== Public =====
 
+  /**
+   * @param {string} issn
+   * @returns {Promise<object|null>} null = ไม่พบ · รอคิวเต็ม → throw 'SCRAPER_BUSY'
+   */
   static async getJournalByIssn(issn) {
     const cleanIssn = issn.trim();
     return withScrapeSlot(() => TCIScraper._scrape(cleanIssn));
@@ -19,6 +27,9 @@ class TCIScraper {
 
   // ===== Scraping =====
 
+  /**
+   * เรียกจาก: getJournalByIssn (ภายใน withScrapeSlot) · เปิด browser → เปิดหน้า journal_list → _searchAndFindJournal → _parseJournal · ปิด browser ใน finally เสมอ
+   */
   static async _scrape(issn) {
     const browser = await chromium.launch({
       headless: config.scraper.headless,
@@ -50,6 +61,10 @@ class TCIScraper {
     }
   }
 
+  /**
+   * เรียกจาก: _scrape · เลือกโหมดค้นด้วย ISSN, กรอก, กด Search แล้วรอ response ของ list_all_journal ที่ดักไว้
+   * @returns {Promise<object|null>} รายการที่ ISSN (issn/eissn) ตรงเป๊ะ · null = ไม่พบ
+   */
   static async _searchAndFindJournal(page, issn) {
     // intercept API response จาก /backend/journal/list_all_journal
     let apiResult = null;
@@ -95,6 +110,9 @@ class TCIScraper {
     return exact || null;
   }
 
+  /**
+   * แปลงรายการดิบเป็น object วารสารที่ระบบใช้ (โครงสร้างเหมือน TCIService._parseApiResponse) · เรียกจาก: _scrape
+   */
   static _parseJournal(journal, issn) {
     const tier = journal['tci_tier'] ? parseInt(journal['tci_tier']) : null;
     const status = journal['status'] || null;

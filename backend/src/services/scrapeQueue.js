@@ -9,6 +9,10 @@ const waiting = [];
 
 /**
  * รัน fn เมื่อได้ช่อง — เต็มก็รอคิว, คิวยาวเกิน maxQueue → throw SCRAPER_BUSY (429)
+ *
+ * เรียกจาก: ScopusScraper.getJournalByIssn และ TCIScraper.getJournalByIssn (ครอบการเปิด Chromium) — ทั้งสองใช้คิวเดียวกัน
+ * @param {() => Promise<*>} fn งานที่จะรันเมื่อได้ช่อง
+ * @returns {Promise<*>} ค่าที่ fn คืน · throw code 'SCRAPER_BUSY' (utils/errorResponse แปลงเป็น 429)
  */
 async function withScrapeSlot(fn) {
   const { maxConcurrent, maxQueue, queueTimeoutMs } = config.scraper;
@@ -43,6 +47,11 @@ async function withScrapeSlot(fn) {
 // ผู้ใช้หนึ่งคนค้นแบบ scraping ได้ทีละ 1 คำขอ (รวมที่รอคิวอยู่) — ไม่งั้นคนเดียวจองคิวทั้ง 10 ช่องได้
 // คืนฟังก์ชันปล่อยสิทธิ์ ต้องเรียกใน finally
 const busyUsers = new Set();
+/**
+ * เรียกจาก: JournalController.scrapeScopus / scrapeTci ก่อนเรียก scraper
+ * @param {number} userId req.user.sub
+ * @returns {() => void} ฟังก์ชันคืนสิทธิ์ ต้องเรียกใน finally · throw code 'SCRAPER_USER_BUSY' ถ้าผู้ใช้คนนี้มีงานค้างอยู่
+ */
 function claimUserScrape(userId) {
   if (busyUsers.has(userId)) {
     throw Object.assign(new Error('user already has a scrape in progress'), { code: 'SCRAPER_USER_BUSY' });

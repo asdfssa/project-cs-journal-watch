@@ -16,6 +16,12 @@ if (isDev && process.env.NODE_ENV && process.env.NODE_ENV !== 'development') {
   );
 }
 
+/**
+ * เช็คว่า IP เป็น loopback หรือ private (RFC1918) จริงไหม
+ * เรียกจาก: skipLocalhost (ข้าม limiter ตอน dev) และ clientIp (ตัดสินว่าเชื่อ header CF-Connecting-IP ได้ไหม)
+ * @param {string} ip รูปแบบ IPv4, IPv6 loopback หรือ ::ffff:a.b.c.d
+ * @returns {boolean}
+ */
 // เช็คว่าเป็น loopback หรือ RFC1918 private range จริงๆ (10.0.0.0/8, 172.16.0.0/12,
 // 192.168.0.0/16) — ของเดิมเช็คแค่ ip.startsWith('172.') ซึ่งครอบคลุมทั้ง 172.0.0.0/8
 // (รวม public IP จริงของหลายเจ้า เช่น Cloudflare/Google ที่ขึ้นต้นด้วย 172 เหมือนกัน)
@@ -29,6 +35,10 @@ function isPrivateOrLoopback(ip) {
   return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
 }
 
+/**
+ * ฟังก์ชัน `skip` ที่ทุก limiter ในไฟล์นี้ส่งให้ express-rate-limit — คืน true = ไม่นับ/ไม่จำกัด request นี้
+ * ทำงานเฉพาะ non-production และเมื่อ TCP peer เป็น private/loopback (ดูเหตุผลจริงในคอมเมนต์ด้านล่าง)
+ */
 // Skip localhost + Docker internal network ตอน dev
 // ใช้ req.socket.remoteAddress (peer address จริงของ TCP connection) แทน req.ip
 // เพราะ req.ip อ่านจาก header X-Forwarded-For ที่ client ปลอมได้เอง (ตั้ง trust proxy
@@ -40,6 +50,12 @@ const skipLocalhost = (req) => {
   return isPrivateOrLoopback(ip);
 };
 
+/**
+ * หา IP จริงของ client ใช้เป็น key ของ limiter (keyGenerator) และส่งให้ Turnstile เป็น remoteip
+ * เรียกจาก: limiter ที่ key ด้วย IP ทุกตัวในไฟล์นี้ · middlewares/captcha.js (import ไปใช้)
+ * @param {import('express').Request} req
+ * @returns {string} CF-Connecting-IP (เมื่อ peer เชื่อถือได้) มิฉะนั้น req.ip
+ */
 // key ของ rate limit = IP จริงของ client: CF-Connecting-IP ที่ Cloudflare ใส่เอง (เขียนทับค่าที่ client ส่งมา
 // ปลอมผ่าน tunnel ไม่ได้) — ไม่มี header นี้ = เรียกจากเครื่องตัวเอง (port bind แค่ 127.0.0.1) ใช้ req.ip
 // เชื่อ header นี้เฉพาะเมื่อ TCP peer เป็น loopback/private (cloudflared ในเครื่อง/Docker network) —
@@ -50,6 +66,9 @@ const clientIp = (req) => {
   return req.ip;
 };
 
+/**
+ * ใช้ที่: POST /auth/login (routes/authRoutes.js) · key = IP
+ */
 // 5 login attempts per 15 min per IP (username/password)
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -65,6 +84,9 @@ const loginLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+/**
+ * ใช้ที่: POST /auth/google (routes/authRoutes.js) · key = IP
+ */
 // 100 attempts per 15 min per IP (Google OAuth — ไม่มี brute force risk; นิสิตทั้งตึกอยู่หลัง NAT เดียวกันจึงต้องเผื่อโควตาร่วม)
 const googleLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -80,6 +102,9 @@ const googleLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+/**
+ * ใช้ที่: POST /auth/verify-otp, /auth/resend-otp, /auth/reset-password (routes/authRoutes.js) · key = IP
+ */
 // 10 OTP attempts per 10 min per IP
 const otpLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
@@ -95,6 +120,9 @@ const otpLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+/**
+ * ใช้ที่: POST /auth/register-staff (routes/authRoutes.js) · key = IP
+ */
 // 20 register attempts per 15 min per IP
 const registerLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -110,6 +138,9 @@ const registerLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+/**
+ * ใช้ที่: POST /auth/refresh (routes/authRoutes.js) · key = IP
+ */
 // 30 refresh attempts per 15 min per IP — เหมือน endpoint auth อื่นๆ ที่มี rate
 // limiter ครบทุกตัว จุดนี้เดิมไม่มีเลย ทั้งที่เป็น endpoint ที่ query DB ทุกครั้ง
 const refreshLimiter = rateLimit({
@@ -126,6 +157,9 @@ const refreshLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+/**
+ * ใช้ที่: POST /auth/forgot-password (routes/authRoutes.js) · key = IP
+ */
 // 5 forgot-password requests per 15 min per IP
 const forgotPasswordLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -141,6 +175,9 @@ const forgotPasswordLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+/**
+ * ใช้ที่: GET /journal/scopus/scrape, /journal/tci/scrape (routes/journalRoutes.js) · key = IP
+ */
 // 10 scrape requests per 5 min per IP — endpoint เปิด headless browser จริงทุกครั้ง แพงมาก
 const scrapeLimiter = rateLimit({
   windowMs: 5 * 60 * 1000,
@@ -156,6 +193,9 @@ const scrapeLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+/**
+ * ใช้ที่: POST /pre-t3 (preT3Routes), POST /t3/with-files (t3Routes) · ต้องวางหลัง requireAuth เพราะ key อ่าน req.user.sub
+ */
 // 10 submits per 15 min per user — key ด้วย user id (ใช้หลัง requireAuth) ไม่ใช่ IP เพราะนิสิตหลัง NAT เดียวกันต้องไม่แย่งโควตากัน
 const submitLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -171,6 +211,9 @@ const submitLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+/**
+ * ใช้ที่: PATCH /admin/admins/:id (routes/adminRoutes.js) · ต้องวางหลัง requireAuth เพราะ key อ่าน req.user.sub
+ */
 // 5 ครั้งที่ล้มเหลวต่อ 15 นาทีต่อผู้ใช้ สำหรับ action ที่ต้องยืนยันรหัสผ่านปัจจุบัน (กัน token หลุดแล้วไล่เดารหัสผ่านผ่าน endpoint นี้)
 // skipSuccessfulRequests: นับเฉพาะ response 4xx/5xx — แก้โปรไฟล์ปกติไม่โดนโควตา
 const passwordConfirmLimiter = rateLimit({

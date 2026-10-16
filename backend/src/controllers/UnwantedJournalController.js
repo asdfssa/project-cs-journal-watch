@@ -16,6 +16,11 @@ const { toMysqlDate } = require('../utils/date');
 const MAX_IMPORT_ROWS = 2000;
 const { verifyFileType, MIME_TO_EXT } = require('../middlewares/upload');
 
+/**
+ * ลบไฟล์โดยไม่ throw (ไฟล์หาย/ลบไม่ได้ไม่ทำให้ request พัง)
+ * เรียกจาก: createOne, updateOne (ล้างไฟล์ที่เพิ่งอัปโหลดเมื่อ validate ไม่ผ่าน และลบไฟล์เก่าหลัง UPDATE สำเร็จ)
+ * @param {string} p path เต็มของไฟล์
+ */
 // ลบไฟล์แบบไม่ throw — ใช้ใน multer callback (Express 4 จับ error ใน callback ไม่ได้ → unhandled rejection)
 // ไฟล์หาย/ลบไม่ได้ไม่ควรทำให้ request พังหรือไปลบไฟล์อื่นใน catch
 const removeFile = (p) => fs.promises.unlink(p).catch(() => {});
@@ -28,6 +33,10 @@ const removeFile = (p) => fs.promises.unlink(p).catch(() => {});
 // -------------------------------------------------------
 const EVIDENCE_ALLOWED_MIME = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
 
+/**
+ * ที่เก็บไฟล์หลักฐานบนดิสก์: uploads/unwanted/evidence/{timestamp}-{uuid}.{ext} (นามสกุลมาจาก MIME ที่ผ่าน fileFilter)
+ * ใช้โดย: uploadEvidence ในไฟล์นี้
+ */
 const evidenceStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     const dir = path.join(process.cwd(), 'uploads', 'unwanted', 'evidence');
@@ -41,6 +50,10 @@ const evidenceStorage = multer.diskStorage({
   },
 });
 
+/**
+ * multer middleware (เรียกแบบ callback ภายใน handler) รับ multipart ที่มีไฟล์ field ชื่อ 'evidence_file' ได้ 1 ไฟล์ไม่เกิน 10 MB
+ * เรียกจาก: createOne และ updateOne · ผลคือ req.file (path บนดิสก์) + req.body (ฟิลด์ข้อความ) · ต้องตรวจ magic bytes ต่อด้วย middlewares/upload.verifyFileType
+ */
 const uploadEvidence = multer({
   storage: evidenceStorage,
   fileFilter: (req, file, cb) => {
@@ -57,6 +70,11 @@ const uploadEvidence = multer({
 // เขียนตาราง msu_unwanted_journals ทีละคน (ล็อกระดับ MySQL ข้าม connection/instance) — คอลัมน์ issn เป็นแค่ INDEX
 // ไม่ใช่ UNIQUE การ "เช็คซ้ำแล้วค่อย insert" จึงชนกันได้ถ้าสองคำขอมาพร้อมกัน (B52)
 const WRITE_LOCK = 'msu_unwanted_journals_write';
+/**
+ * ขอ lock ระดับ MySQL (GET_LOCK) ก่อนเขียนตาราง msu_unwanted_journals เพื่อกันสองคำขอเช็คซ้ำแล้ว insert ชนกัน
+ * เรียกจาก: createOne, importCsv, updateOne (เมื่อ ISSN เปลี่ยน)
+ * @returns {Promise<() => Promise<void>>} ฟังก์ชันปล่อย lock ต้องเรียกใน finally · throw code 'LOCK_TIMEOUT' ถ้ารอเกิน 10 วินาที (ผู้เรียกตอบ 503 BUSY)
+ */
 async function acquireWriteLock() {
   const conn = await db.getConnection();
   try {
@@ -68,6 +86,12 @@ async function acquireWriteLock() {
   };
 }
 
+/**
+ * เช็คว่า ISSN (รูปแบบ XXXX-XXXX) ซ้ำกับแถวอื่นไหม
+ * เรียกจาก: createOne, updateOne
+ * @param {string} issn
+ * @param {number} [exceptId] unwanted_id ที่ไม่นับ (ใช้ตอนแก้ไขแถวตัวเอง)
+ */
 // ISSN (normalize แล้ว) ซ้ำกับแถวอื่นไหม — เทียบทั้งแบบมี/ไม่มีขีด เผื่อแถวเก่าเก็บไม่มีขีด
 async function issnExists(issn, exceptId = 0) {
   const [rows] = await db.query(
@@ -77,8 +101,18 @@ async function issnExists(issn, exceptId = 0) {
   return rows.length > 0;
 }
 
+/**
+ * Controller รายการวารสารที่ไม่พึงประสงค์ของ มมส. (ตาราง msu_unwanted_journals) — ผูกใน routes/unwantedJournalRoutes.js (base path /api/v3/unwanted-journals)
+ * ทุก route ผ่าน requireAuth · เส้นเขียน (single, import, PATCH, DELETE) จำกัด Admin/SuperAdmin/Staff ที่ route
+ * ผู้อ่านข้อมูลนี้นอก controller นี้: PreT3Controller.isUnwantedIssn (query ตารางเดียวกันตรงๆ ตอนนิสิตยื่น Pre-T3) และ frontend ผ่าน checkByIssn
+ */
 class UnwantedJournalController {
 
+  /**
+   * เรียกจาก: routes/unwantedJournalRoutes.js — GET /check/:issn (ทุก role ที่ login; frontend เรียกก่อนกดตรวจสอบ/ยื่น)
+   * รับ req.params.issn → normalizeIssn → ค้นทั้งแบบมี/ไม่มีขีด
+   * ตอบ { data: { isUnwanted:boolean, journal: แถวที่พบ | null } }
+   */
   // ============================================================
   // GET /api/unwanted-journals/check/:issn
   // ตรวจสอบว่า ISSN อยู่ในรายการวารสารที่ไม่พึงประสงค์ของระบบหรือไม่
@@ -116,6 +150,11 @@ class UnwantedJournalController {
     } catch (err) { next(err); }
   }
 
+  /**
+   * เรียกจาก: routes/unwantedJournalRoutes.js — GET / (ทุก role ที่ login)
+   * รับ query: search? (ชื่อวารสาร/ผู้จัดพิมพ์/ISSN — ตัดขีดเทียบด้วย ผ่าน likeContains), page, limit (parsePagination)
+   * ตอบ { data: { journals, pagination: { total, page, limit, totalPages } } } · Admin/SuperAdmin/Staff เห็นชื่อผู้สร้างรายการ ส่วน role อื่นถูกปิดชื่อและได้ evidence_file_path เป็นเส้นทางดาวน์โหลด (ไม่ใช่ path จริง)
+   */
   // ============================================================
   // GET /api/admin/unwanted-journals
   // Query: search, page, limit
@@ -191,6 +230,12 @@ class UnwantedJournalController {
     } catch (err) { next(err); }
   }
 
+  /**
+   * เรียกจาก: routes/unwantedJournalRoutes.js — POST /single (Admin/SuperAdmin/Staff)
+   * รับ multipart: issn?, journal_name (บังคับ), publisher?, note?, recorded_date (บังคับ) + ไฟล์ evidence_file? (uploadEvidence → req.file)
+   * ลำดับ: ตรวจ magic bytes (verifyFileType) → nonStringField → normalizeIssn → acquireWriteLock + issnExists → INSERT (created_by = req.user.sub)
+   * ถ้าไม่ผ่านขั้นไหนจะลบไฟล์ที่เพิ่งอัปโหลดทิ้ง · ตอบ 201
+   */
   // ============================================================
   // POST /api/admin/unwanted-journals/single
   // Content-Type: multipart/form-data
@@ -276,6 +321,13 @@ class UnwantedJournalController {
     });
   }
 
+  /**
+   * เรียกจาก: routes/unwantedJournalRoutes.js — POST /import (Admin/SuperAdmin/Staff)
+   * รับ multipart: ไฟล์ CSV field 'file' (≤ 2 MB, ≤ MAX_IMPORT_ROWS แถว) คอลัมน์ journal_name, issn, publisher, note, recorded_date
+   * ลำดับ: parse (csv-parse) → acquireWriteLock → ตรวจทุกแถว (ชื่อ, วันที่ผ่าน toMysqlDate, ISSN ผ่าน normalizeIssn, ซ้ำใน DB/ซ้ำในไฟล์)
+   *   → มี error แม้แถวเดียว = ไม่ import เลย (ตอบ errors[]) · ผ่านหมดค่อย INSERT ทุกแถวใน transaction เดียว
+   * ตอบ { data: { imported } }
+   */
   // ============================================================
   // POST /api/admin/unwanted-journals/import
   // multipart/form-data: file = CSV
@@ -400,6 +452,11 @@ class UnwantedJournalController {
     });
   }
 
+  /**
+   * เรียกจาก: routes/unwantedJournalRoutes.js — PATCH /:id (Admin/SuperAdmin/Staff)
+   * รับ multipart: ฟิลด์ที่ต้องการแก้ (ไม่ส่ง = ใช้ค่าเดิม), clear_evidence='true' เพื่อลบไฟล์หลักฐาน, ไฟล์ evidence_file? เพื่อแทนที่
+   * ลำดับ: ตรวจ magic bytes → อ่านแถวเดิม → merge ค่า → เช็ค ISSN ซ้ำ (เฉพาะเมื่อ ISSN เปลี่ยน) → UPDATE → ค่อยลบไฟล์เก่า (ลบหลัง UPDATE สำเร็จเท่านั้น)
+   */
   // ============================================================
   // PATCH /api/admin/unwanted-journals/:id
   // Content-Type: multipart/form-data
@@ -513,6 +570,10 @@ class UnwantedJournalController {
     });
   }
 
+  /**
+   * เรียกจาก: routes/unwantedJournalRoutes.js — GET /:id/evidence (ทุก role ที่ login)
+   * อ่าน evidence_file_path ของแถว → ตรวจว่าไฟล์อยู่บนดิสก์ → res.download (บังคับ attachment ไม่ให้ browser render ไฟล์เอง)
+   */
   // ============================================================
   // GET /api/unwanted-journals/:id/evidence
   // ดาวน์โหลด/ดูไฟล์หลักฐาน
@@ -543,6 +604,9 @@ class UnwantedJournalController {
     } catch (err) { next(err); }
   }
 
+  /**
+   * เรียกจาก: routes/unwantedJournalRoutes.js — DELETE /:id (Admin/SuperAdmin/Staff) · ลบแถวถาวร แล้วลบไฟล์หลักฐาน (ถ้ามี) หลัง DELETE สำเร็จ
+   */
   // ============================================================
   // DELETE /api/admin/unwanted-journals/:id  (hard delete)
   // ============================================================

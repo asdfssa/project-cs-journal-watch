@@ -10,6 +10,10 @@ class RefreshTokenModel {
 
   /**
    * บันทึก refresh token ใหม่ลง DB
+   *
+   * เรียกจาก: AuthService.verifyOtp, googleLogin, refreshToken (ทุกครั้งที่ออก refresh token ใหม่)
+   * @param {{userId:number, tokenHash:string, expiresAt:Date}} p hash มาจาก jwtUtil.issueRefreshToken
+   * @returns {Promise<number>} token_id
    */
   static async create({ userId, tokenHash, expiresAt }) {
     const [result] = await db.query(
@@ -23,6 +27,10 @@ class RefreshTokenModel {
 
   /**
    * หา token จาก hash — ใช้ตอน verify refresh
+   *
+   * เรียกจาก: AuthService.refreshToken — เจอเฉพาะ token ที่ยังไม่ถูก consume และยังไม่หมดอายุ
+   * @param {string} tokenHash
+   * @returns {Promise<{token_id:number, user_id:number}|null>}
    */
   static async findByHash(tokenHash) {
     const [rows] = await db.query(
@@ -41,6 +49,11 @@ class RefreshTokenModel {
   /**
    * หา token ที่เพิ่งถูก rotate ภายใน graceSeconds และยังไม่ถูก logout/revoke
    * (logout/revoke ตั้ง expires_at = NOW() จึงหลุดเงื่อนไขนี้) — ใช้กับ refresh ซ้อนจาก 2 แท็บ
+   *
+   * เรียกจาก: AuthService._refreshWithinGrace
+   * @param {string} tokenHash
+   * @param {number} graceSeconds
+   * @returns {Promise<{token_id:number, user_id:number}|null>}
    */
   static async findRecentlyRotated(tokenHash, graceSeconds) {
     const [rows] = await db.query(
@@ -59,6 +72,10 @@ class RefreshTokenModel {
   /**
    * Rotate token เดียว — คืน true เฉพาะ request แรกที่ revoke สำเร็จ
    * (ไม่แตะ expires_at เพื่อให้ findRecentlyRotated ผ่อนผัน request ที่ยิงซ้อนได้)
+   *
+   * เรียกจาก: AuthService.refreshToken (ขั้น rotate) · false = มี request อื่นใช้ token นี้ไปแล้ว
+   * @param {string} tokenHash
+   * @returns {Promise<boolean>}
    */
   static async revokeByHash(tokenHash) {
     const [result] = await db.query(
@@ -72,6 +89,9 @@ class RefreshTokenModel {
 
   /**
    * Revoke ถาวร (logout / บัญชีถูกระงับ) — ตั้ง expires_at = NOW() ด้วย เพื่อปิดช่วงผ่อนผันของ rotate
+   *
+   * เรียกจาก: AuthService.logout, AuthService.refreshToken (เมื่อบัญชีถูกระงับ)
+   * @param {string} tokenHash
    */
   static async revokeForLogout(tokenHash) {
     await db.query(
@@ -84,6 +104,9 @@ class RefreshTokenModel {
 
   /**
    * Revoke ทุก token ของ user (logout all devices) — รวม token ที่เพิ่ง rotate (ปิดช่วงผ่อนผัน)
+   *
+   * เรียกจาก: AuthService.resetPassword (หลังเปลี่ยนรหัสผ่าน) และ AdminController.updateAdmin (เมื่อเปลี่ยนอีเมลของแอดมิน ตัดทุก session ของเจ้าของ)
+   * @param {number} userId
    */
   static async revokeAllByUserId(userId) {
     await db.query(
@@ -96,6 +119,9 @@ class RefreshTokenModel {
 
   /**
    * ลบ token ที่หมดอายุแล้วออก (cleanup)
+   *
+   * เรียกจาก: server.js runCleanup (ทุก 1 ชั่วโมง)
+   * @returns {Promise<number>} จำนวนแถวที่ลบ
    */
   static async deleteExpired() {
     const [result] = await db.query(

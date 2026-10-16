@@ -22,7 +22,7 @@
  * step นี้ออกจาก enum ของ request_approvals ไปเลย เพราะไม่มีโค้ดจุดไหน insert แถวนี้
  */
 const db = require('../config/database');
-const { slotFromApproval, fetchApprovalsMap, reviewAdvisorSlot, withTransaction } = require('./_approvalHelpers');
+const { slotFromApproval, fetchApprovalsMap, reviewAdvisorSlot, withTransaction, advisorNotAllApprovedSql } = require('./_approvalHelpers');
 
 const CHECKLIST_COLUMNS = [
   'chk_scope_match',
@@ -36,6 +36,14 @@ const CHECKLIST_COLUMNS = [
   'chk_still_indexed',
 ];
 
+/**
+ * เช็คว่านิสิตมี Pre-T3 ที่ Pending/Approved ของ ISSN เดียวกันอยู่แล้วหรือไม่
+ * เรียกจาก: PreT3Model.create และ PreT3Model.resubmit (ภายใน transaction หลังล็อกแถว users กัน race)
+ * @param {import('mysql2/promise').PoolConnection} conn
+ * @param {number} studentId
+ * @param {string} issn รูปแบบ XXXX-XXXX (normalizeIssn มาแล้ว)
+ * @param {number} [excludeId] pre_t3_id ที่ไม่นับ (ใช้ตอน resubmit ของใบเดิม)
+ */
 // ISSN เดียวกันที่ Pending/Approved อยู่แล้วของนิสิตคนนี้ (ไม่นับ excludeId) — เทียบทั้งแบบมี/ไม่มีขีด
 // เพราะแถวเก่าอาจเก็บไว้ก่อนมี normalize
 async function hasActiveSameIssn(conn, studentId, issn, excludeId = 0) {
@@ -61,6 +69,10 @@ class PreT3Model {
    * @param {object} advisorIds       - majorAdvisorId, coAdvisor1Id (null), coAdvisor2Id (null)
    * @param {object} articleInfo      - title_en, title_th, authors, doi
    * @returns {number} pre_t3_id ที่สร้างใหม่
+   *
+   * เรียกจาก: PreT3Controller.submit (หลัง validate body, ตรวจรายการไม่พึงประสงค์/เกณฑ์ปริญญาเอก และหาอาจารย์ที่ปรึกษาจาก advisor_assignments แล้ว)
+   * ใน transaction เดียว: INSERT pre_t3_requests + INSERT request_approvals 1 แถวต่อ step (Advisor, Co_Advisor_1/2 ถ้ามี, Faculty_Committee) สถานะ Pending
+   * throw Error code 'PRE_T3_DUPLICATE' เมื่อ ISSN ซ้ำ — controller แปลงเป็น 409
    */
   static async create(studentId, journalSnapshot, checklistData, advisorIds, articleInfo) {
     const { majorAdvisorId, coAdvisor1Id = null, coAdvisor2Id = null } = advisorIds;
@@ -173,6 +185,11 @@ class PreT3Model {
    * แนบ journal_snapshot / student_snapshot / checklist_data / article_info /
    * advisor_approval / co_advisor_1_approval / co_advisor_2_approval /
    * faculty_com_approval / program_chair_approval เข้ากับแต่ละ row
+   *
+   * ทางผ่านเดียวที่ทุก method อ่านของ Model นี้ใช้ก่อนส่งผลออก (findById, findByStudentId, findPendingFor*, findReviewedBy*)
+   * ส่งผลต่อให้ PreT3Controller._formatRow จัดรูป response · query ผู้ใช้ที่เกี่ยวข้องรวดเดียวต่อรายการ (ไม่ query ต่อแถว)
+   * @param {object[]} rows แถวจาก pre_t3_requests (join users แล้ว)
+   * @returns {Promise<object[]>} แถวเดิม + journal_snapshot, student_snapshot, checklist_data, article_info, *_approval, student_info, advisor_info
    */
   static async _attachDerived(rows) {
     if (!rows.length) return rows;
@@ -238,6 +255,9 @@ class PreT3Model {
 
   /**
    * ดึง Pre-T3 ตาม ID (พร้อมชื่อนิสิต)
+   *
+   * เรียกจาก: PreT3Controller (getById, advisorReview, facultyReview, resubmit, cancel) และ T3Controller.submitWithFiles (ตรวจ Pre-T3 ที่ T3 อ้างถึง)
+   * @returns {Promise<object|null>} ผ่าน _attachDerived แล้ว
    */
   static async findById(preT3Id) {
     const [rows] = await db.query(
@@ -257,6 +277,9 @@ class PreT3Model {
 
   /**
    * ดึง Pre-T3 ทั้งหมดของนิสิตคนนึง (เรียงใหม่สุดก่อน)
+   *
+   * เรียกจาก: PreT3Controller.getMyRequests (GET /pre-t3/my) · จำกัด 100 รายการล่าสุด
+   * @param {number} studentId req.user.sub ของนิสิต
    */
   static async findByStudentId(studentId) {
     const [rows] = await db.query(
@@ -272,7 +295,12 @@ class PreT3Model {
   }
 
   /**
-   * ดึงรายการที่รอ Advisor คนนี้อนุมัติ — เฉพาะอาจารย์หลัก (อาจารย์ร่วมไม่มีสิทธิ์ตัดสิน จึงไม่เห็นในคิวนี้)
+   * ดึงรายการที่อยู่ในคิวของอาจารย์คนนี้ — อาจารย์หลัก (กดตัดสินได้) และอาจารย์ร่วม (ดูอย่างเดียว)
+   * แยกสิทธิ์ด้วย my_role / can_review ที่ controller แนบให้ (advisorViewFields) ไม่ใช่ด้วยการซ่อนรายการ
+   * ช่องอาจารย์ร่วมถูก auto-approve ตอนอาจารย์หลักอนุมัติ → คำร้องหลุดจากคิวของอาจารย์ร่วมพร้อมกัน
+   *
+   * เรียกจาก: PreT3Controller.getPending เมื่อ role = Supervisor (GET /pre-t3/pending)
+   * @param {number} advisorId req.user.sub ของอาจารย์
    */
   static async findPendingForAdvisor(advisorId) {
     const [rows] = await db.query(
@@ -283,7 +311,7 @@ class PreT3Model {
           AND EXISTS (
             SELECT 1 FROM request_approvals ra
              WHERE ra.request_type = 'Pre_T3' AND ra.request_id = p.pre_t3_id
-               AND ra.step = 'Advisor'
+               AND ra.step IN ('Advisor','Co_Advisor_1','Co_Advisor_2')
                AND ra.approver_id = ? AND ra.status = 'Pending'
           )
         ORDER BY p.created_at ASC`,
@@ -298,6 +326,9 @@ class PreT3Model {
    * ใช้ EXISTS → ไม่ซ้ำแถว แม้อาจารย์คนเดียวถือหลายช่อง (เช่น เป็นทั้ง Co_1 และ Co_2)
    * @param {number} advisorId
    * @param {object} opts - { status: 'Approved'|'Rejected'|null, page, limit } — status = ผลของอาจารย์หลัก
+   *
+   * เรียกจาก: PreT3Controller.getHistory เมื่อ role = Supervisor (GET /pre-t3/history)
+   * @returns {Promise<{rows:object[], total:number}>} controller ใส่ items/total/page/limit/totalPages ตอบกลับ
    */
   static async findReviewedByAdvisor(advisorId, { status = null, page = 1, limit = 20 } = {}) {
     const offset = (page - 1) * limit;
@@ -339,6 +370,9 @@ class PreT3Model {
   /**
    * ดึงประวัติที่ Staff (Faculty Com) เคยอนุมัติ/ปฏิเสธแล้ว
    * @param {object} opts - { status: 'Approved'|'Rejected'|null, page, limit }
+   *
+   * เรียกจาก: PreT3Controller.getHistory เมื่อ role = Staff (GET /pre-t3/history)
+   * @returns {Promise<{rows:object[], total:number}>}
    */
   static async findReviewedByFaculty({ status = null, page = 1, limit = 20 } = {}) {
     const offset = (page - 1) * limit;
@@ -377,6 +411,8 @@ class PreT3Model {
   /**
    * ดึงรายการที่รอ Faculty Com อนุมัติ
    * (advisor step ทุกตัว Approved หมดแล้ว และ faculty_committee ยัง Pending)
+   *
+   * เรียกจาก: PreT3Controller.getPending เมื่อ role = Staff (GET /pre-t3/pending) · ไม่รับ parameter เพราะ Staff เห็นทุกคำร้องที่อาจารย์อนุมัติครบ
    */
   static async findPendingForFaculty() {
     const [rows] = await db.query(
@@ -407,6 +443,14 @@ class PreT3Model {
    * Advisor (major/co) อนุมัติหรือปฏิเสธ
    * ถ้า reject → overall_status = 'Rejected' ทันที
    * ถ้า approve ทุกคน → ส่งต่อ faculty_com
+   *
+   * เรียกจาก: PreT3Controller.advisorReview (หลังตรวจแล้วว่าผู้กดเป็นอาจารย์หลักและยังไม่เคยตัดสิน)
+   * ใน transaction: ล็อกแถวคำร้อง → reviewAdvisorSlot (อัปเดตช่องอาจารย์ใน request_approvals) → ถ้ามีคน reject ตั้ง overall_status = 'Rejected'
+   * @param {number} preT3Id
+   * @param {number} advisorId req.user.sub
+   * @param {'approve'|'reject'} action
+   * @param {string|null} remark
+   * @returns {Promise<{anyRejected:boolean, allApproved:boolean, newOverallStatus:string}|null>} null = สถานะเปลี่ยนไปแล้ว (controller ตอบ 409)
    */
   static async advisorReview(preT3Id, advisorId, action, remark) {
     return withTransaction(async (conn) => {
@@ -447,6 +491,11 @@ class PreT3Model {
    * @param {string|null} meetingNo   - เฉพาะตอน approve
    * @param {string|null} meetingDate - เฉพาะตอน approve (YYYY-MM-DD)
    * @param {string|null} remark
+   *
+   * เรียกจาก: PreT3Controller.facultyReview (หลังตรวจว่าอาจารย์อนุมัติแล้วและ meeting_no/meeting_date ครบเมื่อ approve)
+   * ใน transaction: ล็อกแถว → อัปเดตช่อง Faculty_Committee (มติ + เลขที่/วันที่ประชุม) → ตั้ง overall_status เป็น Approved/Rejected
+   * @param {string|null} meetingDate 'YYYY-MM-DD' ที่ผ่าน utils/date.toMysqlDate แล้ว
+   * @returns {Promise<{newOverallStatus:string}|null>} null = สถานะเปลี่ยนไปแล้ว (controller ตอบ 409)
    */
   static async facultyReview(preT3Id, action, meetingNo, meetingDate, remark) {
     if (!['approve', 'reject'].includes(action)) {
@@ -488,6 +537,10 @@ class PreT3Model {
   /**
    * Reset request ให้กลับมา Pending อีกครั้ง (resubmit)
    * นิสิตแก้ไข checklist + journal แล้วยื่นใหม่
+   *
+   * เรียกจาก: PreT3Controller.resubmit (PATCH /pre-t3/:id/resubmit)
+   * ใน transaction: เช็ค ISSN ซ้ำ → UPDATE ข้อมูลวารสาร/checklist/บทความ + overall_status = 'Pending' (เฉพาะแถวที่ Rejected อยู่) + resubmit_count + 1 → รีเซ็ตทุก step ใน request_approvals กลับเป็น Pending
+   * @returns {Promise<boolean>} false = ไม่พบหรือไม่ได้อยู่ในสถานะ Rejected · throw code 'PRE_T3_DUPLICATE' เมื่อ ISSN ชนกับใบอื่น
    */
   static async resubmit(preT3Id, journalSnapshot, checklistData, articleInfo) {
     return withTransaction(async (conn) => {
@@ -556,9 +609,13 @@ class PreT3Model {
 
   /**
    * เปลี่ยน overall_status เป็น 'Cancelled'
-   * ทำได้ตอน Pending/Rejected เสมอ หรือ Approved ก็ได้ถ้ายังไม่มี T3 ที่ Approved
+   * ทำได้ตอน Pending (ที่ advisor ยังอนุมัติไม่ครบ)/Rejected หรือ Approved ก็ได้ถ้ายังไม่มี T3 ที่ Approved
    * ผูกอยู่ (กัน record ที่สำเร็จสมบูรณ์แล้วถูกลบทิ้งโดยไม่ตั้งใจ — race-safe เพราะ
    * เช็คในเงื่อนไข UPDATE เดียวกันแบบ atomic ไม่ใช่เช็คแยกก่อน)
+   *
+   * เรียกจาก: PreT3Controller.cancel (หลัง controller เช็คสิทธิ์/สถานะเบื้องต้นแล้ว — เงื่อนไขจริงอยู่ใน WHERE ของ UPDATE นี้เพื่อกัน race)
+   * @param {number} preT3Id
+   * @returns {Promise<boolean>} false = เงื่อนไขไม่ผ่านในจังหวะที่ update (controller ตอบ CANCEL_FAILED)
    */
   static async cancel(preT3Id) {
     const [result] = await db.query(
@@ -566,7 +623,8 @@ class PreT3Model {
           SET overall_status = 'Cancelled'
         WHERE p.pre_t3_id = ?
           AND (
-            p.overall_status IN ('Pending', 'Rejected')
+            (p.overall_status = 'Pending' AND ${advisorNotAllApprovedSql('Pre_T3', 'p.pre_t3_id')})
+            OR p.overall_status = 'Rejected'
             OR (
               p.overall_status = 'Approved'
               AND NOT EXISTS (
@@ -582,6 +640,10 @@ class PreT3Model {
 
   /**
    * เช็คว่า Pre-T3 นี้มี T3 ที่ยังรอพิจารณาหรืออนุมัติแล้วผูกอยู่ไหม (ใช้ตัดสินใจก่อนยกเลิก)
+   *
+   * เรียกจาก: PreT3Controller.cancel (เฉพาะตอน Pre-T3 เป็น Approved) — ถ้ามี T3 ผูกอยู่ ตอบ T3_ACTIVE
+   * @param {number} preT3Id
+   * @returns {Promise<boolean>}
    */
   static async hasActiveT3(preT3Id) {
     const [rows] = await db.query(

@@ -8,6 +8,12 @@ const journalRoutes = require('./journalRoutes');
 const adminRoutes = require('./adminRoutes');
 const userManageRoutes = require('./userManageRoutes');
 
+/**
+ * ตัวรวม route ทั้งหมด — app.js mount ไว้ที่ /api/v3 · ตารางการ mount ด้านล่าง:
+ *   /health → ตรวจ DB ในไฟล์นี้ · /auth → authRoutes (AuthController) · /journal → journalRoutes (JournalController)
+ *   /admin → adminRoutes และ /manage/users → userManageRoutes (ทั้งคู่ใช้ AdminController) · /unwanted-journals → UnwantedJournalController
+ *   /pre-t3 → PreT3Controller · /t3 → T3Controller · /upload → UploadController · /user → UserController
+ */
 const router = express.Router();
 const unwantedJournalRoutes = require('./unwantedJournalRoutes');
 const preT3Routes = require('./preT3Routes');

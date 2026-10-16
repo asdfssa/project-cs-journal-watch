@@ -25,6 +25,11 @@ const DUMMY_HASH = bcrypt.hashSync('dummy-password-for-timing', 12);
 const REFRESH_GRACE_SECONDS = 10;
 // ขอ OTP ใหม่ได้ทุกๆ กี่วินาทีต่อบัญชี (ตรงกับ cooldown ฝั่ง FE หน้า req-otp / forgot-password)
 const OTP_RESEND_COOLDOWN_SECONDS = 60;
+/**
+ * Error ที่ service โยนเมื่อกติกา auth ไม่ผ่าน พก code (เช่น OTP_INVALID) และ statusCode (ค่าเริ่มต้น 400) ติดมาด้วย
+ * ถูกจับที่: middlewares/errorHandler.js (instanceof AuthError → ตอบ statusCode/code/message ตรงๆ, แนบ retryAfter ถ้ามี)
+ * และ utils/errorResponse.serverError ที่ตรวจ err.statusCode + err.code (ใช้ใน controller ที่ catch เอง)
+ */
 class AuthError extends Error {
   constructor(message, code, statusCode = 400) {
     super(message);
@@ -36,6 +41,11 @@ class AuthError extends Error {
 class AuthService {
   /**
    * Step 1: ตรวจ username + password → ออก OTP token + ส่ง OTP
+   *
+   * เรียกจาก: AuthController.login · login ด้วยรหัสผ่านใช้ได้เฉพาะ Admin/SuperAdmin (ผู้ใช้อื่นเข้าทาง Google)
+   * ใช้: UserModel.findByUsername → bcrypt เทียบรหัสผ่าน → _issueOtpForUser (สร้าง+ส่ง OTP) → jwtUtil.issueOtpToken
+   * @param {{username:string, password:string}} p
+   * @returns {{otpToken:string, maskedEmail:string, expiresIn:number}} expiresIn หน่วยวินาที · throw AuthError INVALID_CREDENTIALS/ACCOUNT_SUSPENDED/ACCOUNT_PENDING
    */
   static async login({ username, password }) {
     const user = await UserModel.findByUsername(username);
@@ -67,6 +77,12 @@ class AuthService {
 
   /**
    * Step 2: ตรวจ OTP + ออก access token + refresh token
+   *
+   * เรียกจาก: AuthController.verifyOtp (userId มาจาก otp token ที่ requireOtpToken ตรวจแล้ว)
+   * ลำดับ: UserModel.findById → OtpModel.findActive(purpose 'login_2fa') → OtpModel.consumeAttempt → cryptoUtil.compareOtpHash → OtpModel.markAsUsed
+   *   → jwtUtil.issueAccessToken + issueRefreshToken → RefreshTokenModel.create (เก็บเฉพาะ hash)
+   * @param {{userId:number, otpCode:string}} p
+   * @returns {{accessToken:string, refreshToken:string, user:object}} controller ใส่ refreshToken ลง cookie, ที่เหลือตอบ body
    */
   static async verifyOtp({ userId, otpCode }) {
     const user = await UserModel.findById(userId);
@@ -124,6 +140,9 @@ class AuthService {
 
   /**
    * ส่ง OTP ใหม่
+   *
+   * เรียกจาก: AuthController.resendOtp · เช็ค cooldown ด้วย OtpModel.secondsSinceLast แล้วเรียก _issueOtpForUser (ยกเลิก OTP เก่า ออกใบใหม่)
+   * @returns {{maskedEmail:string, expiresIn:number}} · throw AuthError OTP_COOLDOWN (มี retryAfter)
    */
   static async resendOtp({ userId }) {
     const user = await UserModel.findById(userId);
@@ -149,6 +168,12 @@ class AuthService {
 
   /**
    * Google OAuth Login → ออก access token + refresh token
+   *
+   * เรียกจาก: AuthController.googleLogin
+   * ลำดับ: googleClient.verifyIdToken → เช็คอีเมลยืนยันแล้วและโดเมนอยู่ใน config.google.allowedDomains → UserModel.findByMsuMail (ต้องมีบัญชีและ Active)
+   *   → ปฏิเสธ Admin/SuperAdmin (ให้ไปหน้า Admin Login) → ออก access + refresh token และเก็บ hash ผ่าน RefreshTokenModel.create
+   * @param {{idToken:string}} p ID token จาก Google Sign-In ที่ frontend ส่งมา
+   * @returns {{accessToken:string, refreshToken:string, user:object}}
    */
   static async googleLogin({ idToken }) {
     let payload;
@@ -232,6 +257,12 @@ class AuthService {
   /**
    * Refresh — ใช้ refresh token ออก access token ใหม่
    * เรียกเมื่อ access token หมดอายุ (401)
+   *
+   * เรียกจาก: AuthController.refresh
+   * ลำดับ: hash token จาก cookie → RefreshTokenModel.findByHash → ตรวจบัญชียัง Active → RefreshTokenModel.revokeByHash (rotate แบบ atomic) → ออก access + refresh ใบใหม่ → RefreshTokenModel.create
+   * ถ้าหา token ไม่เจอหรือแพ้ race → _refreshWithinGrace (ผ่อนผัน 10 วินาที)
+   * @param {{refreshToken?:string}} p ค่าจาก cookie jw_refresh_token
+   * @returns {{accessToken:string, refreshToken:string|null}} refreshToken null = ไม่ต้องตั้ง cookie ใหม่
    */
   static async refreshToken({ refreshToken }) {
     if (!refreshToken) {
@@ -274,6 +305,8 @@ class AuthService {
 
   /**
    * Logout — revoke refresh token
+   *
+   * เรียกจาก: AuthController.logout · hash token แล้ว RefreshTokenModel.revokeForLogout (ปิดทั้ง consumed_at และ expires_at) · ไม่มี token = ไม่ทำอะไร
    */
   static async logout({ refreshToken }) {
     if (!refreshToken) return;
@@ -287,6 +320,10 @@ class AuthService {
    * refresh ซ้อน (2 แท็บใช้ cookie เดียวกัน): token เพิ่งถูก rotate ไม่เกิน REFRESH_GRACE_SECONDS
    * → ออกแค่ access token ไม่ออก refresh token ใบใหม่ (controller จะไม่แตะ cookie
    * browser ใช้ใบที่ request ที่ชนะตั้งไว้) กัน cookie ใหม่ถูก clearCookie ของ request ที่แพ้ลบทิ้ง
+   *
+   * เรียกจาก: AuthService.refreshToken (2 จุด: หา token ไม่เจอ / revoke ไม่สำเร็จเพราะ request อื่นชนะไปก่อน)
+   * ใช้ RefreshTokenModel.findRecentlyRotated → ได้ user_id → ตรวจบัญชี → ออกเฉพาะ access token (refreshToken: null)
+   * @param {string} tokenHash sha256 ของ refresh token ที่ client ส่งมา
    */
   static async _refreshWithinGrace(tokenHash) {
     const rotated = await RefreshTokenModel.findRecentlyRotated(tokenHash, REFRESH_GRACE_SECONDS);
@@ -300,6 +337,12 @@ class AuthService {
     return { accessToken: jwtUtil.issueAccessToken(user), refreshToken: null };
   }
 
+  /**
+   * สร้าง OTP ใหม่ของ purpose 'login_2fa' แล้วส่งเมล
+   * เรียกจาก: AuthService.login และ AuthService.resendOtp
+   * ลำดับ: OtpModel.invalidateActive (ใบเก่าใช้ไม่ได้) → cryptoUtil.generateOtp/hashOtp → OtpModel.create (เก็บเฉพาะ hash) → MailService.sendOtp (ไม่ await)
+   * @param {object} user แถว users ที่ต้องมี user_id และ msu_mail
+   */
   static async _issueOtpForUser(user) {
     await OtpModel.invalidateActive(user.user_id, 'login_2fa');
 
@@ -322,6 +365,10 @@ class AuthService {
       .catch(e => logger.error(`[login] ส่ง OTP ไม่สำเร็จ user_id=${user.user_id}: ${e.message}`));
   }
 
+  /**
+   * ซ่อนอีเมลให้เห็นแค่ 2 ตัวแรกของส่วนหน้า @ (เช่น ab***@msu.ac.th) เพื่อแสดงบนหน้ากรอก OTP
+   * เรียกจาก: AuthService.login, AuthService.resendOtp
+   */
   static _maskEmail(email) {
     const [local, domain] = email.split('@');
     if (!local || !domain) return email;
@@ -333,6 +380,11 @@ class AuthService {
   /**
    * Step 1: ขอรีเซ็ตรหัสผ่าน — ส่ง OTP ไปยัง email
    * เฉพาะ Admin / SuperAdmin ที่มี username + password
+   *
+   * เรียกจาก: AuthController.forgotPassword
+   * ใช้: UserModel.findByUsername → OtpModel.secondsSinceLast/invalidateActive/create (purpose 'password_reset') → MailService.sendOtp → jwtUtil.issuePasswordResetOtpToken
+   * @param {{username:string}} p
+   * @returns {{resetOtpToken:string, expiresIn:number}} หน้าตาเหมือนกันทุกกรณี แม้ไม่มีบัญชี (กันเดา username)
    */
   static async requestPasswordReset({ username }) {
     const user = await UserModel.findByUsername(username);
@@ -376,6 +428,10 @@ class AuthService {
 
   /**
    * Step 2: ยืนยัน OTP + ตั้งรหัสผ่านใหม่
+   *
+   * เรียกจาก: AuthController.resetPassword (userId มาจาก reset token ที่ requirePasswordResetToken ตรวจแล้ว)
+   * ลำดับ: OtpModel.findActive('password_reset') → consumeAttempt → compareOtpHash → markAsUsed → bcrypt.hash(รหัสใหม่) → UserModel.updatePassword → RefreshTokenModel.revokeAllByUserId (ออกจากระบบทุกเครื่อง)
+   * @param {{userId:number, otpCode:string, newPassword:string}} p · ไม่คืนค่า, throw AuthError OTP_EXPIRED/OTP_MAX_ATTEMPTS/OTP_INVALID
    */
   static async resetPassword({ userId, otpCode, newPassword }) {
     const user = await UserModel.findById(userId);
@@ -413,6 +469,11 @@ class AuthService {
   /**
    * POST /api/auth/register-staff
    * Staff สมัครด้วย Google OAuth — เช็ค email pattern ก่อน
+   *
+   * เรียกจาก: AuthController.registerStaff
+   * ลำดับ: verify Google ID token → โดเมนต้องอยู่ใน allowedDomains → ห้ามอีเมลที่ส่วนหน้า @ เป็นตัวเลขล้วน (อีเมลนิสิต) → UserModel.findByMsuMail กันสมัครซ้ำ → UserModel.createPendingStaff
+   * @param {{idToken:string}} p
+   * @returns {{email:string, firstName:string, lastName:string, role:'Staff', createdAt:string}}
    */
   static async registerStaff({ idToken }) {
     // Verify Google token

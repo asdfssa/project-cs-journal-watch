@@ -20,6 +20,12 @@ if (process.env.NODE_ENV === 'production' &&
   process.exit(1);
 }
 
+/**
+ * ค่า config ทั้งระบบ อ่านจาก environment variable (ผ่าน dotenv) — require ได้จากทุกไฟล์ใน src/
+ * ผู้ใช้หลัก: config/database.js (db), utils/jwt.js + middlewares/auth.js (jwt), utils/crypto.js + services/AuthService.js (otp),
+ *   services/MailService.js (mail), services/AuthService.js (google), ScopusService/ScopusProxyService (scopus), scrapeQueue + scrapers (scraper),
+ *   middlewares/captcha.js (captcha), app.js (cors, csp)
+ */
 module.exports = {
   env: process.env.NODE_ENV || 'development',
   port: parseInt(process.env.PORT, 10) || 3000,

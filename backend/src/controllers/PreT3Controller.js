@@ -13,7 +13,7 @@
  */
 const PreT3Model  = require('../models/PreT3Model');
 const UserModel   = require('../models/UserModel');
-const { advisorViewFields } = require('../models/_approvalHelpers');
+const { advisorViewFields, advisorsAllApproved } = require('../models/_approvalHelpers');
 const MailService = require('../services/MailService');
 const db          = require('../config/database');
 const { serverError } = require('../utils/errorResponse');
@@ -25,6 +25,12 @@ const UNWANTED_BODY = {
   message: 'วารสารนี้อยู่ในรายการวารสารที่ไม่พึงประสงค์ของมหาวิทยาลัย ไม่สามารถยื่น Pre-T3 ได้',
 };
 
+/**
+ * เช็ค ISSN กับตาราง msu_unwanted_journals (วารสารที่มหาวิทยาลัยไม่ยอมรับ)
+ * เรียกจาก: PreT3Controller.submit และ PreT3Controller.resubmit ก่อนบันทึก (ตอบ 400 UNWANTED_JOURNAL ถ้าเจอ)
+ * @param {string} issn รูปแบบ XXXX-XXXX (ผ่าน _validateBody → normalizeIssn มาแล้ว)
+ * @returns {Promise<boolean>}
+ */
 // ISSN (normalize แล้ว) อยู่ใน msu_unwanted_journals ไหม — เทียบทั้งแบบมี/ไม่มีขีด เผื่อแถวเก่าเก็บไม่มีขีด
 async function isUnwantedIssn(issn) {
   const [rows] = await db.query(
@@ -34,6 +40,13 @@ async function isUnwantedIssn(issn) {
   return rows.length > 0;
 }
 
+/**
+ * กฎของนิสิตปริญญาเอก: ต้องเป็นวารสาร Scopus และ Quartile Q1/Q2 เท่านั้น
+ * เรียกจาก: PreT3Controller.submit และ PreT3Controller.resubmit
+ * @param {object} student แถวผู้ใช้จาก UserModel.findById (อ่าน degree_level)
+ * @param {object} js journal_snapshot จาก req.body (อ่าน indexed_database, quartile_or_tier)
+ * @returns {{code:string, message:string}|null} null = ผ่าน (หรือไม่ใช่ปริญญาเอก)
+ */
 // ปริญญาเอก: ผ่านได้เฉพาะ Scopus Q1/Q2 (เกณฑ์จริงอยู่ที่ฝั่ง FE ด้วย แต่ API ต้องกันเอง)
 // shortcut: ตรวจจากค่าใน journal_snapshot ที่ client ส่งมา ไม่ได้ดึง Scopus ซ้ำ, ถ้าต้องกันการปลอมค่า ให้ดึงจาก ScopusService ตรวจที่ server
 function doctoralCriteriaError(student, js) {
@@ -52,7 +65,19 @@ const DUPLICATE_BODY = {
   message: 'คุณมี Pre-T3 ของวารสาร ISSN นี้ที่รออนุมัติหรืออนุมัติแล้ว ไม่สามารถยื่นซ้ำได้',
 };
 
+/**
+ * Controller ของ Pre-T3 — ถูกผูกใน routes/preT3Routes.js (base path /api/v3/pre-t3) หลัง requireAuth → requireRole
+ * ทุก method: อ่านผู้ใช้จาก req.user (sub, role) ที่ requireAuth ใส่ไว้ → เรียก PreT3Model (ข้อมูล) / UserModel (ผู้ใช้) / MailService (แจ้งเตือนอีเมล ไม่รอผล)
+ * ตอบ JSON รูป { success, data | code, message } · error ที่ไม่คาดคิดส่งเข้า utils/errorResponse.serverError
+ */
 class PreT3Controller {
+  /**
+   * เรียกจาก: routes/preT3Routes.js — POST / (requireAuth → requireRole('Student') → submitLimiter)
+   * รับ req.body: { journal_snapshot, checklist_data, article_info? } (นิสิตคือ req.user.sub)
+   * ลำดับ: _validateBody → isUnwantedIssn → UserModel.findById (โปรไฟล์ต้องครบ degree_level/curriculum_year/study_plan_code) → doctoralCriteriaError
+   *   → อ่าน advisor_assignments ที่ active (ต้องมี Major) → PreT3Model.create → MailService.sendPreT3Notification('advisor_pending') ถึงอาจารย์หลัก
+   * ตอบ 201 { data: { pre_t3_id } } · ISSN ซ้ำ 409 PRE_T3_DUPLICATE
+   */
   // ============================================================
   // POST /api/pre-t3
   // Role: Student
@@ -173,6 +198,9 @@ class PreT3Controller {
     }
   }
 
+  /**
+   * เรียกจาก: routes/preT3Routes.js — GET /my (Student) · PreT3Model.findByStudentId(req.user.sub) → _formatRow ทีละแถว
+   */
   // ============================================================
   // GET /api/pre-t3/my
   // Role: Student
@@ -191,6 +219,10 @@ class PreT3Controller {
     }
   }
 
+  /**
+   * เรียกจาก: routes/preT3Routes.js — GET /pending (Supervisor, Staff)
+   * Supervisor → PreT3Model.findPendingForAdvisor แล้วแนบ my_role/can_review ด้วย advisorViewFields · Staff → PreT3Model.findPendingForFaculty
+   */
   // ============================================================
   // GET /api/pre-t3/pending
   // Role: Supervisor → เห็นแค่ของนิสิตตัวเอง
@@ -217,6 +249,10 @@ class PreT3Controller {
     }
   }
 
+  /**
+   * เรียกจาก: routes/preT3Routes.js — GET /:id (ทุก role ที่ login)
+   * รับ req.params.id (requireNumericId ตรวจแล้ว) → PreT3Model.findById · Student ต้องเป็นเจ้าของ, Supervisor ต้องเป็นอาจารย์ในคำร้องนี้ (หลักหรือร่วม) · Staff/Admin/SuperAdmin ดูได้ทุกใบ
+   */
   // ============================================================
   // GET /api/pre-t3/:id
   // Role: Student (ของตัวเอง), Supervisor (ของนิสิตตัวเอง), Staff (ทุกคน)
@@ -256,6 +292,13 @@ class PreT3Controller {
     }
   }
 
+  /**
+   * เรียกจาก: routes/preT3Routes.js — PATCH /:id/advisor-review (Supervisor)
+   * รับ req.body: { action: 'approve'|'reject', remark? (บังคับตอน reject) }
+   * ลำดับ: PreT3Model.findById → ตรวจสถานะ Pending → advisorViewFields (ต้องเป็นอาจารย์หลักที่ยังไม่ตัดสิน) → PreT3Model.advisorReview
+   *   → อีเมล: reject แจ้งนิสิต · approve ครบแจ้งนิสิตและ Staff ทุกคน (faculty_pending) · แจ้งอาจารย์ร่วมว่าอาจารย์หลักตัดสินแล้ว
+   * ตอบ { data: { overall_status, all_advisor_approved } } · สถานะเปลี่ยนระหว่างทาง 409
+   */
   // ============================================================
   // PATCH /api/pre-t3/:id/advisor-review
   // Role: Supervisor
@@ -356,6 +399,12 @@ class PreT3Controller {
     }
   }
 
+  /**
+   * เรียกจาก: routes/preT3Routes.js — PATCH /:id/faculty-review (Staff)
+   * รับ req.body: { action, meeting_no?, meeting_date?, remark? } — approve ต้องมี meeting_no + meeting_date, reject ต้องมี remark
+   * meeting_date ผ่าน utils/date.toMysqlDate แล้วส่งต่อ PreT3Model.facultyReview (ต้องผ่านขั้นอาจารย์หลักก่อน)
+   * แล้วส่งอีเมลผลสุดท้ายให้นิสิต (faculty_approved / faculty_rejected)
+   */
   // ============================================================
   // PATCH /api/pre-t3/:id/faculty-review
   // Role: Staff
@@ -427,6 +476,10 @@ class PreT3Controller {
     }
   }
 
+  /**
+   * เรียกจาก: routes/preT3Routes.js — PATCH /:id/resubmit (Student เจ้าของ, สถานะ Rejected เท่านั้น)
+   * รับ req.body เหมือน submit → _validateBody, isUnwantedIssn, doctoralCriteriaError → PreT3Model.resubmit → แจ้งอาจารย์หลักทางอีเมล (advisor_pending)
+   */
   // ============================================================
   // PATCH /api/pre-t3/:id/resubmit
   // Role: Student
@@ -498,10 +551,15 @@ class PreT3Controller {
     }
   }
 
+  /**
+   * เรียกจาก: routes/preT3Routes.js — PATCH /:id/cancel (Student เจ้าของ)
+   * ตรวจ: สถานะต้องเป็น Pending/Rejected/Approved · Approved ที่มี T3 ผูกอยู่ยกเลิกไม่ได้ (PreT3Model.hasActiveT3) · Pending ที่อาจารย์อนุมัติครบแล้วยกเลิกไม่ได้ (advisorsAllApproved)
+   * แล้วเรียก PreT3Model.cancel (เช็คเงื่อนไขซ้ำแบบ atomic ใน SQL)
+   */
   // ============================================================
   // PATCH /api/pre-t3/:id/cancel
   // Role: Student (เฉพาะของตัวเอง)
-  // อนุญาตตอน Pending/Rejected เสมอ หรือ Approved ก็ได้ถ้ายังไม่มี T3 ที่ Approved
+  // อนุญาตตอน Rejected, Pending ที่ advisor ยังอนุมัติไม่ครบ หรือ Approved ก็ได้ถ้ายังไม่มี T3 ที่ Approved
   // ผูกอยู่ — เผื่อ Pre-T3 ใช้งานต่อไม่ได้จริง (ตามที่ reject T3 ระบุ) นิสิตจะได้
   // เริ่ม flow ใหม่ทั้งหมดได้ (Pre-T3 ใหม่ → T3 ใหม่)
   // ============================================================
@@ -532,6 +590,14 @@ class PreT3Controller {
         });
       }
 
+      if (row.overall_status === 'Pending' && await advisorsAllApproved('Pre_T3', preT3Id)) {
+        return res.status(400).json({
+          success: false,
+          code: 'ADVISOR_APPROVED',
+          message: 'อาจารย์ที่ปรึกษาอนุมัติแล้ว ไม่สามารถยกเลิกได้ หากมีเหตุจำเป็นกรุณาติดต่อเจ้าหน้าที่',
+        });
+      }
+
       const cancelled = await PreT3Model.cancel(preT3Id);
       if (!cancelled) {
         return res.status(400).json({ success: false, code: 'CANCEL_FAILED', message: 'ไม่สามารถยกเลิกได้ในขณะนี้' });
@@ -543,6 +609,11 @@ class PreT3Controller {
     }
   }
 
+  /**
+   * เรียกจาก: routes/preT3Routes.js — GET /history (Supervisor, Staff)
+   * รับ query: status=Approved|Rejected, page, limit (parsePagination) · Supervisor → PreT3Model.findReviewedByAdvisor · Staff → PreT3Model.findReviewedByFaculty
+   * ตอบ { data: { items, total, page, limit, totalPages } }
+   */
   // ============================================================
   // GET /api/pre-t3/history
   // Role: Supervisor → เห็นเฉพาะที่ตัวเองเคย approve/reject
@@ -578,6 +649,12 @@ class PreT3Controller {
     }
   }
 
+  /**
+   * เรียกจาก: PreT3Controller.submit และ PreT3Controller.resubmit
+   * นอกจากตรวจแล้ว 'แก้ค่าใน body ตรงๆ' ด้วย: journal_snapshot.issn → XXXX-XXXX, journal_url เติม https:// ให้ถ้าพิมพ์มาแค่โดเมน — ค่าที่แก้นี้คือค่าที่ส่งต่อให้ PreT3Model
+   * @param {{journal_snapshot:object, checklist_data:object}} body req.body
+   * @returns {{code:string, message:string}|null} null = ผ่าน
+   */
   // ============================================================
   // Helper
   // ============================================================
@@ -624,6 +701,11 @@ class PreT3Controller {
     return null;
   }
 
+  /**
+   * จัดรูปแถวจาก PreT3Model เป็น response (เลือกเฉพาะ field ที่ frontend ใช้ · parseJson รองรับค่าที่อาจเป็น JSON string)
+   * เรียกจาก: getMyRequests, getPending, getById, getHistory
+   * @param {object} row ผลจาก PreT3Model.find* (ผ่าน _attachDerived แล้ว)
+   */
   static _formatRow(row) {
     const parseJson = (val) => {
       if (typeof val === 'string') {

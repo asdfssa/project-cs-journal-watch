@@ -39,6 +39,14 @@ const FS_ERRORS = {
   ENOSPC: { code: 'DISK_FULL',         message: 'พื้นที่เก็บข้อมูลเต็ม กรุณาติดต่อ admin', status: 507 },
 };
 
+/**
+ * แปลง error ดิบ (MySQL / JWT / filesystem / multer / body-parser / scraper) เป็น { code, message ภาษาไทย, status, raw }
+ * เรียกจาก: serverError ในไฟล์นี้ และ middlewares/errorHandler.js
+ * ลำดับการจับคู่: MYSQL_ERRORS → JWT_ERRORS → FS_ERRORS → MulterError → JSON พัง → รหัสเฉพาะของระบบ (SCOPUS_QUOTA_EXCEEDED, SCRAPER_BUSY, SCRAPER_USER_BUSY) → error 4xx จาก http-errors → SERVER_ERROR 500
+ * รหัสเฉพาะของระบบถูก throw มาจาก services/ScopusService และ services/scrapeQueue
+ * @param {Error} err
+ * @returns {{code:string, message:string, status:number, raw:string}} raw = message เดิมของ error (ใช้ log/debug ห้ามส่งให้ผู้ใช้ใน production)
+ */
 // ─── Parse error → Thai message ──────────────────────────────────────────────
 function parseError(err) {
   if (!err) {
