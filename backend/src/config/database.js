@@ -16,8 +16,9 @@ const pool = mysql.createPool({
   password: config.db.password,
   database: config.db.database,
   
-  // ปิด SSL สำหรับ MySQL ใน Docker (self-signed cert)
-  ssl: false,
+  // ปิด SSL สำหรับ MySQL ใน Docker (self-signed cert) · DB_SSL=true สำหรับ Cloud DB (เช่น Aiven)
+  // shortcut: ไม่ตรวจ CA (rejectUnauthorized:false), ใส่ DB_SSL_CA ถ้าจะใช้จริง
+  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
   waitForConnections: true,
   connectionLimit: config.db.connectionLimit,
   queueLimit: 0,
