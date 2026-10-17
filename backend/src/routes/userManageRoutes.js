@@ -23,5 +23,7 @@ router.patch('/:id/suspend',   AdminController.suspendUser);
 router.patch('/:id/activate',  AdminController.activateUser);
 router.patch('/:id/advisors',  AdminController.updateAdvisors);
 router.patch('/:id',           AdminController.updateUser);
+// ลบถาวร — เฉพาะ Admin, SuperAdmin (Staff ลบไม่ได้)
+router.delete('/:id',          requireRole('Admin', 'SuperAdmin'), AdminController.deleteUser);
 
 module.exports = router;

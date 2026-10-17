@@ -1281,7 +1281,58 @@ records = parse(req.file.buffer, {
     } catch (err) { next(err); }
   }
 
-  
+  /**
+   * เรียกจาก: routes/userManageRoutes.js — DELETE /:id (Admin/SuperAdmin) · ลบถาวร Student/Supervisor/Staff (Admin/SuperAdmin ใช้ DELETE /admin/admins/:id)
+   * ลบไม่ได้ (409 USER_HAS_DATA) ถ้ามีข้อมูลผูกอยู่ เพื่อไม่ให้ประวัติคำขอหาย: นิสิตที่มี Pre-T3/T3 · อาจารย์ที่ยังเป็นที่ปรึกษา/เคยตัดสินคำขอ · ผู้สร้างรายการ unwanted
+   * นิสิตที่มีแค่การมอบหมายอาจารย์ (advisor_assignments) → ลบแถวนั้นทิ้งพร้อมกัน · token/OTP ถูกลบตาม FK CASCADE
+   */
+  // ============================================================
+  // DELETE /api/manage/users/:id  (hard delete)
+  // ============================================================
+  static async deleteUser(req, res, next) {
+    try {
+      const { id } = req.params;
+      if (Number(id) === req.user.sub)
+        return res.status(400).json({ success: false, message: 'ไม่สามารถลบบัญชีตัวเองได้' });
+
+      const [target] = await db.query(`SELECT user_id, role FROM users WHERE user_id = ?`, [id]);
+      if (!target.length) return res.status(404).json({ success: false, message: 'ไม่พบผู้ใช้' });
+      if (['Admin', 'SuperAdmin'].includes(target[0].role))
+        return res.status(403).json({ success: false, message: 'ไม่สามารถลบ Admin ผ่านหน้านี้ได้ ใช้ DELETE /api/admin/admins/:id' });
+
+      const [[used]] = await db.query(
+        `SELECT
+           (SELECT COUNT(*) FROM pre_t3_requests WHERE student_id = ?)        AS pre_t3,
+           (SELECT COUNT(*) FROM t3_requests WHERE student_id = ?)            AS t3,
+           (SELECT COUNT(*) FROM advisor_assignments WHERE advisor_id = ?)    AS advisor_of,
+           (SELECT COUNT(*) FROM request_approvals WHERE approver_id = ?)     AS approvals,
+           (SELECT COUNT(*) FROM msu_unwanted_journals WHERE created_by = ?)  AS unwanted`,
+        [id, id, id, id, id]
+      );
+      const reasons = [
+        used.pre_t3 && `มีคำขอ Pre-T3 ${used.pre_t3} รายการ`,
+        used.t3 && `มีคำขอ T3 ${used.t3} รายการ`,
+        used.advisor_of && `เป็นอาจารย์ที่ปรึกษาของนิสิต ${used.advisor_of} คน`,
+        used.approvals && `เคยมีรายการอนุมัติ ${used.approvals} รายการ`,
+        used.unwanted && `เป็นผู้สร้างรายการ unwanted ${used.unwanted} รายการ`,
+      ].filter(Boolean);
+      if (reasons.length)
+        return res.status(409).json({
+          success: false,
+          code: 'USER_HAS_DATA',
+          message: `ลบไม่ได้เพราะมีข้อมูลผูกอยู่ (${reasons.join(', ')}) ใช้ระงับบัญชีแทน`,
+        });
+
+      const conn = await db.getConnection();
+      try {
+        await conn.beginTransaction();
+        await conn.query(`DELETE FROM advisor_assignments WHERE student_id = ?`, [id]);
+        await conn.query(`DELETE FROM users WHERE user_id = ?`, [id]);
+        await conn.commit();
+      } catch (e) { await conn.rollback(); throw e; } finally { conn.release(); }
+      return res.json({ success: true, message: 'ลบผู้ใช้เรียบร้อยแล้ว' });
+    } catch (err) { next(err); }
+  }
 }
 
 module.exports = AdminController;
