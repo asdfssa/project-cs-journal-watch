@@ -28,16 +28,17 @@ if (process.env.NODE_ENV === 'production' &&
  */
 
 /**
- * อายุ refresh token เป็นจำนวนวัน จาก JWT_REFRESH_EXPIRES รูปแบบ "7d" (ทศนิยมได้ เช่น "0.5d")
- * ไม่ตั้ง → 7 วัน · ตั้งแต่รูปแบบผิด (เช่น "7", "1h") → เตือนแล้วใช้ 7 วัน
+ * อายุ refresh token (ms) จาก JWT_REFRESH_EXPIRES รูปแบบ "7d" (วัน) หรือ "3h" (ชั่วโมง) — ทศนิยมได้ เช่น "0.5d"
+ * ไม่ตั้ง → 7 วัน · ตั้งแต่รูปแบบผิด (เช่น "7", "30m") → เตือนแล้วใช้ 7 วัน
  */
-function refreshExpiresDays() {
+function refreshExpiresMs() {
+  const DEFAULT_MS = 7 * 24 * 60 * 60 * 1000;
   const raw = process.env.JWT_REFRESH_EXPIRES;
-  if (!raw) return 7;
-  const m = /^(\d+(?:\.\d+)?)d$/i.exec(raw.trim());
-  if (m && Number(m[1]) > 0) return Number(m[1]);
-  console.warn(`JWT_REFRESH_EXPIRES="${raw}" รูปแบบไม่ถูกต้อง (ต้องเป็นจำนวนวัน เช่น 7d) — ใช้ค่าเริ่มต้น 7d`);
-  return 7;
+  if (!raw) return DEFAULT_MS;
+  const m = /^(\d+(?:\.\d+)?)([dh])$/i.exec(raw.trim());
+  if (m && Number(m[1]) > 0) return Number(m[1]) * (m[2].toLowerCase() === 'd' ? 24 : 1) * 60 * 60 * 1000;
+  console.warn(`JWT_REFRESH_EXPIRES="${raw}" รูปแบบไม่ถูกต้อง (ต้องเป็นวันหรือชั่วโมง เช่น 7d, 3h) — ใช้ค่าเริ่มต้น 7d`);
+  return DEFAULT_MS;
 }
 
 module.exports = {
@@ -58,7 +59,7 @@ module.exports = {
     secret: process.env.JWT_SECRET,
     accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m',  // เปลี่ยนจาก 2h → 15m
     otpExpiresIn: process.env.JWT_OTP_EXPIRES_IN || '10m',
-    refreshExpiresMs: refreshExpiresDays() * 24 * 60 * 60 * 1000,
+    refreshExpiresMs: refreshExpiresMs(),
   },
 
   otp: {
