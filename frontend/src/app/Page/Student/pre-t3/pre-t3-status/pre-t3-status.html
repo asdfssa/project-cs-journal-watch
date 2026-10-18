@@ -28,7 +28,7 @@
 
   <!-- CANCEL TOAST -->
   @if (cancelledLabel()) {
-    <div class="cancel-toast">{{ cancelledLabel() }}</div>
+    <div class="cancel-toast" [class.cancel-toast--error]="cancelFailed()">{{ cancelledLabel() }}</div>
   }
 
   <!-- CARD LIST -->
@@ -38,13 +38,19 @@
         <div class="loading-spinner"></div>
         <div class="empty-text">กำลังโหลดข้อมูล...</div>
       </div>
-    } @else if (cards.length === 0) {
+    } @else if (loadError()) {
+      <div class="empty-state empty-state--error">
+        <div class="empty-icon"><i class="ti ti-cloud-off"></i></div>
+        <div class="empty-text">{{ loadError() }}</div>
+        <button type="button" class="btn-retry" (click)="refresh()"><i class="ti ti-refresh"></i> ลองใหม่</button>
+      </div>
+    } @else if (cards().length === 0) {
       <div class="empty-state">
         <div class="empty-icon"><i class="ti ti-inbox"></i></div>
         <div class="empty-text">ยังไม่มีคำร้อง Pre-T3</div>
       </div>
     }
-    @for (card of cards; track card.id) {
+    @for (card of cards(); track card.id) {
       <div [class]="cardClass(card)" (click)="openDetail(card.id)">
 
         <!-- CONTENT -->
@@ -97,11 +103,12 @@
             }
           </div>
           <button class="btn-cancel-card" [disabled]="card.advisorStatus === 'Approved'"
+                  [title]="card.advisorStatus === 'Approved' && card.facultyStatus === 'Pending' && card.overallStatus !== 'Cancelled' ? 'อาจารย์อนุมัติแล้ว — หากต้องการยกเลิก กรุณาติดต่อเจ้าหน้าที่บัณฑิตวิทยาลัย' : ''"
                   (click)="cancelRequest(card.id, $event)">
             @if (card.advisorStatus === 'Approved') {
               <i class="ti ti-lock"></i> ไม่สามารถยกเลิกได้
             } @else {
-              ✕ ยกเลิกคำร้องขอ
+              <i class="ti ti-x"></i> ยกเลิกคำร้องขอ
             }
           </button>
         </div>
@@ -128,7 +135,7 @@
           </div>
           <div class="mh-row1-right">
             <span class="mh-id-chip">{{ d.id }}</span>
-            <button class="modal-close" (click)="closeDetail()">✕</button>
+            <button class="modal-close" (click)="closeDetail()"><i class="ti ti-x"></i></button>
           </div>
         </div>
 
@@ -154,21 +161,20 @@
               <div class="mh-date-val">{{ d.submittedDate }}</div>
               <div class="mh-date-lbl">วันที่ยื่น</div>
             </div>
-            <div class="mh-status-pill" [class]="'mh-status-pill mh-status-pill--' + d.cardStatus">{{ d.statusPillText }}</div>
+            <div class="mh-status-pill" [class]="'mh-status-pill mh-status-pill--' + d.cardStatus"><i [class]="d.currentStatusIcon"></i> {{ d.statusPillText }}</div>
           </div>
         </div>
 
         <div class="mh-badges">
           <span class="sbadge sbadge-blue">{{ d.database }}</span>
           <span class="sbadge sbadge-yellow">{{ d.quartile }}</span>
-          <span class="sbadge sbadge-green">✔ ไม่ติด Unwanted</span>
-          <span class="sbadge sbadge-green">✔ ไม่ติด Discontinued</span>
+          <span class="sbadge sbadge-green"><i class="ti ti-check"></i> ไม่ติด Unwanted</span>
+          <span class="sbadge sbadge-green"><i class="ti ti-check"></i> ไม่ติด Discontinued</span>
         </div>
 
         <div class="mh-grid">
           <div class="mh-cell"><span class="mh-lbl">ISSN</span><span class="mh-val mono">{{ d.issn }}</span></div>
           <div class="mh-cell"><span class="mh-lbl">Quartile</span><span class="mh-val">{{ d.quartile }}</span></div>
-          <div class="mh-cell"><span class="mh-lbl">SJR</span><span class="mh-val mono">{{ d.sjr }}</span></div>
           <div class="mh-cell"><span class="mh-lbl">ฐานข้อมูล</span><span class="mh-val">{{ d.database }}</span></div>
           <div class="mh-cell"><span class="mh-lbl">ระดับ</span><span class="mh-val">{{ d.degree }}</span></div>
           <div class="mh-cell"><span class="mh-lbl">อาจารย์ที่ปรึกษา</span><span class="mh-val">{{ d.advisor }}</span></div>
@@ -241,6 +247,15 @@
 
       </div><!-- /modal-body -->
 
+      <!-- อาจารย์อนุมัติแล้ว รอเจ้าหน้าที่ — นิสิตยกเลิกเองไม่ได้ บอกช่องทางให้ติดต่อเจ้าหน้าที่ (คำร้องที่จบแล้วไม่ต้องแสดง) -->
+      @if (d.advisorStatus === 'Approved' && d.cardStatus === 'pending') {
+        <div class="contact-staff-note">
+          <i class="ti ti-info-circle"></i>
+          <span>คำร้องนี้ผ่านการพิจารณาของอาจารย์ที่ปรึกษาแล้ว จึงไม่สามารถยกเลิกเองได้ หากต้องการยกเลิกคำร้อง
+            กรุณาติดต่อเจ้าหน้าที่บัณฑิตวิทยาลัย <a routerLink="/contact" (click)="closeDetail()">ดูช่องทางติดต่อ <i class="ti ti-arrow-right"></i></a></span>
+        </div>
+      }
+
       <!-- ══ MODAL FOOTER ══ -->
       <div class="modal-footer">
 <button class="btn-mf btn-mf-cancel" [disabled]="d.advisorStatus === 'Approved'"
@@ -258,4 +273,19 @@
 
     </div><!-- /modal-panel -->
   </div><!-- /modal-backdrop -->
+}
+
+<!-- ═══ F5: ยืนยันก่อนยกเลิกคำร้อง ═══ -->
+@if (cancelTarget(); as t) {
+  <div class="cancel-confirm-backdrop" (click)="cancelTarget.set(null)">
+    <div class="cancel-confirm" (click)="$event.stopPropagation()">
+      <div class="cancel-confirm__icon"><i class="ti ti-alert-triangle"></i></div>
+      <div class="cancel-confirm__title">ยกเลิกคำร้อง {{ t.id }}?</div>
+      <div class="cancel-confirm__desc">คำร้องจะถูกยกเลิกและ<strong>ไม่สามารถกู้คืนได้</strong> ถ้าต้องการยื่นใหม่ต้องเริ่มกรอกตั้งแต่ต้น</div>
+      <div class="cancel-confirm__actions">
+        <button class="cancel-confirm__keep" (click)="cancelTarget.set(null)">ไม่ยกเลิก</button>
+        <button class="cancel-confirm__ok" (click)="confirmCancel()"><i class="ti ti-x"></i> ยืนยันยกเลิกคำร้อง</button>
+      </div>
+    </div>
+  </div>
 }

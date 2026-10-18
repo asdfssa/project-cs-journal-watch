@@ -376,3 +376,11 @@ $gray:   #9CA3AF;
   .step-date  { font-size: 9px; padding: 0 2px; }
 }
 
+
+/* แก้ไขและยื่น Pre-T3 ที่ถูกปฏิเสธซ้ำ */
+.btn-mf.btn-mf-resubmit {
+  background: #C07800;
+  border-color: #C07800;
+  color: #fff;
+  &:hover { filter: brightness(1.08); }
+}

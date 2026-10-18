@@ -12,7 +12,6 @@ export interface Data {
     msuMail:       string;
     phone:         null;
     accountStatus: string;
-    lastLoginAt:   Date;
     username:      string;
     picture?:      string;   // Google profile picture URL (optional)
 }

@@ -29,9 +29,12 @@ export interface User {
     line_id:         null | string;
     curriculum_year: null | string;
     study_plan_code: null | string;
+    /** สาขาวิชา (เฉพาะนิสิต) — null = ยังไม่ระบุ · ค่าดู departments.ts */
+    department:      null | string;
     created_at:      Date;
-    last_login_at:   Date | null;
     advisors:        Advisors;
+    /** X44: เฉพาะแถว Supervisor — จำนวนนิสิตที่เป็น Major + Co_1 + Co_2 (backend นับจาก DB ทั้งหมด) */
+    student_count?:  number;
 }
 
 export enum AccountStatus {
@@ -43,6 +46,7 @@ export enum AccountStatus {
 export interface Advisors {
     Major?: Co1;
     Co_1?:  Co1;
+    Co_2?:  Co1;
 }
 
 export interface Co1 {

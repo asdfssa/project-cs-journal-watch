@@ -7,6 +7,7 @@ import { AuthService } from '../../../auth.service';
 import { Constants } from '../../../comfig/constants';
 import { GetProfileStaffRes, Data as ProfileData } from '../../../model/res/get_profile_staff_res';
 import { PatchProfileStaffReq } from '../../../model/req/patch_profile_staff_res';
+import { apiFailure, failMsg } from '../../../server-status.service';
 
 @Component({
   selector: 'app-profile',
@@ -33,12 +34,23 @@ export class Profile implements OnInit {
   editForm: PatchProfileStaffReq = { phone: '', facebook_id: '', line_id: '' };
 
   ngOnInit(): void {
+    this.loadProfile();
+  }
+
+  // N15: โหลดไม่สำเร็จ ≠ ไม่มีข้อมูล — แสดงข้อความ + ปุ่มลองใหม่ แทนหน้าว่าง
+  loadError = signal('');
+
+  loadProfile(): void {
+    this.isLoading.set(true);
+    this.loadError.set('');
+    let failure: unknown = null;
     const headers = new HttpHeaders({ Authorization: `Bearer ${this.auth.token}` });
     this.http
       .get<GetProfileStaffRes>(`${this.constants.API_ENDPOINT}/user/profile`, { headers })
-      .pipe(catchError(() => of(null)))
+      .pipe(catchError(err => { failure = err; return of(null); }))
       .subscribe(res => {
         if (res?.success) this.profile.set(res.data);
+        else this.loadError.set(failMsg(failure ? apiFailure(failure) : res, 'โหลดข้อมูลโปรไฟล์ไม่สำเร็จ กรุณาลองใหม่'));
         this.isLoading.set(false);
       });
   }
@@ -66,7 +78,7 @@ export class Profile implements OnInit {
         this.editForm,
         { headers }
       )
-      .pipe(catchError(() => of(null)))
+      .pipe(catchError(err => of(apiFailure(err))))
       .subscribe(res => {
         this.isSaving.set(false);
         if (res?.success) {
@@ -82,7 +94,7 @@ export class Profile implements OnInit {
           }
           setTimeout(() => { this.isEditing.set(false); this.saveResult.set(null); }, 1500);
         } else {
-          this.saveResult.set({ ok: false, msg: 'เกิดข้อผิดพลาด กรุณาลองใหม่' });
+          this.saveResult.set({ ok: false, msg: failMsg(res) });
         }
       });
   }

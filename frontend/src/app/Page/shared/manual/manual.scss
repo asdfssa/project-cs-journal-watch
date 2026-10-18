@@ -531,6 +531,8 @@ $border:#E2E6F0;
   text-decoration: none;
   transition: all 0.2s;
 
+  i { font-size: 18px; line-height: 1; }
+
   &:hover {
     background: $navy;
     color: $white;

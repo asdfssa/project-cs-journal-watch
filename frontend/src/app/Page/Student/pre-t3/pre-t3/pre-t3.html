@@ -18,6 +18,19 @@
     <h1 class="page-title">ยื่นแบบฟอร์ม Pre-T3: <span class="page-title-highlight">ขออนุมัติผลงานตีพิมพ์วิทยานิพนธ์</span></h1>
   </div>
 
+  @if (resubmitInfo(); as rs) {
+    <div class="resubmit-banner">
+      <span class="resubmit-banner__icon"><i class="ti ti-refresh-alert"></i></span>
+      <div class="resubmit-banner__body">
+        <div class="resubmit-banner__title">กำลังแก้ไขคำร้อง PRE-T3-{{ rs.preT3Id }} ที่ไม่ผ่านการอนุมัติ เพื่อยื่นซ้ำ</div>
+        <div class="resubmit-banner__reason">
+          <strong>เหตุผลที่ไม่อนุมัติ ({{ rs.rejectedBy }}):</strong> {{ rs.rejectReason || 'ไม่ได้ระบุเหตุผล' }}
+        </div>
+        <div class="resubmit-banner__hint">กรุณาแก้ไขข้อมูลให้ตรงกับเหตุผลข้างต้นก่อนยื่น · ติ๊ก checklist ใหม่ทั้ง 9 ข้อ</div>
+      </div>
+    </div>
+  }
+
   <!-- ALERT BANNER -->
   <div class="alert-banner">
     <span class="alert-icon"><i class="ti ti-info-circle"></i></span>
@@ -61,10 +74,6 @@
           </div>
 
           <div class="field-row">
-            <div class="field-group">
-              <label class="field-label">คณะ</label>
-              <input class="field-input readonly" [value]="faculty()" readonly placeholder="—"/>
-            </div>
             <div class="field-group">
               <label class="field-label">สาขาวิชา</label>
               <input class="field-input readonly" [value]="department()" readonly placeholder="—"/>
@@ -111,31 +120,42 @@
               <label class="field-label">ISSN</label>
               <input class="field-input" [ngModel]="issn()" (ngModelChange)="issn.set($event)" placeholder="ISSN: 2319-7064"/>
             </div>
-            <div class="field-group">
-              <label class="field-label">E-ISSN (ถ้ามี)</label>
-              <input class="field-input" [ngModel]="eissn()" (ngModelChange)="eissn.set($event)" placeholder="E-ISSN: 2319-7064"/>
-            </div>
           </div>
 
           <div class="field-row">
             <div class="field-group">
-              <label class="field-label">ฐานข้อมูล</label>
-              <input class="field-input" [ngModel]="database()" (ngModelChange)="database.set($event)" placeholder="scopus"/>
+              <label class="field-label">ฐานข้อมูล <span class="badge-required">*</span></label>
+              <div class="db-select" [class.db-select--open]="databaseOpen()">
+                @if (databaseOpen()) {
+                  <div class="db-backdrop" (click)="databaseOpen.set(false)"></div>
+                }
+                <button type="button" class="db-trigger" [class.db-trigger--empty]="!database()"
+                        (click)="databaseOpen.set(!databaseOpen())" [attr.aria-expanded]="databaseOpen()">
+                  <span class="db-trigger-text">{{ database() || 'เลือกฐานข้อมูล' }}</span>
+                  <i class="ti ti-chevron-down db-arrow"></i>
+                </button>
+                @if (databaseOpen()) {
+                  <div class="db-menu" role="listbox">
+                    @for (opt of databaseOptions; track opt.value) {
+                      <button type="button" class="db-option" role="option"
+                              [class.db-option--active]="database() === opt.value"
+                              [attr.aria-selected]="database() === opt.value"
+                              (click)="selectDatabase(opt.value)">
+                        <span class="db-option-icon"><i class="ti {{ opt.icon }}"></i></span>
+                        <span class="db-option-body">
+                          <span class="db-option-label">{{ opt.value }}</span>
+                          <span class="db-option-hint">{{ opt.hint }}</span>
+                        </span>
+                        @if (database() === opt.value) { <i class="ti ti-check db-option-check"></i> }
+                      </button>
+                    }
+                  </div>
+                }
+              </div>
             </div>
             <div class="field-group">
               <label class="field-label">Quartile / Tier</label>
               <input class="field-input" [ngModel]="quartile()" (ngModelChange)="quartile.set($event)" placeholder="Q1"/>
-            </div>
-          </div>
-
-          <div class="field-row">
-            <div class="field-group">
-              <label class="field-label">SJR Score (ถ้ามี)</label>
-              <input class="field-input" [ngModel]="sjr()" (ngModelChange)="sjr.set($event)" placeholder="0.842"/>
-            </div>
-            <div class="field-group">
-              <label class="field-label">CiteScore</label>
-              <input class="field-input" [ngModel]="citeScore()" (ngModelChange)="citeScore.set($event)" placeholder="3.4"/>
             </div>
           </div>
 
@@ -158,15 +178,18 @@
 
           <div class="field-row">
             <div class="field-group field-group--full">
-              <label class="field-label">ชื่อบทความ (ภาษาอังกฤษ) <span class="badge-optional">ถ้ามี</span></label>
-              <input class="field-input" [ngModel]="titleEn()" (ngModelChange)="titleEn.set($event)" placeholder="Article title in English"/>
+              <label class="field-label">ชื่อบทความ (ภาษาอังกฤษ) <span class="badge-required">*</span> <span class="badge-optional">กรอกอย่างน้อย 1 ภาษา</span></label>
+              <input class="field-input" [class.field-input--error]="titleEnError()" [ngModel]="titleEn()" (ngModelChange)="titleEn.set($event)" placeholder="Article title in English"/>
+              @if (titleEnError()) { <span class="field-hint-error"><i class="ti ti-alert-triangle"></i> {{ titleEnError() }}</span> }
             </div>
           </div>
 
           <div class="field-row">
             <div class="field-group field-group--full">
-              <label class="field-label">ชื่อบทความ (ภาษาไทย) <span class="badge-optional">ถ้ามี</span></label>
-              <input class="field-input" [ngModel]="titleTh()" (ngModelChange)="titleTh.set($event)" placeholder="ชื่อบทความภาษาไทย"/>
+              <label class="field-label">ชื่อบทความ (ภาษาไทย) <span class="badge-required">*</span> <span class="badge-optional">กรอกอย่างน้อย 1 ภาษา</span></label>
+              <input class="field-input" [class.field-input--error]="titleThError()" [ngModel]="titleTh()" (ngModelChange)="titleTh.set($event)" placeholder="ชื่อบทความภาษาไทย"/>
+              @if (titleThError()) { <span class="field-hint-error"><i class="ti ti-alert-triangle"></i> {{ titleThError() }}</span> }
+              @if (!hasTitle()) { <span class="field-hint-warn">กรุณากรอกชื่อบทความอย่างน้อย 1 ภาษา (อังกฤษหรือไทย)</span> }
             </div>
           </div>
         </div>
@@ -194,28 +217,21 @@
             </div>
           </div>
 
-          <div class="field-row">
-            <div class="field-group field-group--full">
-              <label class="field-label">หมายเหตุ/เพิ่มเติม <span class="badge-optional">ถ้ามี</span></label>
-              <textarea class="field-textarea" [ngModel]="remarkNote()" (ngModelChange)="remarkNote.set($event)"
-                        placeholder="ระบุเหตุผลเพิ่มเติมที่ไม่ปรากฏในโปรแกรมการพิจารณา..." rows="3"></textarea>
-            </div>
-          </div>
         </div>
 
         <!-- ACTION BAR -->
         <div class="action-bar">
           @if (submitResult() === 'success') {
-            <div class="submit-result success">✓ ยื่น Pre-T3 สำเร็จ กำลังไปหน้าสถานะ...</div>
+            <div class="submit-result success"><i class="ti ti-check"></i> ยื่น Pre-T3 สำเร็จ กำลังไปหน้าสถานะ...</div>
           }
           @if (submitResult() === 'error') {
-            <div class="submit-result error">✗ เกิดข้อผิดพลาด กรุณาลองใหม่</div>
+            <div class="submit-result error"><i class="ti ti-x"></i> ยื่น Pre-T3 ไม่สำเร็จ: {{ submitError() }}</div>
           }
           <div class="action-btns">
             <button class="btn-back" (click)="goBack()">← กลับไปค้นหา</button>
             <button class="btn-submit"
                     (click)="openConfirm()"
-                    [disabled]="!canSubmit() || isSubmitting()">
+                    [disabled]="!canSubmit() || isSubmitting() || submitResult() === 'success'">
               @if (isSubmitting()) {
                 <span class="submit-spinner"></span> กำลังยื่น...
               } @else {
@@ -224,7 +240,7 @@
             </button>
           </div>
           @if (!canSubmit()) {
-            <div class="submit-hint">กรุณาตรวจสอบ Checklist ทั้ง 9 ข้อให้ครบก่อนยื่น</div>
+            <div class="submit-hint">{{ submitBlockReason() }}</div>
           }
         </div>
 
@@ -244,7 +260,13 @@
           <span>ระบบติ๊กให้อัตโนมัติจากผลการค้นหา <strong>กรุณาตรวจสอบความถูกต้องอีกครั้ง</strong> เนื่องจากข้อมูลอาจคลาดเคลื่อนได้</span>
         </div>
       }
-      <div class="checklist-hint">คลิกข้อที่ตรวจสอบแล้วเพื่อติ๊ก · คลิกซ้ำเพื่อยกเลิก</div>
+      <div class="checklist-hint">
+        <span>คลิกข้อที่ตรวจสอบแล้วเพื่อติ๊ก · คลิกซ้ำเพื่อยกเลิก</span>
+        <button type="button" class="check-all-btn" [class.active]="allChecked" (click)="toggleAll()">
+          <i class="ti" [class.ti-checks]="!allChecked" [class.ti-square-x]="allChecked"></i>
+          {{ allChecked ? 'ยกเลิกทั้งหมด' : 'ติ๊กทั้งหมด' }}
+        </button>
+      </div>
 
       <div class="checklist-items">
         @for (item of checklist(); track item.id) {
@@ -255,7 +277,7 @@
             <div class="check-icon"
                  [class.pass]="item.status === 'pass'"
                  [class.fail]="item.status === 'fail'">
-              {{ item.status === 'pass' ? '✓' : item.status === 'fail' ? '✗' : '○' }}
+              @if (item.status === 'pass') { <i class="ti ti-check"></i> } @else if (item.status === 'fail') { <i class="ti ti-x"></i> } @else { ○ }
             </div>
             <div class="check-body">
               <div class="check-title">
@@ -288,9 +310,26 @@
   <div class="confirm-backdrop" (click)="closeConfirm()">
     <div class="confirm-card" (click)="$event.stopPropagation()">
 
-      <div class="confirm-topbar"></div>
-      <h2 class="confirm-title">ยืนยันการยื่น Pre-T3?</h2>
-      <p class="confirm-desc">ระบบจะส่งคำร้องนี้ไปยังอาจารย์ที่ปรึกษาเพื่อพิจารณาลงนาม<br>คุณแน่ใจที่จะยื่นคำร้องใช่ไหม?</p>
+      <div class="confirm-topbar" [class.confirm-topbar--resubmit]="resubmitInfo()"></div>
+      @if (resubmitInfo(); as rs) {
+        <div class="resubmit-confirm-icon"><i class="ti ti-alert-triangle"></i></div>
+        <h2 class="confirm-title">ยืนยันการยื่น Pre-T3 <span class="resubmit-em">ซ้ำ</span>?</h2>
+        <p class="confirm-desc">
+          คุณกำลังยื่นคำร้อง <strong>PRE-T3-{{ rs.preT3Id }}</strong> ที่เคย<strong class="resubmit-em">ไม่ผ่านการอนุมัติ</strong>อีกครั้ง
+          (ยื่นซ้ำครั้งที่ {{ rs.resubmitCount + 1 }})<br>คำร้องจะกลับไปให้อาจารย์ที่ปรึกษาพิจารณาใหม่ตั้งแต่ต้น
+        </p>
+        <div class="resubmit-confirm-reason">
+          <div class="resubmit-confirm-reason__label">เหตุผลที่ไม่อนุมัติครั้งก่อน</div>
+          <div class="resubmit-confirm-reason__text">{{ rs.rejectReason || 'ไม่ได้ระบุเหตุผล' }}</div>
+        </div>
+        <label class="resubmit-ack">
+          <input type="checkbox" [checked]="resubmitAck()" (change)="resubmitAck.set($any($event.target).checked)" />
+          <span>ฉันได้ตรวจสอบและ<strong>แก้ไขข้อมูลตามเหตุผลข้างต้นแล้ว</strong> และแน่ใจว่าต้องการยื่นคำร้องนี้ซ้ำ</span>
+        </label>
+      } @else {
+        <h2 class="confirm-title">ยืนยันการยื่น Pre-T3?</h2>
+        <p class="confirm-desc">ระบบจะส่งคำร้องนี้ไปยังอาจารย์ที่ปรึกษาเพื่อพิจารณาลงนาม<br>คุณแน่ใจที่จะยื่นคำร้องใช่ไหม?</p>
+      }
 
       <div class="confirm-summary">
         <div class="cs-row">
@@ -303,13 +342,19 @@
         </div>
         <div class="cs-row">
           <span class="cs-label">Checklist</span>
-          <span class="cs-val cs-pass">✓ ผ่านครบ {{ checklist().length }} ข้อ</span>
+          <span class="cs-val cs-pass"><i class="ti ti-check"></i> ผ่านครบ {{ checklist().length }} ข้อ</span>
         </div>
       </div>
 
       <div class="confirm-actions">
         <button class="btn-confirm-cancel" (click)="closeConfirm()">ยกเลิก</button>
-        <button class="btn-confirm-ok" (click)="submit()">ยืนยัน ยื่น Pre-T3</button>
+        @if (resubmitInfo()) {
+          <button class="btn-confirm-ok btn-confirm-ok--resubmit" (click)="submit()" [disabled]="!resubmitAck()">
+            <i class="ti ti-refresh"></i> ยืนยัน ยื่นซ้ำ
+          </button>
+        } @else {
+          <button class="btn-confirm-ok" (click)="submit()">ยืนยัน ยื่น Pre-T3</button>
+        }
       </div>
 
     </div>

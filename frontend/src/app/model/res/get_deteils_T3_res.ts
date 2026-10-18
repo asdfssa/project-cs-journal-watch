@@ -4,6 +4,9 @@ export interface GetDeteilsT3Res {
 }
 
 export interface Data {
+    // X16: มีเฉพาะ response ของอาจารย์ — can_review = เป็นอาจารย์หลัก + ช่องตัวเองยัง Pending + คำร้องยัง Pending
+    my_role?:    'Major' | 'Co_1' | 'Co_2' | null;
+    can_review?: boolean;
     t3_id:                      number;
     pre_t3_id:                  number;
     student_id:                 number;
@@ -21,7 +24,6 @@ export interface Data {
     co_advisor_1_approval:      Approval;
     co_advisor_2_approval:      Approval;
     faculty_com_approval:       FacultyCOMApproval;
-    grad_school_approval:       Approval;
     submission_date:            null;
     submission_round_cutoff:    null;
     created_at:                 Date;

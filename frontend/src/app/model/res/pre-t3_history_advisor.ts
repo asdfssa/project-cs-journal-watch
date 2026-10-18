@@ -12,6 +12,9 @@ export interface Data {
 }
 
 export interface Item {
+    // X16: มีเฉพาะ response ของอาจารย์ — can_review = เป็นอาจารย์หลัก + ช่องตัวเองยัง Pending + คำร้องยัง Pending
+    my_role?:    'Major' | 'Co_1' | 'Co_2' | null;
+    can_review?: boolean;
     pre_t3_id:             number;
     student_name:          string;
     student_email:         string;

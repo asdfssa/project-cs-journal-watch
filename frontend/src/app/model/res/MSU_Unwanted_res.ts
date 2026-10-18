@@ -14,7 +14,7 @@ export interface Journal {
     journal_name:       string;
     publisher:          string;
     note:               string;
-    evidence_file_path: null;
+    evidence_file_path: string | null;
     recorded_date:      Date;
     created_at:         Date;
     first_name:         string;

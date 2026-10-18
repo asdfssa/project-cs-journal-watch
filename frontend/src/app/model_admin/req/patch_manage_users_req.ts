@@ -7,4 +7,5 @@ export interface PatchManageUsersReq {
     degree_level:    string;
     curriculum_year: string;
     study_plan_code: string;
+    department?:     string;   // เฉพาะนิสิต · "" = ลบสาขา · ไม่ส่ง = ค่าเดิม
 }

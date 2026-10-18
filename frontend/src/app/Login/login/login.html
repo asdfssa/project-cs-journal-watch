@@ -47,6 +47,26 @@
           </div>
         </div>
 
+        @if (accountNotice() === 'pending') {
+          <div class="status-panel status-panel--pending">
+            <div class="status-panel__icon"><i class="ti ti-hourglass"></i></div>
+            <div class="status-panel__body">
+              <div class="status-panel__title">บัญชีนี้ยังรอการอนุมัติ</div>
+              <div class="status-panel__text">ผู้ดูแลระบบยังไม่ได้อนุมัติการสมัคร เมื่ออนุมัติแล้วจะมีอีเมลแจ้ง จากนั้นเข้าสู่ระบบได้ตามปกติ</div>
+              <div class="status-panel__hint">รอนานเกินไป? ติดต่อบัณฑิตวิทยาลัย <a href="mailto:graduate@msu.ac.th">graduate&#64;msu.ac.th</a></div>
+            </div>
+          </div>
+        } @else if (accountNotice() === 'suspended') {
+          <div class="status-panel status-panel--suspended">
+            <div class="status-panel__icon"><i class="ti ti-lock"></i></div>
+            <div class="status-panel__body">
+              <div class="status-panel__title">บัญชีนี้ใช้งานไม่ได้</div>
+              <div class="status-panel__text">บัญชีถูกระงับหรือการสมัครไม่ได้รับอนุมัติ</div>
+              <div class="status-panel__hint">ติดต่อบัณฑิตวิทยาลัย <a href="mailto:graduate@msu.ac.th">graduate&#64;msu.ac.th</a></div>
+            </div>
+          </div>
+        }
+
         <div class="google-btn-wrap">
           <!--  คือส่วนที่ผูกการทำงานไว้ — พอกดปุ่มนี้ จะไปเรียกฟังก์ชัน triggerGoogleSignIn() ที่คุยกันไปก่อนหน้า ซึ่งจะไปสั่งคลิกปุ่มจริงของ Google ที่ซ่อนอยู่ -->
           <button class="google-btn" (click)="triggerGoogleSignIn()">

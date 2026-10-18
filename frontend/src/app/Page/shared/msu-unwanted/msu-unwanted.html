@@ -116,7 +116,6 @@
               </td>
               <td class="col-date">
                 <div class="date-main">{{ formatDate(j.recorded_date) }}</div>
-                <div class="date-by">โดย: {{ addedBy(j) }}</div>
               </td>
               <td [class]="isStaff ? 'col-action-staff' : 'col-action'">
                 <div class="row-actions">
@@ -175,12 +174,25 @@
           <tr><td class="dt-label">Publisher</td><td class="dt-value">{{ j.publisher || '—' }}</td></tr>
           <tr><td class="dt-label">หมายเหตุ</td><td class="dt-value">{{ j.note || '—' }}</td></tr>
           <tr><td class="dt-label">วันที่บันทึก</td><td class="dt-value">{{ formatDate(j.recorded_date) }}</td></tr>
-          <tr><td class="dt-label">บันทึกโดย</td><td class="dt-value">{{ addedBy(j) }}</td></tr>
+          @if (isStaff) {
+          }
+          <tr>
+            <td class="dt-label">หลักฐาน</td>
+            <td class="dt-value">
+              @if (j.evidence_file_path) {
+                <button type="button" class="btn-evidence" (click)="openEvidence(j)" [disabled]="isLoadingEvidence()">
+                  @if (isLoadingEvidence()) { <span class="btn-spinner"></span> กำลังเปิด... }
+                  @else { <i class="ti ti-file-search"></i> ดูไฟล์หลักฐาน }
+                </button>
+                @if (evidenceError()) { <div class="evidence-error"><i class="ti ti-alert-triangle"></i> {{ evidenceError() }}</div> }
+              } @else { — }
+            </td>
+          </tr>
           <tr><td class="dt-label">ผลสรุป</td><td class="dt-value dt-red"><i class="ti ti-ban"></i> ห้ามนำไปยื่น Pre-T3 / T3 ทุกกรณี</td></tr>
         </table>
       </div>
       <div class="modal-footer">
-        <span class="modal-footer-note">บันทึกเมื่อ: {{ formatDate(j.recorded_date) }} · โดย: {{ addedBy(j) }}</span>
+        <span class="modal-footer-note">บันทึกเมื่อ: {{ formatDate(j.recorded_date) }}</span>
         <button class="btn-close" (click)="closeDetail()">ปิด</button>
       </div>
     </div>
@@ -191,7 +203,7 @@
      ADD SINGLE MODAL (staff only)
 ════════════════════════════════════════════════════════════ -->
 @if (addModal()) {
-  <div class="modal-overlay" (click)="closeAddModal()">
+  <div class="modal-overlay">
     <div class="form-modal" (click)="$event.stopPropagation()">
 
       <div class="fmodal-header">
@@ -199,7 +211,7 @@
           <span class="fmodal-icon"><i class="ti ti-plus"></i></span>
           เพิ่มวารสารใหม่
         </div>
-        <button class="fmodal-close" (click)="closeAddModal()">✕</button>
+        <button class="fmodal-close" (click)="closeAddModal()"><i class="ti ti-x"></i></button>
       </div>
 
       <div class="fmodal-body">
@@ -215,7 +227,7 @@
                    [(ngModel)]="addForm.issn" />
           </div>
           <div class="form-group">
-            <label class="form-label">วันที่บันทึก</label>
+            <label class="form-label">วันที่บันทึก <span class="req">*</span></label>
             <input class="form-control" type="date" [(ngModel)]="addForm.recorded_date" />
           </div>
           <div class="form-group form-group--full">
@@ -254,7 +266,7 @@
       <div class="fmodal-footer">
         <button class="btn-fcancel" (click)="closeAddModal()" [disabled]="isAdding()">ยกเลิก</button>
         <button class="btn-fsubmit btn-fsubmit--green" (click)="submitAdd()"
-                [disabled]="isAdding() || !addForm.journal_name.trim()">
+                [disabled]="isAdding() || !addForm.journal_name.trim() || !addForm.recorded_date">
           @if (isAdding()) { <span class="btn-spinner"></span> กำลังบันทึก... }
           @else             { <i class="ti ti-circle-check"></i> บันทึกวารสาร }
         </button>
@@ -268,7 +280,7 @@
      IMPORT CSV MODAL (staff only)
 ════════════════════════════════════════════════════════════ -->
 @if (csvModal()) {
-  <div class="modal-overlay" (click)="closeCsvModal()">
+  <div class="modal-overlay">
     <div class="form-modal form-modal--sm" (click)="$event.stopPropagation()">
 
       <div class="fmodal-header">
@@ -276,14 +288,17 @@
           <span class="fmodal-icon"><i class="ti ti-upload"></i></span>
           นำเข้าวารสาร (CSV)
         </div>
-        <button class="fmodal-close" (click)="closeCsvModal()">✕</button>
+        <button class="fmodal-close" (click)="closeCsvModal()"><i class="ti ti-x"></i></button>
       </div>
 
       <div class="fmodal-body">
         <div class="csv-hint">
           <div class="csv-hint__title">รูปแบบ CSV ที่รองรับ</div>
           <code class="csv-hint__code">journal_name, issn, publisher, note, recorded_date</code>
-          <div class="csv-hint__note">• ต้องมีแถวหัวตาราง (header row)<br>• recorded_date ใช้รูปแบบ YYYY-MM-DD<br>• บันทึกไฟล์เป็น UTF-8</div>
+          <div class="csv-hint__note">• ต้องมีแถวหัวตาราง (header row)<br>• recorded_date ต้องมีทุกแถว รูปแบบ YYYY-MM-DD (ค.ศ.)<br>• บันทึกไฟล์เป็น UTF-8<br>• ไฟล์ไม่เกิน 2 MB และไม่เกิน 2,000 แถว · ถ้ามีแถวใดผิด จะไม่นำเข้าทั้งไฟล์</div>
+          <button type="button" class="csv-template-btn" (click)="downloadCsvTemplate()">
+            <i class="ti ti-download"></i> ดาวน์โหลดไฟล์ตัวอย่าง (.csv)
+          </button>
         </div>
 
         <div class="form-group">
@@ -304,6 +319,11 @@
           <div [class]="r.ok ? 'result-banner result-banner--ok' : 'result-banner result-banner--err'">
             @if (r.ok) { <i class="ti ti-circle-check"></i> } @else { <i class="ti ti-alert-triangle"></i> } {{ r.msg }}
           </div>
+          @if (r.errors?.length) {
+            <ul class="import-errors">
+              @for (e of r.errors; track $index) { <li>{{ e }}</li> }
+            </ul>
+          }
         }
       </div>
 
@@ -324,7 +344,7 @@
      EDIT MODAL (staff only)
 ════════════════════════════════════════════════════════════ -->
 @if (editModal(); as j) {
-  <div class="modal-overlay" (click)="closeEditModal()">
+  <div class="modal-overlay">
     <div class="form-modal" (click)="$event.stopPropagation()">
 
       <div class="fmodal-header fmodal-header--yellow">
@@ -332,7 +352,7 @@
           <span class="fmodal-icon"><i class="ti ti-pencil"></i></span>
           แก้ไขวารสาร
         </div>
-        <button class="fmodal-close" (click)="closeEditModal()">✕</button>
+        <button class="fmodal-close" (click)="closeEditModal()"><i class="ti ti-x"></i></button>
       </div>
 
       <div class="fmodal-body">
@@ -348,7 +368,7 @@
             <input class="form-control" type="text" [(ngModel)]="editForm.issn" />
           </div>
           <div class="form-group">
-            <label class="form-label">วันที่บันทึก</label>
+            <label class="form-label">วันที่บันทึก <span class="req">*</span></label>
             <input class="form-control" type="date" [(ngModel)]="editForm.recorded_date" />
           </div>
           <div class="form-group form-group--full">
@@ -391,7 +411,7 @@
       <div class="fmodal-footer">
         <button class="btn-fcancel" (click)="closeEditModal()" [disabled]="isEditing()">ยกเลิก</button>
         <button class="btn-fsubmit btn-fsubmit--yellow" (click)="submitEdit()"
-                [disabled]="isEditing() || !editForm.journal_name.trim()">
+                [disabled]="isEditing() || !editForm.journal_name.trim() || !editForm.recorded_date">
           @if (isEditing()) { <span class="btn-spinner"></span> กำลังบันทึก... }
           @else             { <i class="ti ti-pencil"></i> บันทึกการแก้ไข }
         </button>
@@ -414,6 +434,9 @@
         ออกจากรายการ MSU Unwanted ใช่หรือไม่?
         <div class="delete-modal__warn">การกระทำนี้ไม่สามารถยกเลิกได้</div>
       </div>
+      @if (deleteError()) {
+        <div class="delete-modal__error"><i class="ti ti-alert-triangle"></i> {{ deleteError() }}</div>
+      }
       <div class="delete-modal__actions">
         <button class="btn-fcancel" (click)="closeDeleteModal()" [disabled]="isDeleting()">ยกเลิก</button>
         <button class="btn-fsubmit btn-fsubmit--red" (click)="submitDelete()" [disabled]="isDeleting()">

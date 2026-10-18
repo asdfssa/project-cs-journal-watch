@@ -1,0 +1,132 @@
+// ปรับสีได้จากภายนอกผ่าน CSS variables (ค่า default = โทน navy ของหน้า manage-users)
+:host {
+  --as-accent:  #1B3A6B;
+  --as-border:  #e2e8f0;
+  --as-text:    #1e293b;
+  --as-muted:   #64748b;
+  --as-hover:   #f4f6fa;
+  --as-radius:  10px;
+  --as-pad:     9px 12px;
+  --as-size:    13.5px;
+
+  display: block;
+  position: relative;
+  width: 100%;
+}
+
+.as-trigger {
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: var(--as-pad);
+  border: 1.5px solid var(--as-border);
+  border-radius: var(--as-radius);
+  background: #fff;
+  font-family: inherit;
+  font-size: var(--as-size);
+  color: var(--as-text);
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+  transition: border-color .2s, box-shadow .2s;
+
+  &:hover:not(:disabled) { border-color: var(--as-accent); }
+
+  &:focus-visible,
+  &--open {
+    border-color: var(--as-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--as-accent) 12%, transparent);
+  }
+
+  &:disabled { background: #f8fafc; color: var(--as-muted); cursor: not-allowed; }
+}
+
+.as-val {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &--empty { color: var(--as-muted); }
+}
+
+.as-arrow {
+  flex-shrink: 0;
+  font-size: 16px;
+  color: var(--as-muted);
+  transition: transform .2s, color .2s;
+
+  .as-trigger--open & { transform: rotate(180deg); color: var(--as-accent); }
+}
+
+.as-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1999;
+}
+
+.as-panel {
+  position: fixed;
+  z-index: 2000;
+  box-sizing: border-box;
+  min-width: 160px;
+  overflow-y: auto;
+  padding: 6px;
+  background: #fff;
+  border: 1.5px solid var(--as-border);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, .14);
+  animation: as-in .14s ease;
+
+  &::-webkit-scrollbar { width: 6px; }
+  &::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+}
+
+@keyframes as-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.as-group {
+  padding: 8px 10px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--as-muted);
+
+  &:not(:first-child) { margin-top: 4px; border-top: 1px solid var(--as-border); padding-top: 10px; }
+}
+
+.as-opt {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  font-family: inherit;
+  font-size: var(--as-size);
+  color: var(--as-text);
+  text-align: left;
+  cursor: pointer;
+
+  &--grouped { padding-left: 16px; }
+  &--empty   { color: var(--as-muted); }
+  &--active  { background: var(--as-hover); }
+
+  &--selected {
+    color: var(--as-accent);
+    font-weight: 700;
+    background: color-mix(in srgb, var(--as-accent) 7%, transparent);
+  }
+}
+
+.as-opt-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.as-check { font-size: 15px; color: var(--as-accent); }

@@ -493,3 +493,35 @@ $white:  #FFFFFF;
 
   .confirm-modal { padding: 26px 20px 20px; }
 }
+
+/* ลงนามไม่สำเร็จ — แสดงเหตุผลใน dialog ยืนยัน (X17) */
+.confirm-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  color: #B91C1C;
+  font-size: 13px;
+  line-height: 1.5;
+
+  i { font-size: 16px; margin-top: 1px; flex-shrink: 0; }
+}
+
+// อาจารย์ที่ปรึกษาร่วม — เห็นคำร้องได้แต่ไม่มีสิทธิ์ลงนาม (can_review เป็นของอาจารย์หลักเท่านั้น)
+.co-advisor-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 99px;
+  background: rgba(28, 39, 68, 0.06); color: #475569;
+  font-size: 11px; white-space: nowrap;
+  i { font-size: 12px; }
+}
+.co-advisor-note {
+  display: flex; gap: 8px; align-items: flex-start;
+  padding: 12px 14px; border-radius: 10px;
+  background: #eef3ff; color: #1a3a8a; font-size: 13px;
+  i { font-size: 16px; margin-top: 1px; flex-shrink: 0; }
+}

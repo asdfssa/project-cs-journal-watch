@@ -10,6 +10,7 @@ export interface Datum {
     last_rejected_at:     null;
     journal_snapshot:     JournalSnapshot;
     checklist_data:       { [key: string]: boolean };
+    article_info?:        { title_en?: string | null; title_th?: string | null };
     advisor_approval:     AdvisorApproval;
     faculty_com_approval: FacultyCOMApproval;
     created_at:           Date;
@@ -17,14 +18,14 @@ export interface Datum {
 }
 
 export interface AdvisorApproval {
-    remark:      null;
+    remark:      string | null;
     status:      string;
     user_id:     number;
     approved_at: Date | null;
 }
 
 export interface FacultyCOMApproval {
-    remark:       null;
+    remark:       string | null;
     status:       string;
     meeting_no:   null;
     approved_at:  null;

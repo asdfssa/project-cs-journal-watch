@@ -7,7 +7,6 @@ export interface Data {
     users:         Users;
     pre_t3:        PreT3;
     t3:            PreT3;
-    journal_cache: JournalCache;
     msu_unwanted:  MsuUnwanted;
     api_keys:      APIKey[];
 }
@@ -18,16 +17,8 @@ export interface APIKey {
     weeklyLimit: number;
     remaining:   number;
     isAvailable: boolean;
-    lastResetAt: Date;
+    weeklyResetAt: number;   // unix timestamp (วินาที) ของรอบรีเซ็ตโควตาถัดไป — แปลงด้วย new Date(x * 1000)
     keyPreview:  string;
-}
-
-export interface JournalCache {
-    total:        number;
-    scopus:       number;
-    tci:          number;
-    via_api:      number;
-    via_scraping: number;
 }
 
 export interface MsuUnwanted {

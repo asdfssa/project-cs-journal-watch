@@ -6,9 +6,9 @@
     <div class="uc-body">
       @if (isOpen) {
         <div class="user-info">
-          <div class="user-name">{{ userName }}</div>
-          <span class="role-badge">{{ userRole }}</span>
-          <div class="user-email">{{ userEmail }}</div>
+          <div class="user-name">{{ userName() }}</div>
+          <span class="role-badge">{{ userRole() }}</span>
+          <div class="user-email">{{ userEmail() }}</div>
         </div>
       }
     </div>

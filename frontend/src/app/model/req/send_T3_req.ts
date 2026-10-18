@@ -8,8 +8,8 @@ export interface SendT3Req {
 
 export interface JournalMetrics {
     has_impact_score: boolean;
-    impact_factor:    number;
-    citescore:        number;
+    impact_factor:    number | null;
+    citescore:        number | null;
     score_year:       string;
 }
 
@@ -29,7 +29,6 @@ export interface PaperAndResearchDetails {
 
 export interface PublicationDetails {
     type:               string;
-    weight_score:       number;
     specified_database: string;
     status:             string;
     volume:             string;

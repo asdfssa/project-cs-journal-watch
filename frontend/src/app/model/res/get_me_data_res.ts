@@ -12,7 +12,6 @@ export interface Data {
     msuMail:        string;
     phone:          null;
     accountStatus:  string;
-    lastLoginAt:    Date;
     degreeLevel:    null;
     curriculumYear: null;
     studyPlanCode:  null;

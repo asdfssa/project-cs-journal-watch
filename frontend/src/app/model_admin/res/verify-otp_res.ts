@@ -6,7 +6,6 @@ export interface VerifyOtpRes {
 
 export interface Data {
     accessToken:  string;
-    refreshToken: string;
     user:         User;
 }
 

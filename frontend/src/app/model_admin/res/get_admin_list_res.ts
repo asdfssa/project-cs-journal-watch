@@ -17,7 +17,6 @@ export interface Admin {
     role:           string;
     account_status: string;
     created_at:     Date;
-    last_login_at:  Date;
 }
 
 export interface Pagination {

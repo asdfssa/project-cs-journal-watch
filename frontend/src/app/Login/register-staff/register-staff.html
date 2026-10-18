@@ -42,7 +42,7 @@
           <div class="jw-badge">ส่องวารสาร · MSU</div>
         </div>
 
-        <div class="staff-badge">🔐 เฉพาะเจ้าหน้าที่เท่านั้น</div>
+        <div class="staff-badge"><i class="ti ti-lock-access"></i> เฉพาะเจ้าหน้าที่เท่านั้น</div>
       </div>
 
       <!-- DIVIDER -->
@@ -51,11 +51,26 @@
       <!-- RIGHT -->
       <div class="card-right">
 
+        @if (registered(); as r) {
+          <div class="right-title">ลงทะเบียนเรียบร้อย</div>
+          <div class="status-panel status-panel--pending">
+            <div class="status-panel__icon"><i class="ti ti-hourglass"></i></div>
+            <div class="status-panel__body">
+              <div class="status-panel__title">รอผู้ดูแลระบบอนุมัติ</div>
+              <div class="status-panel__text">
+                สมัครด้วยบัญชี <strong>{{ r.email || 'Google ของคุณ' }}</strong>@if (r.name) { ({{ r.name }}) }<br>
+                เมื่อได้รับอนุมัติ ระบบจะส่งอีเมลแจ้งไปที่อีเมลนี้ แล้วจึงเข้าสู่ระบบได้
+              </div>
+            </div>
+          </div>
+          <a class="status-panel__back" routerLink="/login"><i class="ti ti-arrow-left"></i> กลับหน้าเข้าสู่ระบบ</a>
+        } @else {
+
         <div class="right-title">ลงทะเบียนเจ้าหน้าที่</div>
 
         <div class="info-box">
           <div class="info-item">
-            <span class="info-icon">🔐</span>
+            <span class="info-icon"><i class="ti ti-lock-access"></i></span>
             <span>สำหรับ <strong>เจ้าหน้าที่บัณฑิตวิทยาลัย</strong> เท่านั้น ห้ามนิสิตหรือบุคคลภายนอกใช้งาน</span>
           </div>
           <div class="info-divider"></div>
@@ -69,7 +84,7 @@
         @if (errorMessage()) {
           <div class="error-banner" [class.error-banner--exists]="errorCode() === 'EMAIL_ALREADY_EXISTS'">
             <span class="error-icon">
-              {{ errorCode() === 'EMAIL_ALREADY_EXISTS' ? 'ℹ️' : '⚠️' }}
+              @if (errorCode() === 'EMAIL_ALREADY_EXISTS') { <i class="ti ti-info-circle"></i> } @else { <i class="ti ti-alert-triangle"></i> }
             </span>
             <div class="error-body">
               <div class="error-text">{{ errorMessage() }}</div>
@@ -86,15 +101,17 @@
               <div class="loading-spinner"></div>
               <span>กำลังดำเนินการ...</span>
             </div>
-          } @else {
-            <div id="google-btn-register"></div>
           }
+          <!-- F19: ซ่อนด้วย [hidden] ไม่ใช้ @if — ปุ่ม Google ถูก render ครั้งเดียวตอน ngOnInit
+               ถ้าทำลาย div ทิ้งตอน loading จะได้ div ใหม่ที่ว่างเปล่า ปุ่มหายจนกว่าจะ reload -->
+          <div id="google-btn-register" [hidden]="loading()"></div>
         </div>
 
         <div class="login-note">
           <span class="note-dot"></span>
           ใช้ได้เฉพาะบัญชี @msu.ac.th ของเจ้าหน้าที่เท่านั้น
         </div>
+        }
 
       </div>
     </div>

@@ -9,6 +9,9 @@ export interface Datum {
     student_email:         string;
     overall_status:        string;
     journal_snapshot:      JournalSnapshot;
+    // X43: backend ส่งมาด้วย (ยืนยันแล้ว 9-10-2569) — title อาจเป็น null ถ้านิสิตไม่กรอก
+    article_info?:         { title_en: string | null; title_th: string | null };
+    student_snapshot?:     { degree_level: 'Master' | 'Doctoral' | null; study_plan_code?: string | null; curriculum_year?: string | null };
     checklist_data:        { [key: string]: boolean };
     advisor_approval:      Approval;
     co_advisor_1_approval: Approval;

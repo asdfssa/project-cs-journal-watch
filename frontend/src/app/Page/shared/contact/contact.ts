@@ -1,4 +1,4 @@
-import { Component, AfterViewInit, OnInit, inject, signal } from '@angular/core';
+import { Component, AfterViewInit, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
@@ -13,7 +13,7 @@ import { GetContactStaffRes, Staff } from '../../../model/res/get_contact_staff_
   templateUrl: './contact.html',
   styleUrl: './contact.scss',
 })
-export class Contact implements OnInit, AfterViewInit {
+export class Contact implements OnInit, AfterViewInit, OnDestroy {
   private http          = inject(HttpClient);
   protected authService = inject(AuthService);
   private constants     = inject(Constants);
@@ -22,7 +22,12 @@ export class Contact implements OnInit, AfterViewInit {
   isLoading   = signal(true);
   loadError   = signal(false);
 
-  private observer!: IntersectionObserver;
+  private observer?: IntersectionObserver;
+
+  // F17: เลิกสังเกต element เมื่อออกจากหน้า
+  ngOnDestroy(): void {
+    this.observer?.disconnect();
+  }
 
   ngOnInit(): void {
     const token = this.authService.token;
@@ -52,7 +57,7 @@ export class Contact implements OnInit, AfterViewInit {
         entries.forEach(entry => {
           if (entry.isIntersecting) {
             entry.target.classList.add('visible');
-            this.observer.unobserve(entry.target);
+            this.observer?.unobserve(entry.target);
           }
         });
       },

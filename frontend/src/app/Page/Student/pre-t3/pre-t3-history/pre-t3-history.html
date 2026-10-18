@@ -33,6 +33,12 @@
         <div class="loading-spinner"></div>
         <div class="empty-text">กำลังโหลดข้อมูล...</div>
       </div>
+    } @else if (loadError()) {
+      <div class="empty-state empty-state--error">
+        <div class="empty-icon"><i class="ti ti-cloud-off"></i></div>
+        <div class="empty-text">{{ loadError() }}</div>
+        <button type="button" class="btn-retry" (click)="refresh()"><i class="ti ti-refresh"></i> ลองใหม่</button>
+      </div>
     } @else if (cards.length === 0) {
       <div class="empty-state">
         <div class="empty-icon"><i class="ti ti-inbox"></i></div>
@@ -108,7 +114,7 @@
           </div>
           <div class="mh-row1-right">
             <span class="mh-id-chip">{{ d.id }}</span>
-            <button class="modal-close" (click)="closeDetail()">✕</button>
+            <button class="modal-close" (click)="closeDetail()"><i class="ti ti-x"></i></button>
           </div>
         </div>
 
@@ -132,7 +138,7 @@
               <div class="mh-date-lbl">วันที่ยื่น</div>
             </div>
             <div class="mh-status-pill" [class]="'mh-status-pill mh-status-pill--' + d.cardStatus">
-              @if (d.cardStatus === 'approved') { <i class="ti ti-circle-check"></i> }
+              <i [class]="d.currentStatusIcon"></i>
               {{ d.statusPillText }}
             </div>
           </div>
@@ -142,7 +148,7 @@
           <span class="sbadge sbadge-blue">{{ d.database }}</span>
           <span class="sbadge sbadge-yellow">{{ d.quartile }}</span>
           @if (d.scopusStatus === 'Active') {
-            <span class="sbadge sbadge-green">✔ Active</span>
+            <span class="sbadge sbadge-green"><i class="ti ti-check"></i> Active</span>
           } @else {
             <span class="sbadge sbadge-red"><i class="ti ti-circle-x"></i> Discontinued</span>
           }
@@ -151,7 +157,6 @@
         <div class="mh-grid">
           <div class="mh-cell"><span class="mh-lbl">ISSN</span><span class="mh-val mono">{{ d.issn }}</span></div>
           <div class="mh-cell"><span class="mh-lbl">Quartile</span><span class="mh-val">{{ d.quartile }}</span></div>
-          <div class="mh-cell"><span class="mh-lbl">SJR</span><span class="mh-val mono">{{ d.sjr }}</span></div>
           <div class="mh-cell"><span class="mh-lbl">ฐานข้อมูล</span><span class="mh-val">{{ d.database }}</span></div>
           <div class="mh-cell"><span class="mh-lbl">ระดับ</span><span class="mh-val">{{ d.degree }}</span></div>
           <div class="mh-cell"><span class="mh-lbl">อาจารย์ที่ปรึกษา</span><span class="mh-val">{{ d.advisor }}</span></div>
@@ -200,7 +205,7 @@
               @for (item of d.timeline; track item.actor; let last = $last) {
                 <div class="tl-item">
                   <div class="tl-left">
-                    <div class="tl-icon" [class]="'tl-' + item.badgeType">{{ item.icon }}</div>
+                    <div class="tl-icon" [class]="'tl-' + item.badgeType"><i [class]="item.icon"></i></div>
                     @if (!last) { <div class="tl-line"></div> }
                   </div>
                   <div class="tl-body">
@@ -228,6 +233,9 @@
         <button class="btn-mf btn-mf-print" (click)="printDetail()"><i class="ti ti-printer"></i> พิมพ์ใบคำร้อง</button>
         @if (d.cardStatus === 'approved') {
           <a class="btn-mf btn-mf-t3" routerLink="/send-t3" (click)="closeDetail()"><i class="ti ti-send"></i> ยื่น T3</a>
+        }
+        @if (d.cardStatus === 'rejected' && canResubmit(d.id)) {
+          <button class="btn-mf btn-mf-resubmit" (click)="resubmit(d.id)"><i class="ti ti-refresh"></i> แก้ไขและยื่นใหม่</button>
         }
       </div>
 

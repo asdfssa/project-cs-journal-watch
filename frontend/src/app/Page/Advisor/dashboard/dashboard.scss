@@ -55,6 +55,7 @@ section { margin: 0; }
   display: flex; align-items: center; justify-content: center;
   overflow: hidden;
   font-size: 48px;
+  color: rgba(255,255,255,0.9);
 }
 
 .welcome-avatar {
@@ -231,10 +232,13 @@ section { margin: 0; }
 }
 
 .action-btn {
+  display: inline-flex; align-items: center; gap: 8px;
   padding: 16px 24px; border-radius: 14px;
   font-size: 14px; font-weight: 600; text-decoration: none;
   transition: 0.2s ease;
   &:hover { transform: translateY(-2px); }
+
+  i { font-size: 18px; }
 }
 
 .navy   { background: $navy;   color: $white; }

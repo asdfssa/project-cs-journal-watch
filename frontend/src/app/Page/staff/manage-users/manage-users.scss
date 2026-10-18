@@ -22,7 +22,24 @@ $muted:  #64748b;
 .mu-header {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 14px;
+
+  // ปุ่มนำเข้า CSV ชิดขวาของหัวหน้า (ระดับหน้า ไม่ใช่ของแท็บ)
+  &__import {
+    margin-left: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+
+    @media (max-width: 700px) { margin-left: 0; width: 100%; align-items: flex-start; }
+  }
+
+  &__import-hint {
+    font-size: 11.5px;
+    color: $muted;
+  }
 
   &__icon { font-size: 28px; }
 
@@ -79,22 +96,52 @@ $muted:  #64748b;
   }
 }
 
-.mu-tab-count {
-  display: inline-flex;
+// ─── SUMMARY (จำนวนของแท็บที่เปิดอยู่) ─────────────────────────────
+.mu-summary {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
-  border-radius: 10px;
-  background: $border;
-  color: $muted;
-  font-size: 11px;
-  font-weight: 700;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 2px 2px 0;
 
-  .mu-tab--active & {
-    background: rgba($gold, .22);
-    color: $gold;
+  &__icon {
+    width: 30px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9px;
+    background: rgba($navy, .08);
+    color: $navy;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  &__text {
+    font-size: 13.5px;
+    color: $muted;
+  }
+
+  &__num {
+    margin: 0 2px;
+    font-size: 17px;
+    font-weight: 700;
+    color: $navy;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  &__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 11px;
+    border-radius: 99px;
+    background: rgba($gold, .16);
+    color: #8a6410;
+    font-size: 12px;
+
+    strong { font-weight: 700; }
+    i { font-size: 13px; }
   }
 }
 
@@ -141,6 +188,7 @@ $muted:  #64748b;
   transition: filter .15s;
 
   &:hover { filter: brightness(1.2); }
+  i { margin-right: 4px; }
 }
 
 // ─── CUSTOM DROPDOWN ───────────────────────────────────────────────
@@ -247,12 +295,6 @@ $muted:  #64748b;
 
 // ─── IMPORT MODAL EXTRAS ───────────────────────────────────────────
 .mu-edit-modal--narrow { max-width: 480px; }
-
-.mu-edit-modal__avatar--import {
-  background: linear-gradient(135deg, #262D40, #3d4f70);
-  font-size: 20px;
-  box-shadow: 0 2px 8px rgba(#262D40, .35);
-}
 
 .mu-file-drop {
   display: flex;
@@ -379,7 +421,7 @@ $muted:  #64748b;
 @keyframes spin { to { transform: rotate(360deg); } }
 
 // ─── TABLE WRAP ────────────────────────────────────────────────────
-$table-cols: 2fr 2fr 0.85fr 0.95fr 1.1fr 3fr;
+$table-cols: 2fr 2fr 0.85fr 0.95fr 3fr;
 
 .mu-table-wrap {
   background: #fff;
@@ -473,21 +515,6 @@ $table-cols: 2fr 2fr 0.85fr 0.95fr 1.1fr 3fr;
     justify-content: center;
     gap: 6px;
   }
-}
-
-// ─── ROW AVATAR ────────────────────────────────────────────────────
-.mu-row-avatar {
-  width: 36px; height: 36px;
-  border-radius: 50%;
-  background: $navy;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 800;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-  letter-spacing: .5px;
-
-  &--advisor { background: #1A5FAB; }
 }
 
 .mu-row-name-wrap {
@@ -797,29 +824,6 @@ $table-cols: 2fr 2fr 0.85fr 0.95fr 1.1fr 3fr;
     gap: 14px;
   }
 
-  &__avatar {
-    width: 44px; height: 44px;
-    border-radius: 50%;
-    background: $navy;
-    border: 2px solid rgba($navy, .15);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 16px; font-weight: 800; color: #fff;
-    flex-shrink: 0;
-    box-shadow: 0 2px 8px rgba($navy, .25);
-
-    &--add {
-      background: linear-gradient(135deg, #E0A100, #f0b429);
-      color: $navy;
-      font-size: 22px;
-      box-shadow: 0 2px 8px rgba(#E0A100, .35);
-    }
-
-    &--advisor-add {
-      background: linear-gradient(135deg, #1A5FAB, #2176cc);
-      font-size: 20px;
-      box-shadow: 0 2px 8px rgba(#1A5FAB, .35);
-    }
-  }
 
   &__title {
     font-size: 15px;
@@ -906,16 +910,28 @@ $table-cols: 2fr 2fr 0.85fr 0.95fr 1.1fr 3fr;
   &:focus { border-color: $navy; box-shadow: 0 0 0 3px rgba($navy,.08); }
 
   option, optgroup { font-size: 13px; font-family: inherit; }
+
+  // ช่องที่ staff แก้ไม่ได้ (อีเมล) — แสดงค่าเดิมแบบอ่านอย่างเดียว
+  &--locked {
+    background: $bg;
+    color: $muted;
+    cursor: not-allowed;
+
+    &:focus { border-color: $border; box-shadow: none; }
+  }
 }
 
-select.mu-edit-input {
-  appearance: none;
-  -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' viewBox='0 0 12 7' fill='none'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  padding-right: 32px;
-  cursor: pointer;
+.mu-lock-icon {
+  font-size: 12px;
+  color: $muted;
+  vertical-align: -1px;
+}
+
+.mu-edit-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: $muted;
 }
 
 // ─── RESULT BANNER ───────────────────────────────────────────────────
@@ -993,3 +1009,105 @@ select.mu-edit-input {
 }
 
 @keyframes mu-spin { to { transform: rotate(360deg); } }
+
+/* X24: ผู้ใช้รออนุมัติ — staff อนุมัติไม่ได้ แสดงสถานะแทนปุ่ม */
+.mu-status-badge.mu-status-badge--pending {
+  background: rgba($gold, .16);
+  color: #8a6410;
+  border-color: rgba($gold, .45);
+}
+
+.mu-pending-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba($gold, .1);
+  color: #8a6410;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+
+  i { font-size: 14px; }
+}
+
+// ─── CONFIRM MODAL (F27 — สไตล์เดียวกับหน้า admin) ─────────────────
+.mu-btn-save.mu-btn-save--danger { background: $red; }
+
+.mu-delete-modal { max-width: 440px; }
+.mu-delete-modal__accent { background: linear-gradient(90deg, $red, #E57368); }
+
+.mu-delete-modal__body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 26px 26px 10px;
+  text-align: center;
+}
+
+.mu-delete-modal__icon {
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba($red, .1);
+  color: $red;
+  font-size: 24px;
+}
+
+.mu-delete-modal__title { font-size: 17px; font-weight: 800; color: $navy; }
+.mu-delete-modal__name  { font-size: 13px; color: $muted; }
+
+.mu-delete-modal__warn {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba($red, .06);
+  color: #962D2D;
+  font-size: 12.5px;
+  line-height: 1.55;
+  text-align: left;
+
+  i { font-size: 15px; margin-top: 2px; flex-shrink: 0; }
+}
+
+// ปุ่มดาวน์โหลดไฟล์ CSV ตัวอย่าง (feedback backend ข้อ 5)
+.mu-csv-template-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 6px 14px;
+  border: 1px solid #c7d3f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #1a3a8a;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+
+  &:hover { background: #e8eefc; }
+}
+
+// อีเมลผิดรูปแบบ (feedback backend ข้อ 6)
+.mu-field-error {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: $red;
+}
+
+
+// สาขาวิชาใต้ป้ายระดับการศึกษาในตารางนิสิต — ชื่อสาขายาว ให้ตัดบรรทัดได้
+.mu-row-dept {
+  display: block;
+  margin-top: 4px;
+  white-space: normal;
+}

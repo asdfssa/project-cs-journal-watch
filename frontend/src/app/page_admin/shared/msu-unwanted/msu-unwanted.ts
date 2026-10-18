@@ -4,12 +4,14 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { catchError, of } from 'rxjs';
-import { AuthService } from '../../../auth.service';
+import { AuthService, readStoredAdmin } from '../../../auth.service';
 import { Constants } from '../../../comfig/constants';
 import { MSUUnwantedRes, Journal } from '../../../model/res/MSU_Unwanted_res';
 import { ImportMsuUnwantedRes } from '../../../model/res/import_msu_Unwanted_res';
+import { apiFailure, failMsg } from '../../../server-status.service';
+import { downloadBlob } from '../../../file-download';
 
-interface ActionResult { ok: boolean; msg: string; }
+interface ActionResult { ok: boolean; msg: string; errors?: string[]; }
 
 @Component({
   selector: 'app-msu-unwanted',
@@ -25,7 +27,7 @@ export class MsuUnwanted implements OnInit {
 
   get canManage(): boolean {
     const role = this.auth.user?.role
-      ?? (JSON.parse(localStorage.getItem('user') ?? 'null') as any)?.role;
+      ?? (readStoredAdmin() as any)?.role;
     return role === 'Admin' || role === 'SuperAdmin';
   }
 
@@ -75,6 +77,9 @@ export class MsuUnwanted implements OnInit {
     this.loadData();
   }
 
+  /** N20: คำที่กดค้นหาล่าสุด — เปลี่ยนหน้าใช้คำนี้ ไม่ใช่ข้อความที่พิมพ์ค้างในช่องแต่ยังไม่ได้กดค้นหา */
+  private appliedSearch = '';
+
   loadData(): void {
     this.isLoading.set(true);
     this.errorMessage.set('');
@@ -84,7 +89,7 @@ export class MsuUnwanted implements OnInit {
       .set('page',  String(this.currentPage()))
       .set('limit', String(this.itemsPerPage));
 
-    const q = this.normalizeSearch(this.searchQuery().trim());
+    const q = this.normalizeSearch(this.appliedSearch);
     if (q) params = params.set('search', q);
 
     this.http
@@ -92,9 +97,15 @@ export class MsuUnwanted implements OnInit {
       .subscribe({
         next: (res) => {
           if (res.success) {
+            // N19: ลบรายการสุดท้ายของหน้าสุดท้ายแล้วหน้านั้นว่าง → ถอยไปหน้าก่อนหน้าแทนการโชว์ "ไม่พบข้อมูล"
+            if (!res.data.journals.length && this.currentPage() > 1) {
+              this.currentPage.set(Math.max(1, Math.min(this.currentPage() - 1, res.data.pagination.totalPages || 1)));
+              this.loadData();
+              return;
+            }
             this.journals.set(res.data.journals);
             this.totalItems.set(res.data.pagination.total);
-            this.totalPagesCount.set(res.data.pagination.totalPages);
+            this.totalPagesCount.set(Math.max(1, res.data.pagination.totalPages));
           } else {
             this.errorMessage.set('ไม่สามารถโหลดข้อมูลได้');
           }
@@ -107,10 +118,15 @@ export class MsuUnwanted implements OnInit {
       });
   }
 
-  search(): void { this.currentPage.set(1); this.loadData(); }
+  search(): void {
+    this.appliedSearch = this.searchQuery().trim();
+    this.currentPage.set(1);
+    this.loadData();
+  }
 
   refresh(): void {
     this.searchQuery.set('');
+    this.appliedSearch = '';
     this.currentPage.set(1);
     this.loadData();
   }
@@ -125,11 +141,40 @@ export class MsuUnwanted implements OnInit {
   }
 
   openDetail(j: Journal): void { this.selectedJournal.set(j); }
-  closeDetail(): void          { this.selectedJournal.set(null); }
+  closeDetail(): void          { this.selectedJournal.set(null); this.evidenceError.set(''); }
+
+  // ── ดูไฟล์หลักฐาน: GET /unwanted-journals/:id/evidence ต้องแนบ token จึงเปิดลิงก์ตรงไม่ได้
+  //    → โหลดเป็น blob แล้วเปิดในแท็บใหม่ ──
+  isLoadingEvidence = signal(false);
+  evidenceError     = signal('');
+
+  openEvidence(j: Journal): void {
+    if (this.isLoadingEvidence()) return;
+    // เปิดแท็บก่อนรอโหลด — ถ้าเปิดหลัง await เบราว์เซอร์จะบล็อกเป็น popup
+    const tab = window.open('', '_blank');
+    this.isLoadingEvidence.set(true);
+    this.evidenceError.set('');
+    const headers = new HttpHeaders({ Authorization: `Bearer ${this.auth.token}` });
+    this.http.get(`${this.constants.API_ENDPOINT}/unwanted-journals/${j.unwanted_id}/evidence`, { headers, responseType: 'blob' })
+      .subscribe({
+        next: blob => {
+          this.isLoadingEvidence.set(false);
+          const url = URL.createObjectURL(blob);
+          if (tab) tab.location.href = url; else window.open(url, '_blank');
+          setTimeout(() => URL.revokeObjectURL(url), 60_000);
+        },
+        error: err => {
+          this.isLoadingEvidence.set(false);
+          tab?.close();
+          this.evidenceError.set(err?.status === 404 ? 'ไม่พบไฟล์หลักฐานของวารสารนี้' : 'เปิดไฟล์หลักฐานไม่สำเร็จ กรุณาลองใหม่');
+        },
+      });
+  }
 
   // ── Add Single ────────────────────────────────────────────────────
   openAddModal(): void {
-    this.addForm = { journal_name: '', issn: '', publisher: '', note: '', recorded_date: '' };
+    // X36: backend บังคับ recorded_date — เติมวันนี้ให้เป็นค่าเริ่มต้น (แก้เป็นวันอื่นได้)
+    this.addForm = { journal_name: '', issn: '', publisher: '', note: '', recorded_date: this.todayInput() };
     this.addFile = null;
     this.addResult.set(null);
     this.addModal.set(true);
@@ -146,7 +191,7 @@ export class MsuUnwanted implements OnInit {
   }
 
   submitAdd(): void {
-    if (!this.addForm.journal_name.trim()) return;
+    if (!this.addForm.journal_name.trim() || !this.addForm.recorded_date) return;
     this.isAdding.set(true);
     this.addResult.set(null);
 
@@ -161,7 +206,7 @@ export class MsuUnwanted implements OnInit {
 
     this.http
       .post<ImportMsuUnwantedRes>(`${this.constants.API_ENDPOINT}/unwanted-journals/single`, fd, { headers })
-      .pipe(catchError(() => of(null)))
+      .pipe(catchError(err => of(apiFailure(err))))
       .subscribe(res => {
         this.isAdding.set(false);
         if (res?.success) {
@@ -169,7 +214,7 @@ export class MsuUnwanted implements OnInit {
           this.loadData();
           setTimeout(() => this.closeAddModal(), 1600);
         } else {
-          this.addResult.set({ ok: false, msg: 'เกิดข้อผิดพลาด กรุณาลองใหม่' });
+          this.addResult.set({ ok: false, msg: failMsg(res) });
         }
       });
   }
@@ -180,6 +225,20 @@ export class MsuUnwanted implements OnInit {
     this.importResult.set(null);
     this.csvModal.set(true);
     document.body.style.overflow = 'hidden';
+  }
+
+  /**
+   * ดาวน์โหลดไฟล์ CSV ตัวอย่าง (feedback backend ข้อ 4) — สร้างในเบราว์เซอร์ ไม่ต้องมีไฟล์/endpoint ฝั่ง backend
+   * ใส่ BOM ให้ Excel เปิดภาษาไทยได้ (backend อ่านไฟล์ที่มี BOM ได้) · recorded_date เป็น ค.ศ. YYYY-MM-DD
+   */
+  downloadCsvTemplate(): void {
+    const rows = [
+      ['journal_name', 'issn', 'publisher', 'note', 'recorded_date'],
+      ['ตัวอย่างวารสาร A (ลบแถวตัวอย่างออกก่อนนำเข้า)', '1234-5678', 'ตัวอย่างสำนักพิมพ์', 'หมายเหตุ (ไม่บังคับ)', '2026-01-31'],
+      ['ตัวอย่างวารสาร B ที่ไม่มี ISSN', '', '', '', '2026-01-31'],
+    ];
+    const csv = rows.map(r => r.map(v => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    downloadBlob(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' }), 'msu-unwanted-journals-template.csv');
   }
 
   closeCsvModal(): void {
@@ -202,7 +261,7 @@ export class MsuUnwanted implements OnInit {
 
     this.http
       .post<ImportMsuUnwantedRes>(`${this.constants.API_ENDPOINT}/unwanted-journals/import`, fd, { headers })
-      .pipe(catchError(() => of(null)))
+      .pipe(catchError(err => of(apiFailure(err))))
       .subscribe(res => {
         this.isImporting.set(false);
         if (res?.success) {
@@ -210,17 +269,39 @@ export class MsuUnwanted implements OnInit {
           this.loadData();
           setTimeout(() => this.closeCsvModal(), 1600);
         } else {
-          this.importResult.set({ ok: false, msg: 'เกิดข้อผิดพลาด กรุณาลองใหม่' });
+          // X35: แสดงทุกแถวที่ผิด (import เป็น all-or-nothing — แก้ไฟล์แล้วอัปโหลดใหม่ทั้งไฟล์)
+          this.importResult.set({ ok: false, msg: failMsg(res), errors: (res as { errors?: string[] }).errors });
         }
       });
   }
 
   // ── Edit ──────────────────────────────────────────────────────────
+  private editOriginalDate = '';
+
+  /** DATE จาก backend → 'YYYY-MM-DD' สำหรับ <input type="date">
+   *  ห้ามใช้ toISOString(): ได้วันที่แบบ UTC — "2026-10-04T17:00Z" (= 5 ต.ค. เวลาไทย) จะกลายเป็น 4 ต.ค.
+   *  และวันที่ถอยไป 1 วันทุกครั้งที่บันทึก (X26) */
+  /** วันนี้ตามเวลาท้องถิ่นในรูป 'YYYY-MM-DD' (ไม่ใช้ toISOString — ได้วันแบบ UTC ช่วงเช้ามืดจะได้เมื่อวาน) */
+  private todayInput(): string {
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+
+  private toDateInput(v: unknown): string {
+    if (!v) return '';
+    const str = String(v);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;          // backend ส่งเป็นข้อความอยู่แล้ว (dateStrings)
+    const d = new Date(str);
+    if (isNaN(d.getTime())) return '';
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;   // วันที่ตามเวลาท้องถิ่น
+  }
+
   openEditModal(j: Journal, e: Event): void {
     e.stopPropagation();
-    const rd = j.recorded_date
-      ? new Date(j.recorded_date as any).toISOString().split('T')[0]
-      : '';
+    const rd = this.toDateInput(j.recorded_date);
+    this.editOriginalDate = rd;
     this.editForm = {
       journal_name: j.journal_name ?? '',
       issn:         j.issn ?? '',
@@ -246,23 +327,29 @@ export class MsuUnwanted implements OnInit {
 
   submitEdit(): void {
     const j = this.editModal();
-    if (!j || !this.editForm.journal_name.trim()) return;
+    if (!j || !this.editForm.journal_name.trim() || !this.editForm.recorded_date) return;
     this.isEditing.set(true);
     this.editResult.set(null);
 
     const headers = new HttpHeaders({ Authorization: `Bearer ${this.auth.token}` });
     const fd = new FormData();
     fd.append('journal_name', this.editForm.journal_name.trim());
-    if (this.editForm.issn)          fd.append('issn',          this.editForm.issn.trim());
-    if (this.editForm.publisher)     fd.append('publisher',     this.editForm.publisher.trim());
-    if (this.editForm.note)          fd.append('note',          this.editForm.note.trim());
-    if (this.editForm.recorded_date) fd.append('recorded_date', this.editForm.recorded_date);
+    // ส่ง issn/publisher/note ทุกครั้ง (ว่างก็ส่ง '') — backend ถือว่า field ที่ไม่ส่ง = ไม่เปลี่ยน
+    // ถ้าข้ามตอนว่างจะล้างค่าเดิมไม่ได้ ส่วน '' backend แปลงเป็น null ให้
+    fd.append('issn',      (this.editForm.issn      ?? '').trim());
+    fd.append('publisher', (this.editForm.publisher ?? '').trim());
+    fd.append('note',      (this.editForm.note      ?? '').trim());
+    // ส่งเฉพาะเมื่อผู้ใช้เปลี่ยนวันที่จริง — กันวันที่เพี้ยนจากการแปลง timezone (X26)
+    if (this.editForm.recorded_date && this.editForm.recorded_date !== this.editOriginalDate) {
+      fd.append('recorded_date', this.editForm.recorded_date);
+    }
     if (this.editFile)               fd.append('evidence_file', this.editFile);
     if (this.editClearEvidence)      fd.append('clear_evidence','true');
 
+    let errorMsg = '';
     this.http
       .patch<ImportMsuUnwantedRes>(`${this.constants.API_ENDPOINT}/unwanted-journals/${j.unwanted_id}`, fd, { headers })
-      .pipe(catchError(() => of(null)))
+      .pipe(catchError(err => { errorMsg = err?.error?.message ?? ''; return of(null); }))
       .subscribe(res => {
         this.isEditing.set(false);
         if (res?.success) {
@@ -270,7 +357,7 @@ export class MsuUnwanted implements OnInit {
           this.loadData();
           setTimeout(() => this.closeEditModal(), 1600);
         } else {
-          this.editResult.set({ ok: false, msg: 'เกิดข้อผิดพลาด กรุณาลองใหม่' });
+          this.editResult.set({ ok: false, msg: errorMsg || 'เกิดข้อผิดพลาด กรุณาลองใหม่' });
         }
       });
   }
@@ -282,8 +369,11 @@ export class MsuUnwanted implements OnInit {
     document.body.style.overflow = 'hidden';
   }
 
+  deleteError = signal('');
+
   closeDeleteModal(): void {
     this.deleteModal.set(null);
+    this.deleteError.set('');
     document.body.style.overflow = '';
   }
 
@@ -291,15 +381,21 @@ export class MsuUnwanted implements OnInit {
     const j = this.deleteModal();
     if (!j) return;
     this.isDeleting.set(true);
+    this.deleteError.set('');
 
     const headers = new HttpHeaders({ Authorization: `Bearer ${this.auth.token}` });
     this.http
       .delete<ImportMsuUnwantedRes>(`${this.constants.API_ENDPOINT}/unwanted-journals/${j.unwanted_id}`, { headers })
-      .pipe(catchError(() => of(null)))
-      .subscribe(() => {
+      .pipe(catchError(err => of(apiFailure(err))))
+      .subscribe(res => {
         this.isDeleting.set(false);
-        this.closeDeleteModal();
-        this.loadData();
+        // เดิมปิด modal ทุกกรณี → ลบไม่สำเร็จก็ดูเหมือนลบแล้ว
+        if (res?.success) {
+          this.closeDeleteModal();
+          this.loadData();
+        } else {
+          this.deleteError.set(failMsg(res, 'ลบไม่สำเร็จ กรุณาลองใหม่'));
+        }
       });
   }
 
@@ -309,11 +405,6 @@ export class MsuUnwanted implements OnInit {
     return new Date(date as string).toLocaleDateString('th-TH', {
       year: 'numeric', month: 'short', day: 'numeric',
     });
-  }
-
-  addedBy(j: Journal): string {
-    const name = `${j.first_name ?? ''} ${j.last_name ?? ''}`.trim();
-    return name || j.msu_mail || '—';
   }
 
   private normalizeSearch(q: string): string {

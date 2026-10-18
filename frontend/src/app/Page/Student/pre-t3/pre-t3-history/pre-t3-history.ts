@@ -1,6 +1,6 @@
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
@@ -9,6 +9,7 @@ import { AuthService } from '../../../../auth.service';
 import { Constants } from '../../../../comfig/constants';
 import { GetMyPreT3Res, Datum } from '../../../../model/res/get_my_Pre-T3_res';
 import { GetProfileRes, Data as ProfileData } from '../../../../model/res/get_profile_res';
+import { apiFailure, failMsg } from '../../../../server-status.service';
 
 type ApprovalStatus = 'Pending' | 'Approved' | 'Rejected';
 
@@ -60,7 +61,6 @@ interface HistoryDetail {
   journalName:        string;
   issn:               string;
   quartile:           string;
-  sjr:                string;
   scopusStatus:       string;
   database:           string;
   degree:             string;
@@ -100,7 +100,42 @@ export class PreT3History implements OnInit {
     private http:      HttpClient,
     private auth:      AuthService,
     private constants: Constants,
+    private router:    Router,
   ) {}
+
+  // ข้อมูลดิบของแต่ละคำร้อง — ใช้เติมฟอร์มตอน "แก้ไขและยื่นใหม่"
+  private rawById: Record<string, Datum> = {};
+
+  /** คำร้องที่ถูกปฏิเสธ (ไม่ใช่ยกเลิกเอง) แก้แล้วยื่นซ้ำได้ */
+  canResubmit(id: string): boolean {
+    const d = this.rawById[id];
+    return !!d && d.overall_status !== 'Approved' && d.overall_status !== 'Cancelled';
+  }
+
+  resubmit(id: string): void {
+    const d = this.rawById[id];
+    if (!d) return;
+    const snap = d.journal_snapshot;
+    this.closeDetail();
+    this.router.navigateByUrl('/pre-t3', {
+      state: {
+        resubmit: {
+          preT3Id:       d.pre_t3_id,
+          resubmitCount: d.resubmit_count ?? 0,
+          rejectReason:  d.faculty_com_approval?.remark || d.advisor_approval?.remark || '',
+          rejectedBy:    d.faculty_com_approval?.status === 'Rejected' ? 'ที่ประชุม' : 'อาจารย์ที่ปรึกษา',
+        },
+        journalName:    snap.journal_name,
+        issn:           snap.issn,
+        database:       snap.indexed_database,
+        quartile:       snap.quartile_or_tier,
+        journalUrl:     snap.journal_url,
+        isDiscontinued: snap.is_discontinued,
+        titleEn:        d.article_info?.title_en ?? '',
+        titleTh:        d.article_info?.title_th ?? '',
+      },
+    });
+  }
 
   ngOnInit(): void {
     this.loadData();
@@ -118,6 +153,9 @@ export class PreT3History implements OnInit {
     this.loadData(true);
   }
 
+  // F24: โหลดรายการล้มเหลว ≠ ไม่มีรายการ — เดิม error ทุกแบบแสดงเป็น "ยังไม่มีคำร้อง"
+  loadError = signal('');
+
   private loadData(isRefresh = false): void {
     if (isRefresh) {
       this.isRefreshing.set(true);
@@ -126,15 +164,19 @@ export class PreT3History implements OnInit {
     }
 
     const headers = new HttpHeaders({ Authorization: `Bearer ${this.auth.token}` });
+    let failure: unknown = null;
     forkJoin({
       myList:  this.http.get<GetMyPreT3Res>(`${this.constants.API_ENDPOINT}/pre-t3/my`, { headers })
-                        .pipe(catchError(() => of(null))),
+                        .pipe(catchError(err => { failure = err; return of(null); })),
       profile: this.http.get<GetProfileRes>(`${this.constants.API_ENDPOINT}/user/profile`, { headers })
                         .pipe(catchError(() => of(null))),
     }).subscribe(({ myList, profile }) => {
       const prof = profile?.success ? profile.data : null;
       if (myList?.success) {
         this.buildData(myList.data, prof);
+        this.loadError.set('');
+      } else {
+        this.loadError.set(failMsg(failure ? apiFailure(failure) : myList, 'โหลดรายการคำร้องไม่สำเร็จ กรุณาลองใหม่'));
       }
       this.isLoading.set(false);
       this.isRefreshing.set(false);
@@ -143,7 +185,7 @@ export class PreT3History implements OnInit {
 
   private buildData(data: Datum[], prof: ProfileData | null): void {
     const advisorName = this.getAdvisorName(prof);
-    const studentName = prof ? `${prof.prefix}${prof.firstName} ${prof.lastName}`.trim() : '-';
+    const studentName = prof ? `${prof.prefix ?? ''}${prof.firstName} ${prof.lastName}`.trim() : '-';
     const studentId   = prof ? prof.msuMail.replace('@msu.ac.th', '') : '-';
     const degree      = prof ? `${prof.degreeLevel} ${prof.studyPlanCode}`.trim() : '-';
 
@@ -154,6 +196,7 @@ export class PreT3History implements OnInit {
     });
 
     this.cards = completed.map(d => this.mapToCard(d));
+    this.rawById = Object.fromEntries(completed.map(d => [`PRE-T3-${d.pre_t3_id}`, d]));
 
     const rec: Record<string, HistoryDetail> = {};
     completed.forEach(d => {
@@ -178,7 +221,7 @@ export class PreT3History implements OnInit {
     return {
       id:            `PRE-T3-${d.pre_t3_id}`,
       journalName:   d.journal_snapshot.journal_name,
-      issn:          d.journal_snapshot.issn || d.journal_snapshot.eissn,
+      issn:          d.journal_snapshot.issn,
       database:      d.journal_snapshot.indexed_database,
       quartile:      d.journal_snapshot.quartile_or_tier,
       journalStatus: d.journal_snapshot.is_discontinued ? 'Discontinued' : 'Active',
@@ -205,10 +248,10 @@ export class PreT3History implements OnInit {
       d.overall_status === 'Cancelled' ? 'cancelled' : 'rejected';
 
     const statusPillText    = cardStatus === 'approved'  ? 'อนุมัติสำเร็จ'
-                            : cardStatus === 'cancelled' ? '🚫 ยกเลิกแล้ว'
-                            :                             '❌ ไม่ผ่านการอนุมัติ';
+                            : cardStatus === 'cancelled' ? 'ยกเลิกแล้ว'
+                            :                             'ไม่ผ่านการอนุมัติ';
     const currentStatusIcon = cardStatus === 'approved'  ? 'ti ti-circle-check'
-                            : cardStatus === 'cancelled' ? '🚫' : '❌';
+                            : cardStatus === 'cancelled' ? 'ti ti-ban' : 'ti ti-circle-x';
     const { title, desc }     = this.buildCurrentStatus(d, info.advisorName);
 
     return {
@@ -216,9 +259,8 @@ export class PreT3History implements OnInit {
       studentName:        info.studentName,
       studentId:          info.studentId,
       journalName:        d.journal_snapshot.journal_name,
-      issn:               d.journal_snapshot.issn || d.journal_snapshot.eissn,
+      issn:               d.journal_snapshot.issn,
       quartile:           d.journal_snapshot.quartile_or_tier,
-      sjr:                d.journal_snapshot.sjr_score != null ? String(d.journal_snapshot.sjr_score) : '-',
       scopusStatus:       d.journal_snapshot.is_discontinued ? 'Discontinued' : 'Active',
       database:           d.journal_snapshot.indexed_database,
       degree:             info.degree,
@@ -232,7 +274,7 @@ export class PreT3History implements OnInit {
       steps:              this.buildSteps(d),
       timeline:           this.buildTimeline(d, info.advisorName),
       attachments: [{
-        icon: '📄',
+        icon: 'ti ti-file-text',
         name: `แบบฟอร์ม Pre-T3 (PRE-T3-${d.pre_t3_id}).pdf`,
         meta: `สร้างเมื่อ: ${this.formatDateShort(d.created_at)}`,
         size: '-',
@@ -271,23 +313,28 @@ export class PreT3History implements OnInit {
     const createdDate = this.formatDateShort(d.created_at);
     const advisorDate = d.advisor_approval.approved_at
       ? this.formatDateShort(d.advisor_approval.approved_at) : '-';
+    // วันที่เจ้าหน้าที่บันทึกผล (ผลเดียวกับที่ประชุม)
+    const facultyDate = d.faculty_com_approval.approved_at
+      ? this.formatDateShort(d.faculty_com_approval.approved_at) : '-';
 
-    const s1: Step = { icon: '✓', label: 'ยื่นคำร้องสำเร็จ', sub: '● เสร็จแล้ว', date: createdDate, status: 'done' };
+    // 3 ขั้น: ยื่น → อาจารย์ที่ปรึกษา → เจ้าหน้าที่ — ผลของเจ้าหน้าที่คือผลที่ประชุม และคำร้องอนุมัติสำเร็จทันที
+    // เดิมมีขั้นที่ 4 "อนุมัติสำเร็จ" แยก ซึ่งซ้ำกับขั้นเจ้าหน้าที่ (วันเดียวกัน สถานะเดียวกัน) จึงเอาออก
+    const s1: Step = { icon: 'ti ti-check', label: 'ยื่นคำร้องสำเร็จ', sub: '● เสร็จแล้ว', date: createdDate, status: 'done' };
 
+    // F25: "เสร็จแล้ว" เฉพาะขั้นที่อนุมัติจริง — เดิมทุกอย่างที่ไม่ใช่ Rejected ถือว่าผ่าน
+    // คำร้องที่นิสิตยกเลิกตอนอาจารย์ยังไม่พิจารณา (Pending) เลยขึ้นว่าอาจารย์/ที่ประชุมอนุมัติแล้ว
     let s2: Step;
-    if (adv === 'Rejected') s2 = { icon: '✗', label: 'อาจารย์ที่ปรึกษาพิจารณา', sub: '✗ ไม่อนุมัติ', date: advisorDate, status: 'active' };
-    else                    s2 = { icon: '✓', label: 'อาจารย์ที่ปรึกษาพิจารณา', sub: '● เสร็จแล้ว', date: advisorDate, status: 'done' };
+    if (adv === 'Rejected')      s2 = { icon: 'ti ti-x',     label: 'อาจารย์ที่ปรึกษาพิจารณา', sub: '● ไม่อนุมัติ',        date: advisorDate, status: 'active' };
+    else if (adv === 'Approved') s2 = { icon: 'ti ti-check', label: 'อาจารย์ที่ปรึกษาพิจารณา', sub: '● เสร็จแล้ว',        date: advisorDate, status: 'done' };
+    else                         s2 = { icon: '2',           label: 'อาจารย์ที่ปรึกษาพิจารณา', sub: '○ ไม่ถึงขั้นตอนนี้', date: '-',         status: 'pending' };
 
     let s3: Step;
-    if (adv === 'Rejected') s3 = { icon: '3', label: 'รอผลจากที่ประชุม', sub: '○ ไม่ถึงขั้นตอนนี้', date: '-', status: 'pending' };
-    else if (fac === 'Rejected') s3 = { icon: '✗', label: 'รอผลจากที่ประชุม', sub: '✗ ไม่อนุมัติ', date: '-', status: 'active' };
-    else s3 = { icon: '✓', label: 'รอผลจากที่ประชุม', sub: '● เสร็จแล้ว', date: '-', status: 'done' };
+    if (fac === 'Rejected')      s3 = { icon: 'ti ti-x',     label: 'เจ้าหน้าที่พิจารณา', sub: '● ไม่อนุมัติ',        date: facultyDate, status: 'active' };
+    else if (fac === 'Approved') s3 = { icon: 'ti ti-check', label: 'เจ้าหน้าที่พิจารณา', sub: '● เสร็จแล้ว',        date: facultyDate, status: 'done' };
+    else if (over === 'Cancelled') s3 = { icon: 'ti ti-ban', label: 'เจ้าหน้าที่พิจารณา', sub: '○ ยกเลิกคำร้องแล้ว', date: '-', status: 'pending' };
+    else                         s3 = { icon: '3',           label: 'เจ้าหน้าที่พิจารณา', sub: '○ ไม่ถึงขั้นตอนนี้', date: '-', status: 'pending' };
 
-    const s4: Step = over === 'Approved'    ? { icon: '🎓', label: 'อนุมัติสำเร็จพร้อมยื่น T3', sub: '● เสร็จแล้ว',        date: '-', status: 'done'    }
-                   : over === 'Cancelled'  ? { icon: '🚫', label: 'อนุมัติสำเร็จพร้อมยื่น T3', sub: '○ ยกเลิกคำร้องแล้ว', date: '-', status: 'pending' }
-                   :                        { icon: '🎓', label: 'อนุมัติสำเร็จพร้อมยื่น T3', sub: '○ ไม่ผ่านการอนุมัติ', date: '-', status: 'pending' };
-
-    return [s1, s2, s3, s4];
+    return [s1, s2, s3];
   }
 
   private buildTimeline(d: Datum, advisorName: string): TimelineItem[] {
@@ -296,44 +343,51 @@ export class PreT3History implements OnInit {
     const fac  = d.faculty_com_approval.status;
 
     items.push({
-      icon: '⚙️', actor: 'ระบบ Journal Watch', badge: 'ระบบ', badgeType: 'system',
+      icon: 'ti ti-settings', actor: 'ระบบ Journal Watch', badge: 'ระบบ', badgeType: 'system',
       message: `ยื่นคำร้อง PRE-T3-${d.pre_t3_id} สำเร็จ วารสาร ${d.journal_snapshot.journal_name} ${d.journal_snapshot.quartile_or_tier}`,
       time: this.formatDateFull(d.created_at),
     });
 
     if (adv === 'Approved') {
       items.push({
-        icon: '👨‍🏫', actor: advisorName, badge: 'อาจารย์', badgeType: 'advisor',
+        icon: 'ti ti-chalkboard', actor: advisorName, badge: 'อาจารย์', badgeType: 'advisor',
         message: 'อนุมัติคำร้อง Pre-T3 แล้ว',
+        detail: (d.advisor_approval.remark as unknown as string | null) || undefined,
         time: d.advisor_approval.approved_at ? this.formatDateFull(d.advisor_approval.approved_at) : undefined,
       });
     } else if (adv === 'Rejected') {
       items.push({
-        icon: '👨‍🏫', actor: advisorName, badge: 'อาจารย์', badgeType: 'advisor',
+        icon: 'ti ti-chalkboard', actor: advisorName, badge: 'อาจารย์', badgeType: 'advisor',
         message: 'ไม่อนุมัติคำร้อง Pre-T3',
         detail: (d.advisor_approval.remark as any) ?? undefined,
+        time: d.advisor_approval.approved_at ? this.formatDateFull(d.advisor_approval.approved_at) : undefined,
       });
     }
 
     if (adv === 'Approved') {
       if (fac === 'Approved') {
         items.push({
-          icon: '🏛', actor: 'ที่ประชุมบัณฑิตวิทยาลัย', badge: 'อนุมัติ', badgeType: 'advisor',
+          icon: 'ti ti-building-bank', actor: 'ที่ประชุมบัณฑิตวิทยาลัย', badge: 'อนุมัติ', badgeType: 'advisor',
           message: 'อนุมัติคำร้อง Pre-T3 แล้ว',
+          detail: (d.faculty_com_approval.remark as unknown as string | null) || undefined,
+          time: d.faculty_com_approval.approved_at ? this.formatDateFull(d.faculty_com_approval.approved_at) : undefined,
         });
       } else if (fac === 'Rejected') {
         items.push({
-          icon: '🏛', actor: 'ที่ประชุมบัณฑิตวิทยาลัย', badge: 'ไม่อนุมัติ', badgeType: 'advisor',
+          icon: 'ti ti-building-bank', actor: 'ที่ประชุมบัณฑิตวิทยาลัย', badge: 'ไม่อนุมัติ', badgeType: 'advisor',
           message: 'ไม่อนุมัติคำร้อง',
           detail: (d.faculty_com_approval.remark as any) ?? undefined,
+          time: d.faculty_com_approval.approved_at ? this.formatDateFull(d.faculty_com_approval.approved_at) : undefined,
         });
       }
     }
 
     if (d.overall_status === 'Cancelled') {
       items.push({
-        icon: '🚫', actor: 'นิสิต', badge: 'ยกเลิก', badgeType: 'waiting',
+        icon: 'ti ti-ban', actor: 'นิสิต', badge: 'ยกเลิก', badgeType: 'waiting',
         message: 'ยกเลิกคำร้อง Pre-T3 ด้วยตนเอง',
+        // API ไม่มี cancelled_at — คำร้องที่ยกเลิกแล้วไม่ถูกแก้อีก updated_at จึงเป็นเวลาที่ยกเลิก
+        time: d.updated_at ? this.formatDateFull(d.updated_at) : undefined,
       });
     }
 

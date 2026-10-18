@@ -319,7 +319,7 @@ $green:  #15803d;
 /* ══ USAGE GRID ══ */
 .pf-usage-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   padding: 20px 22px 22px;
   gap: 0;
 
@@ -410,7 +410,10 @@ $green:  #15803d;
   }
 
   &::placeholder { color: rgba($navy, 0.25); }
+
 }
+
+.edit-req { color: #C0392B; }
 
 .save-result {
   padding: 10px 22px;
@@ -478,4 +481,15 @@ $green:  #15803d;
     border-left: none;
     border-top: 1px solid $border;
   }
+}
+
+/* dropdown คำนำหน้า (app-select) ให้ขนาด/สีเท่ากับ .edit-input */
+app-select {
+  --as-accent: #{$navy};
+  --as-text:   #{$navy};
+  --as-border: #{$border};
+  --as-muted:  #{$muted};
+  --as-hover:  #{$bg};
+  --as-pad:    10px 14px;
+  --as-size:   14px;
 }

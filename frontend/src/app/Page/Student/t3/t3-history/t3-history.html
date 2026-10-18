@@ -29,6 +29,12 @@
   <div class="card-list">
     @if (isLoading()) {
       <div class="empty-state"><div class="loading-spinner"></div><div class="empty-text">กำลังโหลดข้อมูล...</div></div>
+    } @else if (loadError()) {
+      <div class="empty-state empty-state--error">
+        <div class="empty-icon"><i class="ti ti-cloud-off"></i></div>
+        <div class="empty-text">{{ loadError() }}</div>
+        <button type="button" class="btn-retry" (click)="refresh()"><i class="ti ti-refresh"></i> ลองใหม่</button>
+      </div>
     } @else if (cards.length === 0) {
       <div class="empty-state"><div class="empty-icon"><i class="ti ti-inbox"></i></div><div class="empty-text">ยังไม่มีประวัติคำร้อง T3</div></div>
     }
@@ -61,10 +67,6 @@
                 @if (card.facultyDateTime) {
                   <span class="ts-dot">·</span>
                   <span class="ts-item">ที่ประชุม · {{ card.facultyDateTime }}</span>
-                }
-                @if (card.gradDateTime) {
-                  <span class="ts-dot">·</span>
-                  <span class="ts-item">บัณฑิต · {{ card.gradDateTime }}</span>
                 }
               </div>
             </div>
@@ -112,7 +114,7 @@
             </div>
             <div class="mh-row1-right">
               <span class="mh-id-chip">{{ d.id }}</span>
-              <button class="modal-close" (click)="closeDetail()">✕</button>
+              <button class="modal-close" (click)="closeDetail()"><i class="ti ti-x"></i></button>
             </div>
           </div>
 
@@ -137,7 +139,7 @@
                 <div class="mh-date-lbl">วันที่ยื่น</div>
               </div>
               <div class="mh-status-pill" [class]="'mh-status-pill mh-status-pill--' + d.cardStatus">
-                @if (d.cardStatus === 'approved') { <i class="ti ti-circle-check"></i> }
+                <i [class]="d.currentStatusIcon"></i>
                 {{ d.statusPillText }}
               </div>
             </div>
@@ -192,7 +194,7 @@
                 @for (item of d.timeline; track item.actor; let last = $last) {
                   <div class="tl-item">
                     <div class="tl-left">
-                      <div class="tl-icon" [class]="'tl-' + item.badgeType">{{ item.icon }}</div>
+                      <div class="tl-icon" [class]="'tl-' + item.badgeType"><i [class]="item.icon"></i></div>
                       @if (!last) { <div class="tl-line"></div> }
                     </div>
                     <div class="tl-body">

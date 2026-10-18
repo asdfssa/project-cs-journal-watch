@@ -564,7 +564,6 @@ $orange: #D4580A;
 }
 
 .date-main { font-size: 13px; font-weight: 600; color: $navy; }
-.date-by   { font-size: 11px; color: $muted; margin-top: 2px; }
 
 .row-actions {
   display: flex;
@@ -1245,4 +1244,68 @@ $orange: #D4580A;
   .hero-sub   { font-size: 12px; text-align: center; }
 
   .hero-right { justify-content: flex-start; width: 100%; }
+}
+
+/* ลบไม่สำเร็จ — แสดงเหตุผลใน modal แทนการปิดเหมือนลบแล้ว (X17) */
+.delete-modal__error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  color: #B91C1C;
+  font-size: 13px;
+  line-height: 1.5;
+
+  i { font-size: 16px; margin-top: 1px; flex-shrink: 0; }
+}
+
+/* ดูไฟล์หลักฐานวารสารต้องห้าม */
+.btn-evidence {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1.5px solid rgba($navy, .25);
+  background: rgba($navy, .04);
+  color: $navy;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+
+  i { font-size: 15px; }
+  &:hover:not(:disabled) { background: $navy; color: #fff; }
+  &:disabled { opacity: .6; cursor: wait; }
+}
+
+.evidence-error {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: $red;
+}
+
+/* ปุ่มดาวน์โหลดไฟล์ CSV ตัวอย่าง (feedback backend ข้อ 4) */
+.csv-template-btn {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 6px 14px;
+  border: 1px solid #c7d3f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #1a3a8a;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+
+  &:hover { background: #e8eefc; }
 }

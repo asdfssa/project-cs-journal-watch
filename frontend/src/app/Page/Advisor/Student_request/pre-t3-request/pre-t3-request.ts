@@ -10,6 +10,9 @@ import { GetPreT3RequestRes, Datum } from '../../../../model/res/get_pre-t3_requ
 import { PreT3DetailsRes, Data as PreT3Detail } from '../../../../model/res/Pre-T3_details_res';
 import { PreT3ApprovedReq } from '../../../../model/req/Pre-T3_approved_req';
 import { PreT3RejectReq } from '../../../../model/req/Pre-T3_reject_req';
+import { apiFailure, failMsg } from '../../../../server-status.service';
+import { PRE_T3_CHECKLIST_TITLES as CHECKLIST_TITLES } from '../../../../pre-t3-checklist';
+import { isHttpUrl } from '../../../../safe-url';
 
 type StatusType = 'pending' | 'approved' | 'rejected';
 type FilterType  = 'all' | 'pending' | 'approved' | 'rejected';
@@ -27,12 +30,10 @@ interface PreT3Item {
   studentId:     string;
   email:         string;
   journalName:   string;
+  articleTitle:  string;
   issn:          string;
-  eissn:         string;
   database:      string;
   quartile:      string;
-  sjr:           string;
-  citeScore:     string;
   journalStatus: string;
   isHijacked:    boolean;
   isDiscontinued: boolean;
@@ -41,22 +42,13 @@ interface PreT3Item {
   daysAgo:       number;
   requestId:     string;
   status:        StatusType;
+  canReview:     boolean;   // X16: เฉพาะอาจารย์หลักที่ยังไม่ได้ตัดสิน
+  isCoAdvisor:   boolean;   // อาจารย์ร่วม (Co_1/Co_2) — เห็นในคิวแต่ดูอย่างเดียว
   approvedDate?: string;
   advisorRemark: string | null;
   checklist:     ChecklistItem[];
 }
 
-const CHECKLIST_TITLES: Record<string, string> = {
-  item1: 'มาตรฐานวารสารนานาชาติที่มีคุณภาพตามเกณฑ์',
-  item2: 'วารสารมีโปรไฟล์หน้าเว็บที่อ้างอิงในฐานข้อมูล MSU',
-  item3: 'กำหนดออกเผยแพร่อย่างสม่ำเสมอ (Continuous Publication)',
-  item4: 'กำหนดการกลั่นกรอง (Systematic review) ของวารสาร',
-  item5: 'มีคณะกรรมการวิชาการวารสารระดับนานาชาติ (International Editorial Board)',
-  item6: 'มีระบบ Peer Review ที่ชัดเจน',
-  item7: 'ปฏิบัติตามจรรยาบรรณมาตรฐานสากล',
-  item8: 'ไม่ใช่ Hijacked Journal',
-  item9: 'อ้างอิงฐานข้อมูลของ Scopus / TCI จะใช้ได้',
-};
 
 @Component({
   selector: 'app-pre-t3-request',
@@ -66,6 +58,7 @@ const CHECKLIST_TITLES: Record<string, string> = {
   styleUrl: './pre-t3-request.scss',
 })
 export class PreT3Request implements OnInit {
+  readonly isHttpUrl = isHttpUrl;
   private http      = inject(HttpClient);
   private auth      = inject(AuthService);
   private constants = inject(Constants);
@@ -95,16 +88,22 @@ export class PreT3Request implements OnInit {
     }, 0);
   }
 
+  // F24: โหลดรายการล้มเหลว ≠ ไม่มีรายการ — เดิม error ทุกแบบแสดงเป็น "ยังไม่มีคำร้อง"
+  loadError = signal('');
+
   loadRequests(): void {
     this.isLoading.set(true);
     const headers = new HttpHeaders({ Authorization: `Bearer ${this.auth.token}` });
     this.http
       .get<GetPreT3RequestRes>(`${this.constants.API_ENDPOINT}/pre-t3/pending`, { headers })
-      .pipe(catchError(() => of(null)))
+      .pipe(catchError(err => of(apiFailure(err))))
       .subscribe(res => {
         this.isLoading.set(false);
-        if (res?.success) {
+        if (res.success && 'data' in res) {
           this.requests.set(res.data.map(d => this.mapDatum(d)));
+          this.loadError.set('');
+        } else {
+          this.loadError.set(failMsg(res, 'โหลดรายการคำร้องไม่สำเร็จ กรุณาลองใหม่'));
         }
       });
   }
@@ -137,12 +136,12 @@ export class PreT3Request implements OnInit {
       studentId,
       email:         d.student_email,
       journalName:   snap.journal_name,
+      // X43: เดิมการ์ดเอาชื่อวารสารมาแสดงเป็น "ชื่อบทความ"
+      articleTitle:  (d as { article_info?: { title_th?: string | null; title_en?: string | null } }).article_info?.title_th
+                  || (d as { article_info?: { title_en?: string | null } }).article_info?.title_en || '',
       issn:          snap.issn,
-      eissn:         snap.eissn,
       database:      snap.indexed_database,
       quartile:      snap.quartile_or_tier,
-      sjr:           snap.sjr_score?.toString() ?? '—',
-      citeScore:     snap.cite_score?.toString() ?? '—',
       journalStatus: snap.is_discontinued ? 'Discontinued' : 'Active',
       isHijacked:    snap.is_hijacked,
       isDiscontinued: snap.is_discontinued,
@@ -151,6 +150,8 @@ export class PreT3Request implements OnInit {
       daysAgo,
       requestId:     `PRE-T3-${d.pre_t3_id}`,
       status,
+      canReview:     d.can_review === true,
+      isCoAdvisor:   d.my_role === 'Co_1' || d.my_role === 'Co_2',
       approvedDate:  approvedAt,
       advisorRemark: advisorApproval?.remark ?? null,
       checklist,
@@ -208,7 +209,11 @@ export class PreT3Request implements OnInit {
     return true;
   }
 
+  // ลงนามไม่ผ่าน (เช่น นิสิตยกเลิกคำร้องไปแล้ว) → แสดงเหตุผลใน dialog แทนการปิดเงียบ
+  decisionError = signal('');
+
   openConfirm(): void {
+    this.decisionError.set('');
     if (!this.canSubmit) return;
     this.showConfirm.set(true);
   }
@@ -225,34 +230,31 @@ export class PreT3Request implements OnInit {
 
     const url = `${this.constants.API_ENDPOINT}/pre-t3/${req.id}/advisor-review`;
     const body: PreT3ApprovedReq | PreT3RejectReq = this.decision() === 'approved'
-      ? { action: 'approve' }
-      : { action: 'reject', remark: this.remark };
+      // X42: เดิมตอนอนุมัติไม่ส่งหมายเหตุ ข้อความที่อาจารย์พิมพ์หายไป (backend รับและบันทึกได้)
+      ? { action: 'approve', ...(this.remark.trim() ? { remark: this.remark.trim() } : {}) }
+      : { action: 'reject', remark: this.remark.trim() };
 
-    console.log('[submitDecision] URL  :', url);
-    console.log('[submitDecision] Body :', body);
 
     this.isSubmitting.set(true);
     this.http.patch(url, body, { headers })
       .pipe(catchError(err => {
-        console.error('[submitDecision] HTTP status :', err?.status);
-        console.error('[submitDecision] Error body  :', err?.error);
-        console.error('[submitDecision] Full error  :', err);
-        return of(null);
+        console.error('[submitDecision]', err?.status, err?.error);
+        return of(apiFailure(err));
       }))
       .subscribe(res => {
-        console.log('[submitDecision] Response:', res);
         this.isSubmitting.set(false);
-        this.showConfirm.set(false);
-        if (res === null) {
-          console.warn('[submitDecision] API call failed — ไม่ได้อัปเดต status');
+        if ((res as { success?: boolean } | null)?.success === false) {
+          // ไม่ปิด dialog — อาจารย์ต้องรู้ว่าลงนามไม่สำเร็จและเพราะอะไร
+          this.decisionError.set(failMsg(res, 'ลงนามไม่สำเร็จ กรุณาลองใหม่'));
           return;
         }
+        this.showConfirm.set(false);
         const newStatus = this.decision() as 'approved' | 'rejected';
         const approvedDate = newStatus === 'approved'
           ? new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })
           : undefined;
         this.requests.update(list =>
-          list.map(r => r.id === req.id ? { ...r, status: newStatus, approvedDate } : r)
+          list.map(r => r.id === req.id ? { ...r, status: newStatus, approvedDate, canReview: false } : r)
         );
         this.closeDetail();
       });

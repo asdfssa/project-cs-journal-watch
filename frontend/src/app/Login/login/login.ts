@@ -8,6 +8,8 @@ import { Constants } from '../../comfig/constants';
 import { Welcome } from '../../model/req/login_req';
 import { LoginRes } from '../../model/res/login_res';
 import { AuthService } from '../../auth.service';
+import { ServerStatusService } from '../../server-status.service';
+import { loadGoogleIdentity } from '../../google-gsi';
 
 declare const google: any;
 
@@ -28,6 +30,7 @@ export class Login implements OnInit {
   private readonly authService = inject(AuthService); //  service ที่เขียนเองในโปรเจกต์นี้ ทำหน้าที่เป็น "ศูนย์กลางจัดการสถานะการล็อกอิน" ของทั้งแอป — เก็บว่าใครล็อกอินอยู่ ข้อมูลผู้ใช้คนนั้นคือใคร และ token สำหรับยืนยันตัวตนตอนเรียก API
   private readonly snackBar = inject(MatSnackBar);
   private readonly router = inject(Router);
+  private readonly serverStatus = inject(ServerStatusService);
   private readonly ngZone = inject(NgZone); //service หลักของ Angular ที่ทำหน้าที่ "เฝ้าดู" ว่าเมื่อไหร่ควรสั่งอัปเดตหน้าจอใหม่ (เรียกกระบวนการนี้ว่า Change Detection) — เป็นกลไกเบื้องหลังที่ทำให้ Angular รู้ได้เองว่า "มีอะไรเปลี่ยนแปลง ต้อง render ใหม่แล้วนะ" โดยที่นักพัฒนาไม่ต้องสั่ง refresh หน้าจอเอง
 
   loading = signal(false);
@@ -35,13 +38,6 @@ export class Login implements OnInit {
   readonly CLIENT_ID = GOOGLE_CLIENT_ID;
 
   ngOnInit() {
-    // ล็อกอินค้างอยู่แล้ว (token อยู่ใน localStorage ใช้ร่วมกันทุก tab) → ข้ามหน้า login ไป dashboard เลย
-    const user = this.authService.user;
-    if (this.authService.isLoggedIn && user) {
-      this.router.navigate([this.dashboardFor(user.role)]);
-      return;
-    }
-
     this.loadGoogleScript().then(() => { //โค้ดทั้งก้อนนี้คือ "ไปรับ Chef Google มา → คุยตกลงกฎกัน → จ้างล่ามไว้แปลตอน Chef ตะโกนบอกผล" แค่นั้นเองครับ ฟังดูซับซ้อนแต่จริงๆ แค่จัดการเรื่อง "รอของมาก่อนค่อยใช้" กับ "แปลภาษาให้ Angular เข้าใจ" 
       google.accounts.id.initialize({
         client_id: this.CLIENT_ID,
@@ -61,14 +57,7 @@ export class Login implements OnInit {
           width: 400,
         }
       );
-    });
-  }
-
-  private dashboardFor(role?: string): string {
-    const r = role?.toLowerCase();
-    return r === 'supervisor' ? '/advisor/dashboard'
-         : r === 'staff'      ? '/staff/dashboard'
-         : '/dashboard';
+    }).catch(() => this.showSnack('โหลดปุ่มเข้าสู่ระบบด้วย Google ไม่สำเร็จ กรุณารีเฟรชหน้า', 'error'));
   }
 
   private decodeJwt(token: string): any { // ฟังก์ชันนี้คือการ แกะ JWT Token ของ Google ออกมาอ่านข้อมูลข้างใน โดยไม่ต้องพึ่งไลบรารีภายนอกเลย 
@@ -79,6 +68,9 @@ export class Login implements OnInit {
       return JSON.parse(atob(padded));
     } catch { return {}; }
   }
+
+  /** บัญชียังรออนุมัติ / ถูกระงับ — แสดงเป็นกล่องสถานะค้างไว้ (เดิมเป็น snackbar error สีแดง 4 วิ) */
+  accountNotice = signal<'pending' | 'suspended' | null>(null);
 
   private handleGoogleCallback(response: any) { // ฟังก์ชันนี้ทำให้ระบบ รับผลการยืนยันตัวตนจาก Google แล้วพานิสิตเข้าสู่ระบบได้ครบวงจร 
     this.loading.set(true);
@@ -91,12 +83,20 @@ export class Login implements OnInit {
         this.loading.set(false);
         this.authService.setLoggedIn(res, picture);
         this.showSnack(`ยินดีต้อนรับ ${res.data.user.firstName} ${res.data.user.lastName}`, 'success');
-        this.router.navigate([this.dashboardFor(res.data.user.role)]);
+        this.router.navigateByUrl(this.authService.homeUrl);
       },
       error: (err) => {
-        this.loading.set(false);
-        this.showSnack(err.error?.message || 'เข้าสู่ระบบไม่สำเร็จ', 'error');
-      
+        const code = err?.error?.code;
+        if (code === 'ACCOUNT_PENDING' || code === 'ACCOUNT_SUSPENDED') {
+          this.loading.set(false);
+          this.accountNotice.set(code === 'ACCOUNT_PENDING' ? 'pending' : 'suspended');
+          return;
+        }
+        this.accountNotice.set(null);
+        this.serverStatus.explain(err, 'เข้าสู่ระบบไม่สำเร็จ').subscribe(msg => {
+          this.loading.set(false);
+          this.showSnack(msg, 'error');
+        });
       },
     });
   }
@@ -106,24 +106,13 @@ export class Login implements OnInit {
     gsiBtn?.click();
   }
 
-  private loadGoogleScript(): Promise<void> { // คือฟังก์ชันที่ทำหน้าที่ โหลดสคริปต์ของ Google Identity Services เข้ามาในหน้าเว็บแบบ dynamic (ไม่ได้ใส่ <script> ไว้ตายตัวใน index.html ตั้งแต่แรก) พร้อมป้องกันการโหลดซ้ำซ้อน 
-    return new Promise((resolve) => {
-      if (document.getElementById('google-gsi-script')) {
-        resolve(); //ถ้าผู้ใช้ย้อนกลับมาหน้า Login ซ้ำ) ถ้ามีอยู่แล้ว ไม่ต้องโหลดซ้ำ เรียก resolve() ทันทีถือว่าเสร็จเลย 
-        return;
-      }
-      const script = document.createElement('script');
-      script.id = 'google-gsi-script';
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.async = true;
-      script.defer = true;
-      script.onload = () => resolve();
-      document.head.appendChild(script);
-    });
+  // F16: ใช้ loader กลางที่รอจน google.accounts พร้อมจริง (กัน race ตอนสคริปต์ยังโหลดไม่เสร็จ)
+  private loadGoogleScript(): Promise<void> {
+    return loadGoogleIdentity();
   }
 
   private showSnack(message: string, type: 'success' | 'error' | 'info') {
-    this.snackBar.open(message, '✕', {
+    this.snackBar.open(message, 'ปิด', {
       duration: 4000,
       panelClass: [`snack-${type}`],
       horizontalPosition: 'center',

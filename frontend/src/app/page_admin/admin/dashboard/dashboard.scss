@@ -3,7 +3,6 @@
 $navy:        #1C2744;
 $gold:        #E8A800;
 $red:         #C0392B;
-$teal:        #0F766E;
 $bg:          #F5F7FB;
 $card-border: #E4E8F0;
 $text:        #1C2744;
@@ -240,7 +239,7 @@ $muted:       #6B7280;
 ═══════════════════════════════════════════════ */
 .ov-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   align-items: start;
   gap: 16px;
 }
@@ -265,7 +264,6 @@ $muted:       #6B7280;
   &--navy { border-left-color: $navy; }
   &--gold { border-left-color: $gold; }
   &--red  { border-left-color: $red; }
-  &--teal { border-left-color: $teal; }
 
   &__badge {
     width: 36px;
@@ -283,7 +281,6 @@ $muted:       #6B7280;
 
     &--gold  { background: #c98f00; color: #fff; }
     &--red   { background: $red;  color: #fff; }
-    &--teal  { background: $teal; color: #fff; }
   }
 
   &__body {
@@ -310,7 +307,6 @@ $muted:       #6B7280;
 
     &--gold { color: #c98f00; }
     &--red  { color: $red; }
-    &--teal { color: $teal; }
   }
 
   &__unit {
@@ -454,10 +450,6 @@ $muted:       #6B7280;
     &--pending  { background: $gold; }
     &--approved { background: #15803d; }
     &--rejected { background: $red; }
-    &--scopus   { background: $navy; }
-    &--tci      { background: #2E86C1; }
-    &--api      { background: #8E44AD; }
-    &--scraping { background: $teal; }
     &--ok       { background: #15803d; }
     &--warn     { background: $gold; }
     &--full     { background: $red; }
@@ -467,50 +459,8 @@ $muted:       #6B7280;
 /* ══ Bottom grid ══ */
 .bottom-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 20px;
-
-  @media (max-width: 800px) { grid-template-columns: 1fr; }
-}
-
-/* ══ Journal Cache ══ */
-.cache-list {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.cache-row {
-  display: grid;
-  grid-template-columns: 12px 90px 1fr 40px;
-  align-items: center;
-  gap: 10px;
-}
-
-.cache-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
-
-  &--scopus   { background: $navy; }
-  &--tci      { background: #2E86C1; }
-  &--api      { background: #8E44AD; }
-  &--scraping { background: $teal; }
-}
-
-.cache-label {
-  font-size: 12.5px;
-  color: $muted;
-  white-space: nowrap;
-}
-
-.cache-num {
-  font-size: 13px;
-  font-weight: 700;
-  color: $text;
-  text-align: right;
-  font-family: 'IBM Plex Mono', monospace;
 }
 
 /* ══ API Keys ══ */
@@ -593,24 +543,35 @@ $muted:       #6B7280;
 }
 
 @media (max-width: 480px) {
-  /* 4 การ์ด flex:1 บนจอแคบมากจะถูกบีบแคบลงเรื่อยๆ จนป้ายชื่อ (เช่น "คำร้องทั้งหมด")
+  /* การ์ด flex:1 บนจอแคบมากจะถูกบีบแคบลงเรื่อยๆ จนป้ายชื่อ (เช่น "คำร้องทั้งหมด")
      อ่านลำบาก แทนที่จะตกบรรทัดใหม่ (เพราะ min-width:0 เอาเพดานล่างออกไปแล้ว) —
-     บังคับเป็น grid 2x2 แทนให้แต่ละการ์ดมีพื้นที่พออ่านง่าย */
+     บังคับเป็น grid 2 คอลัมน์ (ใบสุดท้ายเต็มแถว) แทนให้แต่ละการ์ดมีพื้นที่พออ่านง่าย */
   .db-hero__cards {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 10px;
   }
   .db-meta-card { min-width: 0; }
+  .db-meta-card:last-child { grid-column: 1 / -1; }
 
-  /* คอลัมน์ label/number ของแถบ progress กว้างตายตัว (90px/36px หรือ 12px/90px/40px)
+  /* คอลัมน์ label/number ของแถบ progress กว้างตายตัว (90px/36px)
      บนจอแคบมากจะเหลือพื้นที่ให้แถบ progress จริงน้อยมาก ลดคอลัมน์ label ลงอีกหน่อย */
   .req-bar-row { grid-template-columns: 72px 1fr 30px; gap: 6px; }
-  .cache-row   { grid-template-columns: 10px 72px 1fr 34px; gap: 6px; }
 
   /* white-space:nowrap เดิมกับคอลัมน์ label ที่เพิ่งลดความกว้างลงด้านบน จะทำให้
-     ป้ายยาวๆ เช่น "รอดำเนินการ" หรือ "Via Scraping" ล้นทับแถบ progress แทนที่จะ
+     ป้ายยาวๆ เช่น "รอดำเนินการ" ล้นทับแถบ progress แทนที่จะ
      ตัดบรรทัด */
-  .req-bar-label,
-  .cache-label { white-space: normal; line-height: 1.2; }
+  .req-bar-label { white-space: normal; line-height: 1.2; }
+}
+
+/* X22: วันรีเซ็ตโควตา — เน้นเมื่อ key เต็ม เพราะ admin ต้องรู้ว่าจะใช้ได้อีกเมื่อไหร่ */
+.api-key-row__reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+
+  i { font-size: 12px; }
+
+  &--full { color: $red; font-weight: 600; }
 }

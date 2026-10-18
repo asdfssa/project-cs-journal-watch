@@ -34,6 +34,12 @@
       <div class="empty-state">
         <div class="loading-spinner"></div>
       </div>
+    } @else if (loadError()) {
+      <div class="empty-state empty-state--error">
+        <div class="empty-icon"><i class="ti ti-cloud-off"></i></div>
+        <div class="empty-text">{{ loadError() }}</div>
+        <button type="button" class="btn-retry" (click)="loadCards()"><i class="ti ti-refresh"></i> ลองใหม่</button>
+      </div>
     } @else if (filtered().length === 0) {
       <div class="empty-state">
         <div class="empty-icon"><i class="ti ti-inbox"></i></div>
@@ -102,7 +108,7 @@
 
 <!-- ═══ DETAIL MODAL ═══ -->
 @if (selectedRequest(); as req) {
-  <div class="modal-backdrop" (click)="closeDetail()">
+  <div class="modal-backdrop">
     <div class="modal" (click)="$event.stopPropagation()">
 
       <!-- Modal Header -->
@@ -121,7 +127,7 @@
             </span>
           </div>
         </div>
-        <button class="modal-close" (click)="closeDetail()">✕</button>
+        <button class="modal-close" (click)="closeDetail()"><i class="ti ti-x"></i></button>
       </div>
 
       <div class="modal-body">
@@ -169,8 +175,7 @@
             <div class="detail-field"><div class="detail-label">ฐานข้อมูล</div><div class="detail-value"><span class="badge-db">{{ req.database }}</span></div></div>
             <div class="detail-field"><div class="detail-label">ประเภทวารสาร</div><div class="detail-value">{{ req.pubType }}</div></div>
             @if (detailData(); as d) {
-              <div class="detail-field"><div class="detail-label">CITESCORE</div><div class="detail-value">{{ d.journal_metrics.citescore || '—' }}</div></div>
-              <div class="detail-field"><div class="detail-label">Impact Factor</div><div class="detail-value">{{ d.journal_metrics.has_impact_score ? d.journal_metrics.impact_factor : 'ไม่มี' }}</div></div>
+              <div class="detail-field"><div class="detail-label">Impact Factor</div><div class="detail-value">{{ d.journal_metrics.has_impact_score && d.journal_metrics.impact_factor != null ? (d.journal_metrics.impact_factor | number:'1.0-4') : 'ไม่มี' }}</div></div>
               <div class="detail-field"><div class="detail-label">ปีข้อมูล Score</div><div class="detail-value">{{ d.journal_metrics.score_year || '—' }}</div></div>
             }
           </div>
@@ -188,7 +193,7 @@
             <div class="detail-field"><div class="detail-label">ผู้แต่งหลัก</div><div class="detail-value">{{ req.firstAuthor }}</div></div>
             @if (detailData(); as d) {
               <div class="detail-field"><div class="detail-label">Corresponding Author</div><div class="detail-value">{{ d.paper_and_research_details.corresponding_author || '—' }}</div></div>
-              <div class="detail-field detail-field--wide"><div class="detail-label">การนำไปใช้ประโยชน์</div><div class="detail-value">{{ d.paper_and_research_details.innovation_type || '—' }}</div></div>
+              <div class="detail-field detail-field--wide"><div class="detail-label">การนำไปใช้ประโยชน์</div><div class="detail-value">{{ innovationLabel(d.paper_and_research_details.innovation_type) || '—' }}</div></div>
             }
           </div>
         </div>
@@ -222,6 +227,7 @@
             <span class="section-num">5</span>
             <span class="section-title">เอกสารหลักฐานประกอบ</span>
           </div>
+          @if (fileError()) { <div class="file-error"><i class="ti ti-alert-triangle"></i> {{ fileError() }}</div> }
           <div class="evidence-grid">
             @for (f of evidenceFiles; track f.key) {
               <div class="evidence-card">
@@ -229,17 +235,18 @@
                 <div class="evidence-info">
                   <div class="evidence-name">{{ f.label }}</div>
                   <div class="evidence-key">{{ f.key }}</div>
+                  @if (!hasFile(f.key)) { <div class="evidence-missing"><i class="ti ti-file-off"></i> ไม่ได้แนบไฟล์</div> }
                 </div>
                 <div class="evidence-actions">
                   <button class="btn-evidence-view"
-                          [disabled]="fileViewing[f.key]"
+                          [disabled]="fileViewing()[f.key] || !hasFile(f.key)"
                           (click)="viewFile(req.t3Id, f.key); $event.stopPropagation()">
-                    @if (fileViewing[f.key]) { <span class="spinner-sm"></span> } @else { <i class="ti ti-eye"></i> ดูไฟล์ }
+                    @if (fileViewing()[f.key]) { <span class="spinner-sm"></span> } @else { <i class="ti ti-eye"></i> ดูไฟล์ }
                   </button>
                   <button class="btn-evidence-download"
-                          [disabled]="fileLoading[f.key]"
+                          [disabled]="fileLoading()[f.key] || !hasFile(f.key)"
                           (click)="downloadFile(req.t3Id, f.key); $event.stopPropagation()">
-                    @if (fileLoading[f.key]) { <span class="spinner-sm"></span> } @else { <i class="ti ti-download"></i> ดาวน์โหลด }
+                    @if (fileLoading()[f.key]) { <span class="spinner-sm"></span> } @else { <i class="ti ti-download"></i> ดาวน์โหลด }
                   </button>
                 </div>
               </div>
@@ -267,7 +274,7 @@
                 <input type="radio" name="staffdecision" value="rejected"
                   [checked]="decision() === 'rejected'" (change)="decision.set('rejected')">
                 <span class="dc-radio" [class.dc-radio--rejected]="decision() === 'rejected'"></span>
-                <span class="dc-x">✗</span>
+                <span class="dc-x"><i class="ti ti-x"></i></span>
                 <span class="dc-label">ไม่อนุมัติ</span>
               </label>
             </div>
@@ -311,22 +318,20 @@
             }
 
             @if (submitResult() === 'success') {
-              <div class="submit-label submit-label--success">✓ ดำเนินการสำเร็จ — กำลังปิดหน้าต่าง...</div>
+              <div class="submit-label submit-label--success"><i class="ti ti-check"></i> ดำเนินการสำเร็จ — กำลังปิดหน้าต่าง...</div>
             } @else if (submitResult() === 'error') {
-              <div class="submit-label submit-label--error">✗ เกิดข้อผิดพลาด กรุณาลองใหม่</div>
+              <div class="submit-label submit-label--error"><i class="ti ti-x"></i> {{ submitError() }}</div>
             }
 
             <div class="modal-actions">
               <button class="btn-cancel" (click)="closeDetail()">ยกเลิก</button>
-              <button class="btn-reject"
-                      [disabled]="isSubmitting() || decision() !== 'rejected' || !remark.trim()"
-                      (click)="submitDecision()">
-                <i class="ti ti-circle-x"></i> ไม่อนุมัติ
-              </button>
-              <button class="btn-approve"
+              <!-- ปุ่มยืนยันปุ่มเดียว — ตัวเลือกอนุมัติ/ไม่อนุมัติเลือกจากการ์ดด้านบน ปุ่มเปลี่ยนข้อความ/สีตาม -->
+              <button [class]="decision() === 'rejected' ? 'btn-reject' : 'btn-approve'"
                       [disabled]="isSubmitting() || !canSubmit"
                       (click)="submitDecision()">
-                @if (isSubmitting()) { <i class="ti ti-hourglass"></i> กำลังส่ง... } @else { <i class="ti ti-circle-check"></i> ลงนามอนุมัติ T3 }
+                @if (isSubmitting()) { <i class="ti ti-hourglass"></i> กำลังส่ง... }
+                @else if (decision() === 'rejected') { <i class="ti ti-circle-x"></i> ยืนยันไม่อนุมัติ }
+                @else { <i class="ti ti-circle-check"></i> ลงนามอนุมัติ T3 }
               </button>
             </div>
           </div>

@@ -1,0 +1,29 @@
+<button #trigger type="button" class="as-trigger"
+        [class.as-trigger--open]="open()"
+        [disabled]="disabled()"
+        aria-haspopup="listbox" [attr.aria-expanded]="open()"
+        (click)="toggle()" (keydown)="onKeydown($event)">
+  <span class="as-val" [class.as-val--empty]="value() === ''">{{ selectedLabel() }}</span>
+  <i class="ti ti-chevron-down as-arrow"></i>
+</button>
+
+@if (open()) {
+  <div class="as-backdrop" (click)="close()"></div>
+  <div class="as-panel" role="listbox" [style]="panelStyle()">
+    @for (o of flat(); track o.value; let i = $index) {
+      @if (showGroupHeader(i)) {
+        <div class="as-group">{{ o.group }}</div>
+      }
+      <button type="button" role="option" class="as-opt"
+              [class.as-opt--selected]="o.value === value()"
+              [class.as-opt--active]="i === active()"
+              [class.as-opt--empty]="o.value === ''"
+              [class.as-opt--grouped]="!!o.group"
+              [attr.aria-selected]="o.value === value()"
+              (mouseenter)="active.set(i)" (click)="pick(o)">
+        <span class="as-opt-label">{{ o.label }}</span>
+        @if (o.value === value()) { <i class="ti ti-check as-check"></i> }
+      </button>
+    }
+  </div>
+}

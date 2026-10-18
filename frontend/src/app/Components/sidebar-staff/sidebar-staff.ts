@@ -1,4 +1,5 @@
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, Input, OnInit, inject, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { RouterModule, Router, NavigationEnd } from '@angular/router';
 import { AuthService } from '../../auth.service';
@@ -24,6 +25,7 @@ interface NavGroup {
   styleUrls: ['./sidebar-staff.scss'],
 })
 export class SidebarStaff implements OnInit {
+  private destroyRef = inject(DestroyRef);
   @Input() isOpen = true;
 
   activeRoute   = '';
@@ -51,7 +53,6 @@ export class SidebarStaff implements OnInit {
         { label: 'Dashboard',            icon: 'ti ti-home',          route: '/staff/dashboard' },
         { label: 'ค้นหาวารสาร',         icon: 'ti ti-search',        route: '/search'          },
         { label: 'จัดการ MSU Unwanted', icon: 'ti ti-ban',           route: '/msu-unwanted'    },
-        { label: 'รายงานปัญหา',         icon: 'ti ti-bug',           route: '/bug-reports'     },
       ],
     },
     {
@@ -73,7 +74,7 @@ export class SidebarStaff implements OnInit {
 
   constructor(private authService: AuthService, private router: Router) {
     this.router.events
-      .pipe(filter(e => e instanceof NavigationEnd))
+      .pipe(filter(e => e instanceof NavigationEnd), takeUntilDestroyed(this.destroyRef))   // F12
       .subscribe((e: any) => {
         this.activeRoute = e.url;
         this.autoExpand();

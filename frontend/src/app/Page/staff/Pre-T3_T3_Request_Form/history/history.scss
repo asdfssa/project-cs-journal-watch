@@ -31,6 +31,42 @@ $gray:   #9CA3AF;
 .page-title     { font-size: 22px; font-weight: 800; color: $navy; margin: 0; }
 .page-subtitle  { font-size: 13px; color: $muted; margin: 0; }
 
+/* ปุ่มรีเฟรช (แบบเดียวกับหน้าคำร้อง Pre-T3) */
+.btn-refresh {
+  margin-left: auto;
+  height: 36px;
+  padding: 0 16px;
+  gap: 6px;
+  border-radius: 8px;
+  border: 1.5px solid $border;
+  background: $white;
+  color: $navy;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Sarabun', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+
+  &:hover:not(:disabled) {
+    border-color: $yellow;
+    background: rgba(232,168,0,0.08);
+    color: $yellow;
+  }
+
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.refresh-icon {
+  font-size: 18px;
+  line-height: 1;
+  display: inline-block;
+
+  &.spinning { animation: spin 0.8s linear infinite; }
+}
+
 /* ── TAB BAR ── */
 .tab-bar {
   display: flex;
@@ -66,6 +102,7 @@ $gray:   #9CA3AF;
   &--all      { background: #E0F2FE; color: #0369A1; }
   &--approved { background: $green-l; color: $green; }
   &--rejected { background: $red-l;   color: $red; }
+  &--cancelled { background: #F1F5F9; color: #64748B; }   // N13
 }
 
 /* ── FILTER ── */

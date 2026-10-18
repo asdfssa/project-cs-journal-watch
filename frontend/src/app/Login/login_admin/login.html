@@ -50,12 +50,12 @@
         <!-- Info box -->
         <div class="info-box">
           <div class="info-item">
-            <span class="info-icon">🔐</span>
+            <span class="info-icon"><i class="ti ti-lock-access"></i></span>
             <span>สำหรับผู้ดูแลระบบที่ได้รับสิทธิ์เท่านั้น</span>
           </div>
           <div class="info-divider"></div>
           <div class="info-item">
-            <span class="info-icon">📋</span>
+            <span class="info-icon"><i class="ti ti-clipboard-text"></i></span>
             <span>ใช้อีเมลและรหัสผ่านที่ได้รับการลงทะเบียน</span>
           </div>
         </div>
@@ -122,6 +122,7 @@
             @if (form.get('password')?.invalid && form.get('password')?.touched) {
               <span class="field-error">กรุณากรอกรหัสผ่าน</span>
             }
+            <a class="forgot-link" routerLink="/forgot-password">ลืมรหัสผ่าน?</a>
           </div>
 
           @if (errorMsg()) {

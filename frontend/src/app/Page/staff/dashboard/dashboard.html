@@ -1,5 +1,12 @@
 <div class="dashboard-page">
 
+  @if (loadError()) {
+    <div class="dash-load-error" role="alert">
+      <i class="ti ti-cloud-off"></i>
+      <span>โหลดข้อมูลบางส่วนไม่สำเร็จ — ตัวเลขด้านล่างอาจไม่ครบ กรุณารีเฟรชหน้า</span>
+    </div>
+  }
+
   <!-- WELCOME -->
   <section class="welcome-section">
     <div class="hero-overlay"></div>
@@ -117,7 +124,7 @@
                 </span>
                 <span class="recent-date">{{ item.dateLabel }}</span>
               </div>
-              <span class="recent-arrow">›</span>
+              <span class="recent-arrow"><i class="ti ti-chevron-right"></i></span>
             </a>
           }
         </div>

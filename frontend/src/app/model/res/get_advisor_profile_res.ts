@@ -9,12 +9,10 @@ export interface Data {
     prefix:        string;
     firstName:     string;
     lastName:      string;
-    faculty:       string;
     department:    string;
     msuMail:       string;
     phone:         string;
     facebookId:    string;
     lineId:        string;
     accountStatus: string;
-    lastLoginAt:   Date;
 }

@@ -23,7 +23,6 @@ export interface Item {
     publication_details:        PublicationDetails;
     advisor_approval:           Approval;
     faculty_com_approval:       FacultyCOMApproval;
-    grad_school_approval:       Approval;
     created_at:                 Date;
     updated_at:                 Date;
 }

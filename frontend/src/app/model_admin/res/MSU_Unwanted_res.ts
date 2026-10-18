@@ -14,12 +14,13 @@ export interface Journal {
     journal_name:       string;
     publisher:          string;
     note:               string;
-    evidence_file_path: null;
+    evidence_file_path: string | null;
     recorded_date:      Date;
     created_at:         Date;
-    first_name:         string;
-    last_name:          string;
-    msu_mail:           string;
+    // B49: นิสิต/อาจารย์ได้ null (backend ซ่อนข้อมูลผู้บันทึก)
+    first_name:         string | null;
+    last_name:          string | null;
+    msu_mail:           string | null;
 }
 
 export interface Pagination {

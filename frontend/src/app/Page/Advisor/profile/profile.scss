@@ -510,3 +510,14 @@ $muted:  #6B7280;
 
   .btn-edit { padding: 8px 16px; }
 }
+
+/* N15: โหลดโปรไฟล์ไม่สำเร็จ */
+.loading-card--error {
+  .loading-text { color: #C0392B; font-weight: 600; }
+}
+
+.loading-error-icon {
+  font-size: 40px;
+  line-height: 1;
+  color: #C0392B;
+}

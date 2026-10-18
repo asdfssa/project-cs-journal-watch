@@ -38,10 +38,6 @@
               <div class="db-meta-card__label">รอดำเนินการ</div>
               <div class="db-meta-card__value">{{ pendingAll() }}</div>
             </div>
-            <div class="db-meta-card">
-              <div class="db-meta-card__label">แคชวารสาร</div>
-              <div class="db-meta-card__value">{{ s.journal_cache.total }}</div>
-            </div>
           </div>
 
         </div>
@@ -91,17 +87,6 @@
                 <div class="ov-card__label">MSU Unwanted Journals</div>
                 <div class="ov-card__value ov-card__value--red">
                   {{ s.msu_unwanted.total }}<span class="ov-card__unit">รายการ</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="ov-card">
-              <div class="ov-card__badge ov-card__badge--teal">04</div>
-              <div class="ov-card__body">
-                <div class="ov-card__label">แคชวารสาร</div>
-                <div class="ov-card__value ov-card__value--teal">{{ s.journal_cache.total }}</div>
-                <div class="ov-card__meta">
-                  Scopus {{ s.journal_cache.scopus }} · TCI {{ s.journal_cache.tci }}
                 </div>
               </div>
             </div>
@@ -183,50 +168,8 @@
           </div>
         </div>
 
-        <!-- ── Section 3: แคช + API Keys ── -->
+        <!-- ── Section 3: API Keys ── -->
         <div class="bottom-grid">
-
-          <div class="dash-section dash-section--no-mb">
-            <div class="dash-section__title"><i class="ti ti-database"></i> แหล่งที่มาของแคชวารสาร</div>
-            <div class="cache-list">
-              <div class="cache-row">
-                <span class="cache-dot cache-dot--scopus"></span>
-                <span class="cache-label">Scopus</span>
-                <div class="req-progress">
-                  <div class="req-progress__fill req-progress__fill--scopus"
-                       [style.width.%]="pct(s.journal_cache.scopus, s.journal_cache.total)"></div>
-                </div>
-                <span class="cache-num">{{ s.journal_cache.scopus }}</span>
-              </div>
-              <div class="cache-row">
-                <span class="cache-dot cache-dot--tci"></span>
-                <span class="cache-label">TCI</span>
-                <div class="req-progress">
-                  <div class="req-progress__fill req-progress__fill--tci"
-                       [style.width.%]="pct(s.journal_cache.tci, s.journal_cache.total)"></div>
-                </div>
-                <span class="cache-num">{{ s.journal_cache.tci }}</span>
-              </div>
-              <div class="cache-row">
-                <span class="cache-dot cache-dot--api"></span>
-                <span class="cache-label">Via API</span>
-                <div class="req-progress">
-                  <div class="req-progress__fill req-progress__fill--api"
-                       [style.width.%]="pct(s.journal_cache.via_api, s.journal_cache.total)"></div>
-                </div>
-                <span class="cache-num">{{ s.journal_cache.via_api }}</span>
-              </div>
-              <div class="cache-row">
-                <span class="cache-dot cache-dot--scraping"></span>
-                <span class="cache-label">Via Scraping</span>
-                <div class="req-progress">
-                  <div class="req-progress__fill req-progress__fill--scraping"
-                       [style.width.%]="pct(s.journal_cache.via_scraping, s.journal_cache.total)"></div>
-                </div>
-                <span class="cache-num">{{ s.journal_cache.via_scraping }}</span>
-              </div>
-            </div>
-          </div>
 
           @if (s.api_keys.length > 0) {
             <div class="dash-section dash-section--no-mb">
@@ -251,6 +194,12 @@
                     </div>
                     <div class="api-key-row__meta">
                       {{ k.weeklyUsage }} / {{ k.weeklyLimit }} ครั้ง &nbsp;·&nbsp; คงเหลือ <strong>{{ k.remaining }}</strong>
+                      @if (resetDate(k.weeklyResetAt); as rd) {
+                        &nbsp;·&nbsp;
+                        <span class="api-key-row__reset" [class.api-key-row__reset--full]="!k.isAvailable">
+                          <i class="ti ti-refresh"></i> รีเซ็ต {{ rd }}
+                        </span>
+                      }
                     </div>
                   </div>
                 }

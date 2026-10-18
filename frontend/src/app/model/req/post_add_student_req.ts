@@ -8,6 +8,7 @@ export interface PostAddStudentReq {
     degree_level:       string;
     curriculum_year:    string;
     study_plan_code:    string;
+    department:         string;   // "" = ไม่ระบุ
     advisor_major_mail: string;
     advisor_co1_mail:   string;
 }

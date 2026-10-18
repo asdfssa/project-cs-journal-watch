@@ -49,10 +49,6 @@
 
       <div class="field-row">
         <div class="field-group">
-          <label class="field-label">คณะ <span class="badge-auto">อัตโนมัติ</span></label>
-          <input class="field-input readonly" [value]="faculty()" readonly placeholder="—" />
-        </div>
-        <div class="field-group">
           <label class="field-label">สาขาวิชา <span class="badge-auto">อัตโนมัติ</span></label>
           <input class="field-input readonly" [value]="department()" readonly placeholder="—" />
         </div>
@@ -90,15 +86,17 @@
 
       @if (isLoading()) {
         <div class="pre-t3-empty"><i class="ti ti-hourglass"></i> กำลังโหลดข้อมูล...</div>
+      } @else if (preT3LoadError()) {
+        <div class="pre-t3-empty"><i class="ti ti-cloud-off"></i> โหลดรายการ Pre-T3 ไม่สำเร็จ — กรุณารีเฟรชหน้าแล้วลองใหม่</div>
       } @else if (preT3List.length === 0) {
-        <div class="pre-t3-empty"><i class="ti ti-inbox"></i> ยังไม่มี Pre-T3 ที่อนุมัติแล้ว — กรุณายื่น Pre-T3 และรอการอนุมัติก่อน</div>
+        <div class="pre-t3-empty"><i class="ti ti-inbox"></i> ยังไม่มี Pre-T3 ที่อนุมัติแล้วและยังไม่ได้ยื่น T3 — กรุณายื่น Pre-T3 และรอการอนุมัติก่อน</div>
       } @else {
         <div class="pre-t3-list">
           @for (item of preT3List; track item.id) {
             <div class="pre-t3-card" [class.selected]="selectedPreT3 === item.id" (click)="selectedPreT3 = item.id">
               <div class="pre-t3-radio">
                 @if (selectedPreT3 === item.id) {
-                  <div class="radio-checked">✓</div>
+                  <div class="radio-checked"><i class="ti ti-check"></i></div>
                 } @else {
                   <div class="radio-empty"></div>
                 }
@@ -143,10 +141,6 @@
                   <div class="paper-info-label">QUARTILE</div>
                   <div class="paper-info-value">{{ selectedPreT3Data.quartile }}</div>
                 </div>
-                <div class="paper-info-item">
-                  <div class="paper-info-label">SJR / CITESCORE</div>
-                  <div class="paper-info-value">{{ selectedPreT3Data.sjr }} / {{ selectedPreT3Data.citeScore }}</div>
-                </div>
               </div>
               <div class="selected-paper-note"><i class="ti ti-lock"></i> ข้อมูลวารสารอ่านอย่างเดียว — ดึงจาก Pre-T3 ที่อนุมัติแล้ว</div>
             </div>
@@ -173,9 +167,11 @@
       <div class="field-row">
         <div class="field-group field-group--full">
           <label class="field-label">ชื่อเรื่องภาษาไทย <span class="badge-required">*</span></label>
-          <input id="field-titleTh" class="field-input field-input--highlight" [class.field-input--error]="fieldWithError() === 'field-titleTh'" [(ngModel)]="titleTh" (ngModelChange)="fieldWithError.set('')" placeholder="ชื่อเรื่องภาษาไทย" />
+          <input id="field-titleTh" class="field-input field-input--highlight" [class.field-input--error]="fieldWithError() === 'field-titleTh' || !!titleThLangError" [(ngModel)]="titleTh" (ngModelChange)="fieldWithError.set('')" placeholder="ชื่อเรื่องภาษาไทย" />
           @if (fieldWithError() === 'field-titleTh') {
             <div class="field-error-msg">กรุณากรอก ชื่อเรื่องภาษาไทย</div>
+          } @else if (titleThLangError) {
+            <div class="field-error-msg"><i class="ti ti-alert-triangle"></i> {{ titleThLangError }}</div>
           }
         </div>
       </div>
@@ -183,9 +179,11 @@
       <div class="field-row">
         <div class="field-group field-group--full">
           <label class="field-label">ชื่อเรื่องภาษาอังกฤษ <span class="badge-required">*</span></label>
-          <input id="field-titleEn" class="field-input field-input--highlight" [class.field-input--error]="fieldWithError() === 'field-titleEn'" [(ngModel)]="titleEn" (ngModelChange)="fieldWithError.set('')" placeholder="Article title in English" />
+          <input id="field-titleEn" class="field-input field-input--highlight" [class.field-input--error]="fieldWithError() === 'field-titleEn' || !!titleEnLangError" [(ngModel)]="titleEn" (ngModelChange)="fieldWithError.set('')" placeholder="Article title in English" />
           @if (fieldWithError() === 'field-titleEn') {
             <div class="field-error-msg">กรุณากรอก ชื่อเรื่องภาษาอังกฤษ</div>
+          } @else if (titleEnLangError) {
+            <div class="field-error-msg"><i class="ti ti-alert-triangle"></i> {{ titleEnLangError }}</div>
           }
         </div>
       </div>
@@ -218,10 +216,24 @@
       <div class="field-row">
         <div class="field-group field-group--wide">
           <label class="field-label">ประเภทวารสาร/ฐานข้อมูล <span class="badge-required">*</span></label>
-          <select class="field-select" [(ngModel)]="journalType">
-            <option value="วารสารวิชาการระดับนานาชาติ">วารสารวิชาการระดับนานาชาติ (weight 1.0)</option>
-            <option value="วารสารวิชาการระดับชาติ">วารสารวิชาการระดับชาติ (weight 0.5)</option>
-          </select>
+          @if (journalTypeInfo; as info) {
+            <div class="jt-locked">
+              <span class="jt-option-icon"><i class="ti {{ info.icon }}"></i></span>
+              <span class="jt-option-body">
+                <span class="jt-option-label">{{ journalType }}</span>
+                <span class="jt-option-hint">{{ info.hint }}</span>
+              </span>
+              <span class="jt-weight-chip">weight {{ weightLabel }}</span>
+            </div>
+            <div class="jt-locked-note"><i class="ti ti-lock"></i> เลือกให้อัตโนมัติจากฐานข้อมูลของ Pre-T3 ที่เลือก</div>
+            @if (tierInvalid) {
+              <div class="jt-locked-note jt-locked-note--error"><i class="ti ti-alert-triangle"></i> Pre-T3 นี้ไม่ได้ระบุกลุ่ม TCI (1 หรือ 2) — ยื่น T3 ไม่ได้ กรุณายื่น Pre-T3 ใหม่</div>
+            }
+          } @else {
+            <div class="jt-locked jt-locked--empty">
+              <span class="jt-option-hint">เลือก Pre-T3 ด้านบนก่อน ระบบจะกำหนดประเภทให้อัตโนมัติ</span>
+            </div>
+          }
         </div>
         <div class="field-group">
           <label class="field-label">ฐานข้อมูล <span class="badge-required">*</span></label>
@@ -231,18 +243,8 @@
 
       <div class="score-cards">
         <div class="score-card">
-          <div class="score-label">CITESCORE</div>
-          <div class="score-value score-value--orange">{{ selectedPreT3Data?.citeScore ?? '—' }}</div>
-          <div class="score-source">{{ selectedPreT3Data?.database ?? '' }}</div>
-        </div>
-        <div class="score-card">
-          <div class="score-label">SJR SCORE</div>
-          <div class="score-value score-value--navy">{{ selectedPreT3Data?.sjr ?? '—' }}</div>
-          <div class="score-source">{{ selectedPreT3Data?.database ?? '' }}</div>
-        </div>
-        <div class="score-card">
           <div class="score-label">ค่าน้ำหนัก</div>
-          <div class="score-value score-value--green">{{ journalType === 'วารสารวิชาการระดับนานาชาติ' ? '1.0' : '0.5' }}</div>
+          <div class="score-value score-value--green">{{ weightLabel }}</div>
           <div class="score-source">weight</div>
         </div>
       </div>
@@ -334,7 +336,7 @@
       <div class="section-divider"></div>
 
       <div class="pub-status-cards">
-        <div class="pub-card" [class.pub-card--selected]="pubStatus === 'accepted'" (click)="pubStatus = 'accepted'">
+        <div class="pub-card" [class.pub-card--selected]="pubStatus === 'accepted'" (click)="setPubStatus('accepted')">
           <div class="pub-card-radio">
             <div class="pub-radio" [class.pub-radio--active]="pubStatus === 'accepted'"></div>
           </div>
@@ -342,10 +344,10 @@
             <div class="pub-card-title">
               ได้รับการตอบรับ (Accepted)
             </div>
-            <div class="pub-card-desc">วารสารตอบรับแล้ว ต้องแนบ Letter of Acceptance + Full Paper</div>
+            <div class="pub-card-desc">วารสารตอบรับแล้ว ต้องแนบหนังสือตอบรับ (Letter of Acceptance) + Full Paper</div>
           </div>
         </div>
-        <div class="pub-card" [class.pub-card--selected]="pubStatus === 'published'" (click)="pubStatus = 'published'">
+        <div class="pub-card" [class.pub-card--selected]="pubStatus === 'published'" (click)="setPubStatus('published')">
           <div class="pub-card-radio">
             <div class="pub-radio" [class.pub-radio--active]="pubStatus === 'published'"></div>
           </div>
@@ -353,25 +355,27 @@
             <div class="pub-card-title">
               ตีพิมพ์แล้ว (Published)
             </div>
-            <div class="pub-card-desc">ตีพิมพ์เผยแพร่แล้ว - แนบประกาศสาร สำเนา + Full Paper + ต้อง DOI จริง</div>
+            <div class="pub-card-desc">ตีพิมพ์เผยแพร่แล้ว ต้องแนบ Full Paper + หน้าปกวารสาร + สารบัญวารสาร</div>
           </div>
         </div>
       </div>
 
-      <div class="field-row" style="margin-top:16px">
-        <div class="field-group">
-          <label class="field-label">Volume <span class="badge-optional">อ้าง</span></label>
-          <input class="field-input" [(ngModel)]="volume" placeholder="เช่น 12" />
+      @if (pubStatus === 'published') {
+        <div class="field-row" style="margin-top:16px">
+          <div class="field-group">
+            <label class="field-label">Volume <span class="badge-optional">อ้าง</span></label>
+            <input class="field-input" [(ngModel)]="volume" placeholder="เช่น 12" />
+          </div>
+          <div class="field-group">
+            <label class="field-label">Issue <span class="badge-optional">อ้าง</span></label>
+            <input class="field-input" [(ngModel)]="issue" placeholder="เช่น 3" />
+          </div>
+          <div class="field-group">
+            <label class="field-label">ปีที่ตีพิมพ์ (Publish Year) <span class="badge-optional">อ้าง</span></label>
+            <input class="field-input" [(ngModel)]="publishYear" placeholder="เช่น 2025" maxlength="4" />
+          </div>
         </div>
-        <div class="field-group">
-          <label class="field-label">Issue <span class="badge-optional">อ้าง</span></label>
-          <input class="field-input" [(ngModel)]="issue" placeholder="เช่น 3" />
-        </div>
-        <div class="field-group">
-          <label class="field-label">ปีที่ตีพิมพ์ (Publish Year) <span class="badge-optional">อ้าง</span></label>
-          <input class="field-input" [(ngModel)]="publishYear" placeholder="เช่น 2025" maxlength="4" />
-        </div>
-      </div>
+      }
     </div>
 
     <!-- ═══ SECTION 7: เอกสารประกอบ T3 ═══ -->
@@ -381,7 +385,6 @@
           <span class="section-head-icon"><i class="ti ti-paperclip"></i></span>
           <span class="section-head-title">เอกสารประกอบ T3</span>
         </div>
-        <span class="section-head-hint">POST /upload/t3/:id/files · max 10MB</span>
       </div>
 
       <!-- หลักฐานหลัก -->
@@ -392,8 +395,9 @@
       <div class="section-divider"></div>
 
       <div class="upload-grid">
-        <div class="upload-card">
-          <div class="upload-required-tag">* จำเป็น</div>
+        <div class="upload-card" id="file-acceptance_letter" [class.upload-card--error]="fieldWithError() === 'file-acceptance_letter'"
+             [class.upload-card--optional]="!isRequiredFile('acceptance_letter')">
+          @if (isRequiredFile('acceptance_letter')) { <div class="upload-required-tag">* จำเป็น</div> }
           <div class="upload-icon"><i class="ti ti-file-check"></i></div>
           <div class="upload-name">acceptance_letter</div>
           <div class="upload-desc">หนังสือตอบรับ (PDF/JPG/PNG, max 10MB)</div>
@@ -407,7 +411,7 @@
           }
         </div>
 
-        <div class="upload-card">
+        <div class="upload-card" id="file-full_paper" [class.upload-card--error]="fieldWithError() === 'file-full_paper'">
           <div class="upload-required-tag">* จำเป็น</div>
           <div class="upload-icon"><i class="ti ti-files"></i></div>
           <div class="upload-name">full_paper</div>
@@ -431,19 +435,23 @@
       </div>
       <div class="section-divider"></div>
 
-      <div class="upload-grid upload-grid--4">
-        <div class="upload-card upload-card--optional">
-          <div class="upload-icon"><i class="ti ti-news"></i></div>
-          <div class="upload-name">journal_cover</div>
-          <div class="upload-desc">ปกวารสาร</div>
-          <label class="upload-btn upload-btn--secondary">
-            อัปโหลด
-            <input type="file" accept=".pdf,.jpg,.png" hidden (change)="onFileChange('journal_cover', $event)" />
-          </label>
-          @if (getFileName('journal_cover')) {
-            <div class="upload-filename">{{ getFileName('journal_cover') }}</div>
-          }
-        </div>
+      <div class="upload-grid" [class.upload-grid--4]="pubStatus === 'published'" [class.upload-grid--2]="pubStatus !== 'published'">
+        @if (pubStatus === 'published') {
+          <div class="upload-card" id="file-journal_cover" [class.upload-card--error]="fieldWithError() === 'file-journal_cover'"
+               [class.upload-card--optional]="!isRequiredFile('journal_cover')">
+            @if (isRequiredFile('journal_cover')) { <div class="upload-required-tag">* จำเป็น</div> }
+            <div class="upload-icon"><i class="ti ti-news"></i></div>
+            <div class="upload-name">journal_cover</div>
+            <div class="upload-desc">ปกวารสาร</div>
+            <label class="upload-btn" [class.upload-btn--secondary]="!isRequiredFile('journal_cover')">
+              อัปโหลด
+              <input type="file" accept=".pdf,.jpg,.png" hidden (change)="onFileChange('journal_cover', $event)" />
+            </label>
+            @if (getFileName('journal_cover')) {
+              <div class="upload-filename">{{ getFileName('journal_cover') }}</div>
+            }
+          </div>
+        }
 
         <div class="upload-card upload-card--optional">
           <div class="upload-icon"><i class="ti ti-database-search"></i></div>
@@ -471,18 +479,22 @@
           }
         </div>
 
-        <div class="upload-card upload-card--optional">
-          <div class="upload-icon"><i class="ti ti-list-details"></i></div>
-          <div class="upload-name">table_of_contents</div>
-          <div class="upload-desc">สารบัญวารสาร</div>
-          <label class="upload-btn upload-btn--secondary">
-            อัปโหลด
-            <input type="file" accept=".pdf,.jpg,.png" hidden (change)="onFileChange('table_of_contents', $event)" />
-          </label>
-          @if (getFileName('table_of_contents')) {
-            <div class="upload-filename">{{ getFileName('table_of_contents') }}</div>
-          }
-        </div>
+        @if (pubStatus === 'published') {
+          <div class="upload-card" id="file-table_of_contents" [class.upload-card--error]="fieldWithError() === 'file-table_of_contents'"
+               [class.upload-card--optional]="!isRequiredFile('table_of_contents')">
+            @if (isRequiredFile('table_of_contents')) { <div class="upload-required-tag">* จำเป็น</div> }
+            <div class="upload-icon"><i class="ti ti-list-details"></i></div>
+            <div class="upload-name">table_of_contents</div>
+            <div class="upload-desc">สารบัญวารสาร</div>
+            <label class="upload-btn" [class.upload-btn--secondary]="!isRequiredFile('table_of_contents')">
+              อัปโหลด
+              <input type="file" accept=".pdf,.jpg,.png" hidden (change)="onFileChange('table_of_contents', $event)" />
+            </label>
+            @if (getFileName('table_of_contents')) {
+              <div class="upload-filename">{{ getFileName('table_of_contents') }}</div>
+            }
+          </div>
+        }
       </div>
 
     </div>
@@ -502,14 +514,14 @@
     <div class="action-bar">
       <div class="action-bar-spacer"></div>
       @if (submitError()) {
-        <span class="action-bar-error">✗ {{ submitError() }}</span>
+        <span class="action-bar-error"><i class="ti ti-x"></i> {{ submitError() }}</span>
       }
       @if (submitSuccess()) {
-        <span class="action-bar-success">✓ ยื่น T3 สำเร็จแล้ว</span>
+        <span class="action-bar-success"><i class="ti ti-check"></i> ยื่น T3 สำเร็จแล้ว</span>
       }
       <button class="btn-confirm"
               (click)="openConfirm()"
-              [disabled]="isSubmitting() || !selectedPreT3 || submitSuccess()">
+              [disabled]="isSubmitting() || !selectedPreT3 || submitSuccess() || !!titleThLangError || !!titleEnLangError">
         @if (isSubmitting()) {
           <span class="submit-spinner"></span> กำลังยื่น...
         } @else {
@@ -540,7 +552,7 @@
             </div>
             <div class="mh-row1-right">
               <span class="mh-id-chip">{{ d.id }}</span>
-              <button class="modal-close" (click)="closePreT3Detail()">✕</button>
+              <button class="modal-close" (click)="closePreT3Detail()"><i class="ti ti-x"></i></button>
             </div>
           </div>
 
@@ -563,7 +575,7 @@
                 <div class="mh-date-val">{{ d.submittedDate }}</div>
                 <div class="mh-date-lbl">วันที่ยื่น</div>
               </div>
-              <div class="mh-status-pill" [class]="'mh-status-pill mh-status-pill--' + d.cardStatus">{{ d.statusPillText }}</div>
+              <div class="mh-status-pill" [class]="'mh-status-pill mh-status-pill--' + d.cardStatus"><i [class]="d.currentStatusIcon"></i> {{ d.statusPillText }}</div>
             </div>
           </div>
 
@@ -571,7 +583,7 @@
             <span class="sbadge sbadge-blue">{{ d.database }}</span>
             <span class="sbadge sbadge-yellow">{{ d.quartile }}</span>
             @if (d.scopusStatus === 'Active') {
-              <span class="sbadge sbadge-green">✔ Active</span>
+              <span class="sbadge sbadge-green"><i class="ti ti-check"></i> Active</span>
             } @else {
               <span class="sbadge sbadge-red"><i class="ti ti-circle-x"></i> Discontinued</span>
             }
@@ -580,7 +592,6 @@
           <div class="mh-grid">
             <div class="mh-cell"><span class="mh-lbl">ISSN</span><span class="mh-val mono">{{ d.issn }}</span></div>
             <div class="mh-cell"><span class="mh-lbl">Quartile</span><span class="mh-val">{{ d.quartile }}</span></div>
-            <div class="mh-cell"><span class="mh-lbl">SJR</span><span class="mh-val mono">{{ d.sjr }}</span></div>
             <div class="mh-cell"><span class="mh-lbl">ฐานข้อมูล</span><span class="mh-val">{{ d.database }}</span></div>
             <div class="mh-cell"><span class="mh-lbl">ระดับ</span><span class="mh-val">{{ d.degree }}</span></div>
             <div class="mh-cell"><span class="mh-lbl">อาจารย์ที่ปรึกษา</span><span class="mh-val">{{ d.advisor }}</span></div>
@@ -623,7 +634,7 @@
                 @for (item of d.timeline; track item.actor; let last = $last) {
                   <div class="tl-item">
                     <div class="tl-left">
-                      <div class="tl-icon" [class]="'tl-' + item.badgeType">{{ item.icon }}</div>
+                      <div class="tl-icon" [class]="'tl-' + item.badgeType"><i [class]="item.icon"></i></div>
                       @if (!last) { <div class="tl-line"></div> }
                     </div>
                     <div class="tl-body">
@@ -641,27 +652,11 @@
             </div>
           </div>
 
-          <div class="ms-card">
-            <div class="ms-head"><i class="ti ti-paperclip"></i> เอกสารประกอบ</div>
-            <div class="attach-list">
-              @for (a of d.attachments; track a.name) {
-                <div class="attach-item">
-                  <span class="attach-icon">{{ a.icon }}</span>
-                  <div class="attach-body">
-                    <div class="attach-name">{{ a.name }}</div>
-                    <div class="attach-meta">{{ a.meta }} · {{ a.size }}</div>
-                  </div>
-                  <button class="btn-download"><i class="ti ti-download"></i> ดาวน์โหลด</button>
-                </div>
-              }
-            </div>
-          </div>
-
         </div><!-- /modal-body -->
 
         <!-- ══ MODAL FOOTER ══ -->
         <div class="modal-footer">
-          <button class="btn-mf btn-mf-print"><i class="ti ti-printer"></i> พิมพ์ใบคำร้อง</button>
+          <button class="btn-mf btn-mf-print" (click)="printDetail()"><i class="ti ti-printer"></i> พิมพ์ใบคำร้อง</button>
           <button class="btn-mf btn-mf-close" (click)="closePreT3Detail()">ปิด</button>
         </div>
 

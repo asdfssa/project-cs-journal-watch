@@ -45,6 +45,9 @@
             <div class="student-row">
               <span class="student-name">{{ req.studentName }}</span>
               <span class="student-id">{{ req.studentId }}</span>
+              @if (req.isCoAdvisor) {
+                <span class="co-advisor-tag"><i class="ti ti-user-star"></i> คุณเป็นอาจารย์ที่ปรึกษาร่วม · ดูอย่างเดียว</span>
+              }
             </div>
             <div class="article-title-row">
               <span class="article-label">ชื่อบทความ:</span>
@@ -77,7 +80,14 @@
         <span class="card-arrow">›</span>
       </div>
     }
-    @if (filtered().length === 0 && !isLoading()) {
+    @if (loadError() && !isLoading()) {
+      <div class="empty-state empty-state--error">
+        <div class="empty-icon"><i class="ti ti-cloud-off"></i></div>
+        <div class="empty-text">{{ loadError() }}</div>
+        <button type="button" class="btn-retry" (click)="loadRequests()"><i class="ti ti-refresh"></i> ลองใหม่</button>
+      </div>
+    }
+    @if (filtered().length === 0 && !isLoading() && !loadError()) {
       <div class="empty-state">
         <div class="empty-icon"><i class="ti ti-inbox"></i></div>
         <div class="empty-text">ไม่มีคำร้อง T3 ในหมวดนี้</div>
@@ -89,7 +99,7 @@
 
 <!-- ═══ DETAIL MODAL ═══ -->
 @if (selectedRequest(); as req) {
-  <div class="modal-backdrop" (click)="closeDetail()">
+  <div class="modal-backdrop">
     <div class="modal" (click)="$event.stopPropagation()">
 
       <!-- Modal Header -->
@@ -108,7 +118,7 @@
             </span>
           </div>
         </div>
-        <button class="modal-close" (click)="closeDetail()">✕</button>
+        <button class="modal-close" (click)="closeDetail()"><i class="ti ti-x"></i></button>
       </div>
 
       <div class="modal-body">
@@ -174,12 +184,8 @@
             </div>
             @if (detailData(); as d) {
               <div class="detail-field">
-                <div class="detail-label">CITESCORE</div>
-                <div class="detail-value">{{ d.journal_metrics.citescore || '—' }}</div>
-              </div>
-              <div class="detail-field">
                 <div class="detail-label">Impact Factor</div>
-                <div class="detail-value">{{ d.journal_metrics.has_impact_score ? d.journal_metrics.impact_factor : 'ไม่มี' }}</div>
+                <div class="detail-value">{{ d.journal_metrics.has_impact_score && d.journal_metrics.impact_factor != null ? (d.journal_metrics.impact_factor | number:'1.0-4') : 'ไม่มี' }}</div>
               </div>
               <div class="detail-field">
                 <div class="detail-label">ปีข้อมูล Score</div>
@@ -215,7 +221,7 @@
               </div>
               <div class="detail-field detail-field--wide">
                 <div class="detail-label">การนำไปใช้ประโยชน์</div>
-                <div class="detail-value">{{ d.paper_and_research_details.innovation_type || '—' }}</div>
+                <div class="detail-value">{{ innovationLabel(d.paper_and_research_details.innovation_type) || '—' }}</div>
               </div>
             }
           </div>
@@ -259,6 +265,7 @@
             <span class="section-num">5</span>
             <span class="section-title">เอกสารหลักฐานประกอบ</span>
           </div>
+          @if (fileError()) { <div class="file-error"><i class="ti ti-alert-triangle"></i> {{ fileError() }}</div> }
           <div class="evidence-grid">
             @for (f of evidenceFiles; track f.key) {
               <div class="evidence-card">
@@ -266,17 +273,18 @@
                 <div class="evidence-info">
                   <div class="evidence-name">{{ f.label }}</div>
                   <div class="evidence-key mono">{{ f.key }}</div>
+                  @if (!hasFile(f.key)) { <div class="evidence-missing"><i class="ti ti-file-off"></i> ไม่ได้แนบไฟล์</div> }
                 </div>
                 <div class="evidence-actions">
                   <button class="btn-evidence-view"
-                          [disabled]="fileViewing[f.key]"
+                          [disabled]="fileViewing()[f.key] || !hasFile(f.key)"
                           (click)="viewFile(req.t3Id, f.key); $event.stopPropagation()">
-                    @if (fileViewing[f.key]) { <span class="spinner-sm"></span> } @else { <i class="ti ti-eye"></i> ดูไฟล์ }
+                    @if (fileViewing()[f.key]) { <span class="spinner-sm"></span> } @else { <i class="ti ti-eye"></i> ดูไฟล์ }
                   </button>
                   <button class="btn-evidence-download"
-                          [disabled]="fileLoading[f.key]"
+                          [disabled]="fileLoading()[f.key] || !hasFile(f.key)"
                           (click)="downloadFile(req.t3Id, f.key); $event.stopPropagation()">
-                    @if (fileLoading[f.key]) { <span class="spinner-sm"></span> } @else { <i class="ti ti-download"></i> ดาวน์โหลด }
+                    @if (fileLoading()[f.key]) { <span class="spinner-sm"></span> } @else { <i class="ti ti-download"></i> ดาวน์โหลด }
                   </button>
                 </div>
               </div>
@@ -285,7 +293,7 @@
         </div>
 
         <!-- ── SECTION 6: ความเห็นอาจารย์ ── -->
-        @if (req.status === 'pending') {
+        @if (req.status === 'pending' && req.canReview) {
           <div class="decision-section">
             <div class="decision-section-head">
               <span><i class="ti ti-message-circle"></i></span>
@@ -337,6 +345,11 @@
                 <i class="ti ti-circle-check"></i> ลงนามอนุมัติ T3
               </button>
             </div>
+          </div>
+        } @else if (req.status === 'pending' && req.isCoAdvisor) {
+          <div class="co-advisor-note">
+            <i class="ti ti-info-circle"></i>
+            <span>คุณเป็นอาจารย์ที่ปรึกษาร่วมของนิสิตคนนี้ การอนุมัติเป็นสิทธิ์ของอาจารย์ที่ปรึกษาหลัก เมื่ออาจารย์หลักตัดสินแล้ว คำร้องจะย้ายไปที่ "ประวัติทั้งหมด"</span>
           </div>
         } @else {
           <div class="result-section" [class.result-approved]="req.status === 'approved'" [class.result-rejected]="req.status === 'rejected'">
@@ -392,6 +405,10 @@
           </div>
         }
       </div>
+
+      @if (decisionError()) {
+        <div class="confirm-error"><i class="ti ti-alert-triangle"></i> {{ decisionError() }}</div>
+      }
 
       <div class="confirm-actions">
         <button class="btn-cancel" (click)="showConfirm.set(false)">ยกเลิก</button>

@@ -18,265 +18,68 @@ $blue:   #1A5FAB;
   min-height: 100vh;
 }
 
-/* ══ CAPTCHA MODAL ══ */
-.captcha-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(28, 39, 68, 0.55);
-  backdrop-filter: blur(4px);
-  z-index: 1000;
+/* ══ CAPTCHA (Cloudflare Turnstile — แสดงเฉพาะตอนได้ 428) ══ */
+.captcha-panel {
+  margin-top: 14px;
+  padding: 14px 16px;
+  background: rgba(232,168,0,0.06);
+  border: 1.5px solid rgba(232,168,0,0.45);
+  border-radius: 12px;
+  animation: captchaIn 0.2s ease;
+}
+
+@keyframes captchaIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.captcha-head {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: captchaFadeIn 0.2s ease;
-}
-
-@keyframes captchaFadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-.captcha-modal {
-  background: #fff;
-  border-radius: 20px;
-  width: 100%;
-  max-width: 390px;
-  margin: 16px;
-  box-shadow: 0 24px 64px rgba(28,39,68,0.28);
-  overflow: hidden;
-  animation: captchaSlideUp 0.25s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-@keyframes captchaSlideUp {
-  from { opacity: 0; transform: translateY(24px) scale(0.97); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.captcha-topbar {
-  height: 5px;
-  background: linear-gradient(90deg, $navy 0%, $yellow 50%, $navy 100%);
-  background-size: 200% 100%;
-  animation: shimmer 3s infinite linear;
-}
-
-@keyframes shimmer {
-  0%   { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-
-.captcha-header {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 22px 24px 16px;
-  border-bottom: 1px solid rgba(28,39,68,0.08);
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
 .captcha-icon {
-  font-size: 28px;
-  width: 48px;
-  height: 48px;
-  background: rgba(28,39,68,0.06);
-  border-radius: 12px;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
+  border-radius: 9px;
+  background: $navy;
+
+  i { font-size: 19px; color: $yellow; }
 }
 
 .captcha-title {
-  font-size: 17px;
-  font-weight: 800;
+  font-size: 14px;
+  font-weight: 700;
   color: $navy;
 }
 
-.captcha-subtitle {
-  font-size: 12px;
-  color: rgba(28,39,68,0.45);
+.captcha-desc {
+  font-size: 12.5px;
+  color: $muted;
   margin-top: 2px;
 }
 
-.captcha-body {
-  padding: 20px 24px 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  align-items: center;
+/* widget ของ Cloudflare กว้างตายตัว ~300px — กันล้นจอมือถือ */
+.captcha-widget {
+  min-height: 65px;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
-/* ── PUZZLE CAPTCHA ── */
-.puzzle-wrap {
-  position: relative;
-  width: 320px;
-  height: 160px;
-  border-radius: 12px;
-  overflow: hidden;
-  border: 1.5px solid rgba(28,39,68,0.15);
-  user-select: none;
-  align-self: center;
-}
-
-.puzzle-bg {
-  position: absolute;
-  top: 0; left: 0;
-  display: block;
-}
-
-.puzzle-piece {
-  position: absolute;
-  top: 0;
-  display: block;
-  filter: drop-shadow(2px 3px 6px rgba(0,0,0,0.55));
-  cursor: grab;
-  &:active { cursor: grabbing; }
-}
-
-.puzzle-slider-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  align-self: center;
-  width: 320px;
-}
-
-.puzzle-slider-track {
-  position: relative;
-  width: 100%;
-  height: 44px;
-  background: rgba(28,39,68,0.05);
-  border-radius: 10px;
-  border: 1.5px solid rgba(28,39,68,0.12);
-  overflow: hidden;
-  user-select: none;
-}
-
-.puzzle-slider-fill {
-  position: absolute;
-  top: 0; left: 0;
-  height: 100%;
-  background: linear-gradient(90deg, rgba(232,168,0,0.18) 0%, rgba(232,168,0,0.35) 100%);
-  border-radius: 10px 0 0 10px;
-  transition: width 0.03s linear;
-}
-
-.puzzle-slider-handle {
-  position: absolute;
-  top: 0;
-  width: 60px;
-  height: 44px;
-  background: linear-gradient(135deg, $navy 0%, #2D3F7A 100%);
-  border-radius: 10px;
-  color: $yellow;
-  font-size: 26px;
-  line-height: 1;
+.captcha-error {
   display: flex;
   align-items: center;
-  justify-content: center;
-  cursor: grab;
-  box-shadow: 0 2px 10px rgba(28,39,68,0.35);
-  transition: box-shadow 0.15s;
-  user-select: none;
-  z-index: 1;
-
-  &:active {
-    cursor: grabbing;
-    box-shadow: 0 4px 18px rgba(28,39,68,0.5);
-  }
-}
-
-.puzzle-slider-hint {
-  font-size: 12px;
-  color: rgba(28,39,68,0.38);
-  text-align: center;
-  font-family: 'Sarabun', sans-serif;
-}
-
-.captcha-error-msg {
+  gap: 6px;
+  margin-top: 10px;
   font-size: 13px;
   font-weight: 600;
   color: $red;
-  background: rgba(192,57,43,0.08);
-  border: 1px solid rgba(192,57,43,0.2);
-  border-radius: 8px;
-  padding: 10px 14px;
-  text-align: center;
-}
-
-.captcha-input {
-  width: 100%;
-  padding: 13px 16px;
-  border: 2px solid rgba(28,39,68,0.14);
-  border-radius: 10px;
-  font-size: 18px;
-  font-weight: 700;
-  color: $navy;
-  text-align: center;
-  outline: none;
-  transition: border-color 0.18s;
-  box-sizing: border-box;
-  font-family: 'IBM Plex Mono', monospace;
-
-  &:focus {
-    border-color: $yellow;
-    box-shadow: 0 0 0 3px rgba(232,168,0,0.15);
-  }
-
-  &::-webkit-outer-spin-button,
-  &::-webkit-inner-spin-button { -webkit-appearance: none; }
-  -moz-appearance: textfield;
-  appearance: textfield;
-}
-
-.captcha-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.captcha-btn-refresh {
-  flex: 0 0 auto;
-  padding: 11px 16px;
-  border-radius: 10px;
-  border: 1.5px solid rgba(28,39,68,0.15);
-  background: transparent;
-  color: rgba(28,39,68,0.55);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.18s;
-  font-family: 'Sarabun', sans-serif;
-
-  &:hover {
-    border-color: $navy;
-    color: $navy;
-    background: rgba(28,39,68,0.04);
-  }
-}
-
-.captcha-btn-confirm {
-  flex: 1;
-  padding: 12px;
-  border-radius: 10px;
-  border: none;
-  background: linear-gradient(135deg, $navy 0%, #253060 100%);
-  color: $yellow;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.18s;
-  font-family: 'Sarabun', sans-serif;
-  box-shadow: 0 4px 14px rgba(28,39,68,0.25);
-
-  &:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(28,39,68,0.35);
-  }
-  &:active { transform: translateY(0); }
-}
-
-.captcha-note {
-  font-size: 12px;
-  color: rgba(28,39,68,0.38);
-  text-align: center;
 }
 
 /* ══ SEARCH PAGE ══ */
@@ -1837,18 +1640,6 @@ $blue:   #1A5FAB;
   }
 }
 
-.btn-t3 {
-  background: #DDDDDD;
-  color: #999999;
-  border: none;
-  border-radius: 10px;
-  padding: 12px 24px;
-  font-family: 'Sarabun', sans-serif;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: not-allowed;
-}
-
 .btn-print {
   background: $white;
   color: $navy;
@@ -2648,7 +2439,6 @@ $blue:   #1A5FAB;
   .db-toggle-row,
   .loading-card,
   .error-card,
-  .captcha-backdrop,
   .conflict-warning-bar,
   /* colored status banner */
   .result-banner,
@@ -2757,4 +2547,31 @@ $blue:   #1A5FAB;
     border-bottom: 1px solid #e5e7eb;
     font-family: 'Sarabun', sans-serif;
   }
+}
+
+/* X37: เช็ครายการ MSU Unwanted ไม่สำเร็จ */
+.unwanted-unknown {
+  max-width: 1000px;
+  margin: 16px auto 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1.5px solid rgba(192,120,0,0.45);
+  background: rgba(232,168,0,0.08);
+  color: #8A5600;
+  font-size: 13.5px;
+  font-weight: 600;
+  box-sizing: border-box;
+
+  i { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+}
+
+/* เกณฑ์ · ค่าจริงของวารสาร ✓/✗ (แถว Quartile / TCI กลุ่ม) */
+.criteria-value {
+  .crit-part { white-space: nowrap; }
+  .crit-sep  { margin: 0 6px; color: #9CA3AF; font-weight: 400; }
+  strong     { font-weight: 800; }
+  i          { margin-left: 4px; }
 }

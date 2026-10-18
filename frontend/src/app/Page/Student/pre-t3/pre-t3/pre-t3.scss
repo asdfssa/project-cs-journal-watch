@@ -269,6 +269,9 @@ $text:   #374151;
   &:focus { border-color: $yellow; }
   &::placeholder { color: #C4C9D4; }
 
+  // กรอกผิดภาษา (ชื่อบทความ)
+  &--error, &--error:focus { border-color: #D32F2F; }
+
   &.readonly {
     background: #F0F4FF;
     color: $navy;
@@ -516,6 +519,40 @@ $text:   #374151;
   background: $bg;
   border-bottom: 1px solid $border;
   font-family: 'IBM Plex Mono', monospace;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.check-all-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 5px 12px;
+  border-radius: 99px;
+  border: 1.5px solid $navy;
+  background: $white;
+  color: $navy;
+  font-family: 'Sarabun', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
+
+  i { font-size: 14px; }
+
+  &:hover { background: $navy; color: $white; }
+  &:active { transform: scale(0.97); }
+
+  &.active {
+    border-color: $border;
+    color: $muted;
+    &:hover { background: rgba(192,57,43,0.06); border-color: $red; color: $red; }
+  }
 }
 
 .checklist-items {
@@ -679,3 +716,186 @@ $text:   #374151;
     padding: 10px 16px;
   }
 }
+
+/* ── ฐานข้อมูล: custom dropdown (X23 — ENUM Scopus/TCI) ── */
+.db-select { position: relative; width: 100%; }
+
+.db-backdrop { position: fixed; inset: 0; z-index: 40; }
+
+.db-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  border: 1.5px solid $border;
+  border-radius: 9px;
+  padding: 10px 12px 10px 14px;
+  background: $white;
+  font-family: 'Sarabun', sans-serif;
+  font-size: 13.5px;
+  color: $text;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+
+  &:hover { border-color: rgba($navy, 0.3); }
+  &:focus-visible { outline: none; border-color: $yellow; }
+  &--empty .db-trigger-text { color: #9CA3AF; }
+
+  .db-select--open & {
+    border-color: $yellow;
+    box-shadow: 0 0 0 3px rgba($yellow, 0.15);
+  }
+}
+
+.db-trigger-text { flex: 1; min-width: 0; }
+
+.db-arrow {
+  font-size: 16px;
+  color: $muted;
+  transition: transform 0.2s;
+
+  .db-select--open & { transform: rotate(180deg); color: $navy; }
+}
+
+.db-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 41;
+  padding: 6px;
+  background: $white;
+  border: 1.5px solid $border;
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba($navy, 0.14);
+  animation: dbDrop 0.16s ease-out;
+  transform-origin: top center;
+}
+
+@keyframes dbDrop {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.db-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 10px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  font-family: 'Sarabun', sans-serif;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  & + & { margin-top: 2px; }
+  &:hover { background: $bg; }
+  &:focus-visible { outline: 2px solid $yellow; outline-offset: -2px; }
+
+  &--active {
+    background: rgba($yellow, 0.1);
+    .db-option-icon { background: $navy; color: $yellow; }
+  }
+}
+
+.db-option-icon {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: $bg;
+  color: $navy;
+  font-size: 17px;
+}
+
+.db-option-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.db-option-label { font-size: 13.5px; font-weight: 700; color: $navy; }
+.db-option-hint  { font-size: 11.5px; color: $muted; }
+.db-option-check { font-size: 17px; color: $yellow; }
+
+/* ── โหมดยื่นซ้ำ (คำร้องที่ถูกปฏิเสธ) ── */
+.resubmit-banner {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: #FFF8E1;
+  border: 1.5px solid #F2C14E;
+
+  &__icon {
+    width: 36px; height: 36px;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 10px;
+    background: #C07800;
+    color: #fff;
+    font-size: 19px;
+  }
+  &__body   { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  &__title  { font-size: 14px; font-weight: 800; color: #7A4B00; }
+  &__reason { font-size: 13px; color: #5C3D00; line-height: 1.55; overflow-wrap: anywhere; }
+  &__hint   { font-size: 12px; color: #8A6410; }
+}
+
+.confirm-topbar.confirm-topbar--resubmit { background: linear-gradient(90deg, #C0392B, #E8A800); }
+
+.resubmit-confirm-icon {
+  width: 52px; height: 52px;
+  margin: 4px auto 8px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: rgba(192, 57, 43, 0.1);
+  color: #C0392B;
+  font-size: 26px;
+}
+
+.resubmit-em { color: #C0392B; }
+
+.resubmit-confirm-reason {
+  margin: 12px 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  text-align: left;
+
+  &__label { font-size: 11.5px; font-weight: 700; color: #B91C1C; margin-bottom: 2px; }
+  &__text  { font-size: 13px; color: #7F1D1D; line-height: 1.55; overflow-wrap: anywhere; }
+}
+
+.resubmit-ack {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1.5px dashed #F2C14E;
+  background: #FFFBEB;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #5C3D00;
+  text-align: left;
+  cursor: pointer;
+
+  input { margin-top: 3px; width: 16px; height: 16px; accent-color: #C07800; flex-shrink: 0; cursor: pointer; }
+}
+
+.btn-confirm-ok.btn-confirm-ok--resubmit {
+  background: #C07800;
+  color: #000;   // เดิมสืบสีเหลือง ($yellow) จาก .btn-confirm-ok — เหลืองบนส้มอ่านยาก · ดำตัดกับส้มชัดกว่าขาว
+  &:disabled { opacity: .45; cursor: not-allowed; }
+}
+
+/* F4: ยังไม่มีชื่อบทความ */
+.field-hint-warn { display: block; margin-top: 4px; font-size: 11.5px; color: #C07800; }
+.field-hint-error { display: block; margin-top: 4px; font-size: 11.5px; color: #D32F2F; }

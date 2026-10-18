@@ -47,9 +47,6 @@
               @if (isEditing()) { <i class="ti ti-x"></i> ยกเลิกแก้ไข } @else { <i class="ti ti-pencil"></i> แก้ไขข้อมูลส่วนตัว }
             </button>
           </div>
-          <p class="pf-summary__last-login">
-            เข้าสู่ระบบล่าสุด: {{ formatDate(d.lastLoginAt) }}
-          </p>
         </div>
 
       </div>
@@ -66,10 +63,6 @@
           <span class="pf-card__title">ข้อมูลบัญชี</span>
         </div>
         <div class="info-list">
-          <div class="info-row">
-            <span class="info-label">รหัสผู้ใช้</span>
-            <span class="info-value info-value--mono">#{{ d.userId }}</span>
-          </div>
           <div class="info-row">
             <span class="info-label">ชื่อ - นามสกุล</span>
             <span class="info-value">{{ fullName() || '—' }}</span>
@@ -118,15 +111,11 @@
     <div class="pf-card pf-card--full">
       <div class="pf-topbar"></div>
       <div class="pf-card__header">
-        <span class="pf-card__icon"><i class="ti ti-clock"></i></span>
-        <span class="pf-card__title">ข้อมูลการเข้าใช้งาน</span>
+        <span class="pf-card__icon"><i class="ti ti-id-badge-2"></i></span>
+        <span class="pf-card__title">ข้อมูลบัญชี</span>
       </div>
       <div class="pf-usage-grid">
         <div class="pf-usage-col">
-          <span class="pf-usage-col__label">เข้าสู่ระบบล่าสุด</span>
-          <span class="pf-usage-col__value">{{ formatDate(d.lastLoginAt) }}</span>
-        </div>
-        <div class="pf-usage-col pf-usage-col--sep">
           <span class="pf-usage-col__label">คำนำหน้า</span>
           <span class="pf-usage-col__value">{{ d.prefix || '—' }}</span>
         </div>
@@ -153,31 +142,23 @@
 
           <div class="edit-field">
             <label class="edit-label">คำนำหน้า</label>
-            <select class="edit-input" [ngModel]="prefix()" (ngModelChange)="prefix.set($event)">
-              <option value="">— ไม่ระบุ —</option>
-              <option value="นาย">นาย</option>
-              <option value="นาง">นาง</option>
-              <option value="นางสาว">นางสาว</option>
-              <option value="ดร.">ดร.</option>
-              <option value="ผศ.">ผศ.</option>
-              <option value="รศ.">รศ.</option>
-              <option value="ศ.">ศ.</option>
-            </select>
+            <app-select [ngModel]="prefix()" (ngModelChange)="prefix.set($event)" [options]="prefixOptions" />
           </div>
 
           <div class="edit-field">
-            <label class="edit-label">ชื่อจริง</label>
+            <label class="edit-label">ชื่อจริง <span class="edit-req">*</span></label>
             <input class="edit-input" type="text"
                    [ngModel]="firstName()" (ngModelChange)="firstName.set($event)"
                    placeholder="ชื่อจริง"/>
           </div>
 
           <div class="edit-field">
-            <label class="edit-label">นามสกุล</label>
+            <label class="edit-label">นามสกุล <span class="edit-req">*</span></label>
             <input class="edit-input" type="text"
                    [ngModel]="lastName()" (ngModelChange)="lastName.set($event)"
                    placeholder="นามสกุล"/>
           </div>
+
 
           <div class="edit-field">
             <label class="edit-label">เบอร์โทรศัพท์</label>
@@ -203,13 +184,13 @@
         </div>
 
         @if (saveResult() === 'success') {
-          <div class="save-result save-result--success">✓ บันทึกข้อมูลสำเร็จ</div>
+          <div class="save-result save-result--success"><i class="ti ti-check"></i> บันทึกข้อมูลสำเร็จ</div>
         }
         @if (saveResult() === 'error') {
-          <div class="save-result save-result--error">✗ เกิดข้อผิดพลาด กรุณาลองใหม่</div>
+          <div class="save-result save-result--error"><i class="ti ti-x"></i> {{ saveError() }}</div>
         }
 
-        <button class="btn-save" (click)="saveProfile()" [disabled]="isSaving()">
+        <button class="btn-save" (click)="saveProfile()" [disabled]="isSaving() || !canSave">
           @if (isSaving()) {
             <span class="btn-save__spinner"></span> กำลังบันทึก...
           } @else {

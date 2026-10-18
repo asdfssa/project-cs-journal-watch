@@ -69,6 +69,12 @@
         <div class="loading-spinner"></div>
         <div class="empty-text">กำลังโหลดข้อมูล...</div>
       </div>
+    } @else if (loadError() && filtered().length === 0) {
+      <div class="empty-state empty-state--error">
+        <div class="empty-icon"><i class="ti ti-cloud-off"></i></div>
+        <div class="empty-text">{{ loadError() }}</div>
+        <button type="button" class="btn-retry" (click)="loadHistory()"><i class="ti ti-refresh"></i> ลองใหม่</button>
+      </div>
     } @else if (filtered().length === 0) {
       <div class="empty-state">
         <div class="empty-icon"><i class="ti ti-inbox"></i></div>
@@ -113,10 +119,14 @@
           <div class="card-right">
             <span [class]="statusBadgeClass(card)">
               @if (card.advisorStatus === 'Approved') { <i class="ti ti-circle-check"></i> }
+              @else if (card.advisorStatus === 'Rejected') { <i class="ti ti-circle-x"></i> }
               {{ statusLabel(card) }}
             </span>
             @if (actionDateLabel(card)) {
               <span class="action-date">{{ actionDateLabel(card) }}</span>
+            }
+            @if (card.isCoAdvisor) {
+              <span class="co-advisor-tag"><i class="ti ti-user-star"></i> ผลจากอาจารย์ที่ปรึกษาหลัก</span>
             }
           </div>
 
@@ -152,7 +162,7 @@
             </span>
           </div>
         </div>
-        <button class="modal-close" (click)="closeDetail()">✕</button>
+        <button class="modal-close" (click)="closeDetail()"><i class="ti ti-x"></i></button>
       </div>
 
       <div class="modal-body">
@@ -192,7 +202,7 @@
               </div>
               <div class="detail-field">
                 <div class="detail-label">รหัสนิสิต</div>
-                <div class="detail-value">{{ d.student_info?.student_id || card.studentId }}</div>
+                <div class="detail-value">{{ d.student_info?.msu_mail?.replace('@msu.ac.th', '') || card.studentId }}</div>
               </div>
               <div class="detail-field">
                 <div class="detail-label">อีเมล</div>
@@ -201,10 +211,6 @@
               <div class="detail-field">
                 <div class="detail-label">เบอร์โทร</div>
                 <div class="detail-value">{{ d.student_info?.phone || '—' }}</div>
-              </div>
-              <div class="detail-field">
-                <div class="detail-label">คณะ</div>
-                <div class="detail-value">{{ d.student_info?.faculty || '—' }}</div>
               </div>
               <div class="detail-field">
                 <div class="detail-label">สาขาวิชา</div>
@@ -266,12 +272,8 @@
             }
             @if (card.itemType === 'T3' && detailDataT3(); as d) {
               <div class="detail-field">
-                <div class="detail-label">CITESCORE</div>
-                <div class="detail-value">{{ d.journal_metrics.citescore || '—' }}</div>
-              </div>
-              <div class="detail-field">
                 <div class="detail-label">Impact Factor</div>
-                <div class="detail-value">{{ d.journal_metrics.has_impact_score ? d.journal_metrics.impact_factor : 'ไม่มี' }}</div>
+                <div class="detail-value">{{ d.journal_metrics.has_impact_score && d.journal_metrics.impact_factor != null ? (d.journal_metrics.impact_factor | number:'1.0-4') : 'ไม่มี' }}</div>
               </div>
             }
             @if (card.isDiscontinued) {
@@ -311,7 +313,7 @@
               @if (detailDataT3()?.paper_and_research_details?.innovation_type) {
                 <div class="detail-field detail-field--wide">
                   <div class="detail-label">การนำไปใช้ประโยชน์</div>
-                  <div class="detail-value">{{ detailDataT3()?.paper_and_research_details?.innovation_type }}</div>
+                  <div class="detail-value">{{ innovationLabel(detailDataT3()?.paper_and_research_details?.innovation_type) }}</div>
                 </div>
               }
             </div>
@@ -370,6 +372,7 @@
               <span class="section-num">5</span>
               <span class="section-title">เอกสารหลักฐานประกอบ</span>
             </div>
+            @if (fileError()) { <div class="file-error"><i class="ti ti-alert-triangle"></i> {{ fileError() }}</div> }
             <div class="evidence-grid">
               @for (f of evidenceFiles; track f.key) {
                 <div class="evidence-card">
@@ -377,17 +380,18 @@
                   <div class="evidence-info">
                     <div class="evidence-name">{{ f.label }}</div>
                     <div class="evidence-key mono">{{ f.key }}</div>
+                  @if (!hasFile(f.key)) { <div class="evidence-missing"><i class="ti ti-file-off"></i> ไม่ได้แนบไฟล์</div> }
                   </div>
                   <div class="evidence-actions">
                     <button class="btn-evidence-view"
-                            [disabled]="fileViewing[f.key]"
+                            [disabled]="fileViewing()[f.key] || !hasFile(f.key)"
                             (click)="viewFile(card.rawId, f.key); $event.stopPropagation()">
-                      @if (fileViewing[f.key]) { <span class="spinner-sm"></span> } @else { <i class="ti ti-eye"></i> ดูไฟล์ }
+                      @if (fileViewing()[f.key]) { <span class="spinner-sm"></span> } @else { <i class="ti ti-eye"></i> ดูไฟล์ }
                     </button>
                     <button class="btn-evidence-download"
-                            [disabled]="fileLoading[f.key]"
+                            [disabled]="fileLoading()[f.key] || !hasFile(f.key)"
                             (click)="downloadFile(card.rawId, f.key); $event.stopPropagation()">
-                      @if (fileLoading[f.key]) { <span class="spinner-sm"></span> } @else { <i class="ti ti-download"></i> ดาวน์โหลด }
+                      @if (fileLoading()[f.key]) { <span class="spinner-sm"></span> } @else { <i class="ti ti-download"></i> ดาวน์โหลด }
                     </button>
                   </div>
                 </div>
@@ -407,7 +411,7 @@
               @for (item of checklistItems(); track item.id) {
                 <div class="checklist-item" [class.pass]="item.status === 'pass'" [class.fail]="item.status === 'fail'">
                   <div class="check-icon" [class.pass]="item.status === 'pass'" [class.fail]="item.status === 'fail'">
-                    {{ item.status === 'pass' ? '✓' : '✗' }}
+                    @if (item.status === 'pass') { <i class="ti ti-check"></i> } @else { <i class="ti ti-x"></i> }
                   </div>
                   <div class="check-body">
                     <div class="check-title">{{ item.id }}. {{ item.title }}</div>
@@ -429,6 +433,9 @@
             @else { <i class="ti ti-hourglass"></i> }
           </div>
           <div class="result-body">
+            @if (card.isCoAdvisor) {
+              <div class="result-note">คุณเป็นอาจารย์ที่ปรึกษาร่วม — ผลนี้เป็นการพิจารณาของอาจารย์ที่ปรึกษาหลัก</div>
+            }
             <div class="result-title">
               @if (card.advisorStatus === 'Approved') { อนุมัติแล้ว }
               @else if (card.advisorStatus === 'Rejected') { ไม่ผ่านการอนุมัติ }

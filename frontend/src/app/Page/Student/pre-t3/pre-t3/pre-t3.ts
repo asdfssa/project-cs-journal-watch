@@ -8,6 +8,9 @@ import { AuthService } from '../../../../auth.service';
 import { Constants } from '../../../../comfig/constants';
 import { GetProfileRes, Advisor } from '../../../../model/res/get_profile_res';
 import { SendPreT3Req } from '../../../../model/req/Send_Pre-T3_req';
+import { apiFailure, failMsg } from '../../../../server-status.service';
+import { PRE_T3_CHECKLIST_TITLES } from '../../../../pre-t3-checklist';
+import { englishTitleError, thaiTitleError } from '../../../../title-lang';
 
 interface ChecklistItem {
   id: number;
@@ -36,18 +39,34 @@ export class PreT3 implements OnInit {
   degreeLevel = signal('');
   studentId   = signal('');
   phone       = signal('');
-  faculty     = signal('');
   department  = signal('');
 
   /* ── Section 2: วารสาร ── */
   journalName    = signal('');
   journalNameTh  = signal('');
   issn           = signal('');
-  eissn          = signal('');
   database       = signal('');
+
+  // ── ฐานข้อมูล (X23): DB เป็น ENUM('Scopus','TCI') — ให้เลือกจาก dropdown แทนพิมพ์อิสระ ──
+  readonly databaseOptions = [
+    { value: 'Scopus', icon: 'ti-world', hint: 'ฐานข้อมูลนานาชาติ' },
+    { value: 'TCI',    icon: 'ti-flag',  hint: 'ศูนย์ดัชนีการอ้างอิงวารสารไทย' },
+  ];
+  databaseOpen = signal(false);
+
+  selectDatabase(value: string): void {
+    this.database.set(value);
+    this.databaseOpen.set(false);
+  }
+
+  /** แปลงค่าจากหน้าค้นหา (อาจเป็น scopus / tci / SCOPUS) ให้ตรง ENUM — ไม่รู้จักให้ว่างไว้เลือกเอง */
+  private normalizeDatabase(raw: string | null | undefined): string {
+    const v = (raw ?? '').toLowerCase();
+    if (v.includes('tci'))    return 'TCI';
+    if (v.includes('scopus')) return 'Scopus';
+    return '';
+  }
   quartile       = signal('');
-  sjr            = signal('');
-  citeScore      = signal('');
   journalUrl     = signal('');
   isDiscontinued = signal(false);
 
@@ -59,7 +78,6 @@ export class PreT3 implements OnInit {
   advisorOverride = signal('');
   coAdvisor1      = signal('');
   coAdvisor2      = signal('');
-  remarkNote      = signal('');
 
   /* ── มาจากหน้าค้นหา ── */
   fromSearch = signal(false);
@@ -78,6 +96,21 @@ export class PreT3 implements OnInit {
     });
   }
 
+  /* ── ติ๊ก/ยกเลิกทั้งหมด — ข้ามข้อที่ระบบตัดสินว่า fail (เช่น Discontinued) ── */
+  get allChecked(): boolean {
+    const items = this.checklist().filter(c => c.canToggle && c.status !== 'fail');
+    return items.length > 0 && items.every(c => c.status === 'pass');
+  }
+
+  toggleAll(): void {
+    if (this.allChecked) {
+      this.manualChecks.set(new Set());
+      return;
+    }
+    const ids = this.checklist().filter(c => c.canToggle && c.status !== 'fail').map(c => c.id);
+    this.manualChecks.set(new Set(ids));
+  }
+
   /* ── Checklist computed ── */
   checklist = computed<ChecklistItem[]>(() => {
     const fromS  = this.fromSearch();
@@ -93,7 +126,7 @@ export class PreT3 implements OnInit {
     return [
       {
         id: 1, canToggle: true,
-        title: 'ตรวจสอบความถูกต้องของชื่อของวารสาร',
+        title: PRE_T3_CHECKLIST_TITLES['item1'],
         detail: name
           ? `ตรวจสอบว่า "${name}" ตรงกับชื่อในฐานข้อมูลจริง แล้วคลิกยืนยัน`
           : 'กรอกชื่อวารสารก่อน',
@@ -101,13 +134,13 @@ export class PreT3 implements OnInit {
       },
       {
         id: 2, canToggle: true,
-        title: 'วารสารมีเว็บไซต์หลัก ตรงฐานข้อมูล MSU',
+        title: PRE_T3_CHECKLIST_TITLES['item2'],
         detail: url ? `เปิด URL แล้วตรวจสอบ: ${url}` : 'กรอก URL วารสารก่อน แล้วคลิกเปิดดูเพื่อยืนยัน',
         status: ms(2),
       },
       {
         id: 3, canToggle: true,
-        title: 'กำหนดออกเผยแพร่อย่างสม่ำเสมอ',
+        title: PRE_T3_CHECKLIST_TITLES['item3'],
         detail: fromS
           ? 'วารสารที่อยู่ใน Scopus/TCI ต้องผ่านเกณฑ์นี้ก่อน Index'
           : 'ตรวจสอบประวัติการเผยแพร่ที่เว็บไซต์วารสาร',
@@ -115,7 +148,7 @@ export class PreT3 implements OnInit {
       },
       {
         id: 4, canToggle: true,
-        title: 'ระบุสำนักพิมพ์ วัตถุประสงค์ ขอบเขตชัดเจน',
+        title: PRE_T3_CHECKLIST_TITLES['item4'],
         detail: fromS
           ? 'วารสารที่อยู่ใน Scopus/TCI ต้องมี Aims & Scope ครบก่อน Index'
           : 'ตรวจสอบ Aims & Scope และสำนักพิมพ์ที่เว็บไซต์วารสาร',
@@ -123,7 +156,7 @@ export class PreT3 implements OnInit {
       },
       {
         id: 5, canToggle: true,
-        title: 'มีสมาชิกคณะกรรมการจากหลายประเทศ',
+        title: PRE_T3_CHECKLIST_TITLES['item5'],
         detail: fromS
           ? 'วารสารที่อยู่ใน Scopus/TCI ต้องผ่านเกณฑ์ Editorial Board นานาชาติก่อน Index'
           : 'ตรวจสอบ Editorial Board ที่เว็บไซต์วารสาร',
@@ -131,7 +164,7 @@ export class PreT3 implements OnInit {
       },
       {
         id: 6, canToggle: true,
-        title: 'มีระบบ Peer Review ที่เหมาะสม',
+        title: PRE_T3_CHECKLIST_TITLES['item6'],
         detail: fromS
           ? 'วารสารที่อยู่ใน Scopus/TCI ต้องมีระบบ Peer Review ที่ผ่านเกณฑ์ก่อน Index'
           : 'ตรวจสอบ Author Guidelines ที่เว็บไซต์วารสาร',
@@ -139,7 +172,7 @@ export class PreT3 implements OnInit {
       },
       {
         id: 7, canToggle: true,
-        title: 'รูปแบบบทความวารสารมาตรฐานสม่ำเสมอ',
+        title: PRE_T3_CHECKLIST_TITLES['item7'],
         detail: fromS
           ? 'วารสารที่อยู่ใน Scopus/TCI ต้องมีมาตรฐานรูปแบบบทความที่สม่ำเสมอก่อน Index'
           : 'ตรวจสอบตัวอย่างบทความในวารสาร',
@@ -147,7 +180,7 @@ export class PreT3 implements OnInit {
       },
       {
         id: 8, canToggle: true,
-        title: 'ไม่เป็น Hijacked Journal',
+        title: PRE_T3_CHECKLIST_TITLES['item8'],
         detail: fromS
           ? (disc ? 'วารสารนี้ถูกระงับ (Discontinued)' : 'ไม่พบใน Hijacked / Discontinued list')
           : 'ตรวจสอบกับ Beall\'s List และ Hijacked Journal Database',
@@ -155,7 +188,7 @@ export class PreT3 implements OnInit {
       },
       {
         id: 9, canToggle: true,
-        title: 'ยืนยันปรากฏฐานข้อมูล และ วันที่ขึ้น',
+        title: PRE_T3_CHECKLIST_TITLES['item9'],
         detail: (db && q) ? `ฐานข้อมูล: ${db} · Quartile: ${q}` : 'ยังไม่ได้ระบุฐานข้อมูลหรือ Quartile',
         status: ms(9),
       },
@@ -167,11 +200,34 @@ export class PreT3 implements OnInit {
 
   isSubmitting  = signal(false);
   submitResult  = signal<'success' | 'error' | null>(null);
+  submitError   = signal('');
+
+  // ── โหมดยื่นซ้ำ (คำร้องเดิมที่ถูกปฏิเสธ) → PATCH /pre-t3/:id/resubmit ──
+  resubmitInfo = signal<{ preT3Id: number; resubmitCount: number; rejectReason: string; rejectedBy: string } | null>(null);
+  resubmitAck  = signal(false);   // ต้องติ๊กยืนยันว่าแก้ไขแล้ว ก่อนกดยื่นซ้ำได้   // เหตุผลจาก backend เช่น NO_ADVISOR, โปรไฟล์ไม่ครบ
   showConfirm   = signal(false);
+
+  /** F4: ต้องมีชื่อบทความอย่างน้อย 1 ภาษา */
+  hasTitle = computed(() => !!this.titleEn().trim() || !!this.titleTh().trim());
+
+  /** กรอกผิดช่องภาษา — กฎอยู่ที่ title-lang.ts (ใช้ร่วมกับฟอร์ม T3) */
+  titleEnError = computed(() => englishTitleError(this.titleEn()));
+  titleThError = computed(() => thaiTitleError(this.titleTh()));
+
+  /** เหตุผลที่ยังยื่นไม่ได้ — แสดงใต้ปุ่มยื่น (เดิมขึ้นเรื่อง Checklist ทุกกรณี) */
+  submitBlockReason = computed(() => {
+    if (this.titleEnError() || this.titleThError()) return 'ชื่อบทความกรอกผิดภาษา กรุณาแก้ไขก่อนยื่น';
+    if (!this.hasTitle())                            return 'กรุณากรอกชื่อบทความอย่างน้อย 1 ภาษา';
+    return 'กรุณาตรวจสอบ Checklist ทั้ง 9 ข้อให้ครบก่อนยื่น';
+  });
 
   canSubmit = computed(() =>
     this.checklist().every(c => c.status === 'pass') &&
+    !!this.journalName().trim() &&   // X47: เดิมชื่อวารสารว่างก็กดยื่นได้ แล้วได้ 400 INVALID_JOURNAL
     !!this.issn() &&
+    !!this.database() &&
+    this.hasTitle() &&
+    !this.titleEnError() && !this.titleThError() &&
     !!this.studentId()
   );
 
@@ -185,15 +241,17 @@ export class PreT3 implements OnInit {
         ?.scrollIntoView({ behavior: 'auto', inline: 'center', block: 'nearest' });
     }, 0);
     const state = history.state;
+    if (state?.resubmit?.preT3Id) {
+      this.resubmitInfo.set(state.resubmit);
+      this.titleEn.set(state.titleEn ?? '');
+      this.titleTh.set(state.titleTh ?? '');
+    }
     if (state?.journalName) {
       this.journalName.set(state.journalName ?? '');
       this.journalNameTh.set(state.journalNameTh ?? '');
       this.issn.set(state.issn ?? '');
-      this.eissn.set(state.eissn ?? '');
-      this.database.set(state.database ?? '');
+      this.database.set(this.normalizeDatabase(state.database));
       this.quartile.set(state.quartile ?? '');
-      this.sjr.set(state.sjr ?? '');
-      this.citeScore.set(state.citeScore ?? '');
       this.journalUrl.set(state.journalUrl ?? '');
       this.isDiscontinued.set(state.isDiscontinued ?? false);
       this.fromSearch.set(true);
@@ -213,12 +271,11 @@ export class PreT3 implements OnInit {
         this.studentId.set((d.msuMail ?? '').replace('@msu.ac.th', ''));
         this.degreeLevel.set(d.degreeLevel ?? '');
         this.phone.set(d.phone ?? '');
-        this.faculty.set(d.faculty ?? '');
         this.department.set(d.department ?? '');
 
-        const main = d.advisors.find((a: Advisor) => a.advisorType === 'Major');
-        const co1  = d.advisors.find((a: Advisor) => a.advisorType === 'Co_1');
-        const co2  = d.advisors.find((a: Advisor) => a.advisorType === 'Co_2');
+        const main = (d.advisors ?? []).find((a: Advisor) => a.advisorType === 'Major');
+        const co1  = (d.advisors ?? []).find((a: Advisor) => a.advisorType === 'Co_1');
+        const co2  = (d.advisors ?? []).find((a: Advisor) => a.advisorType === 'Co_2');
 
         if (main) this.advisorOverride.set(`${main.prefix ?? ''} ${main.firstName} ${main.lastName}`.trim());
         if (co1)  this.coAdvisor1.set(`${co1.prefix ?? ''} ${co1.firstName} ${co1.lastName}`.trim());
@@ -227,7 +284,9 @@ export class PreT3 implements OnInit {
   }
 
   openConfirm(): void {
-    if (!this.canSubmit() || this.isSubmitting()) return;
+    // N1: หลังยื่นสำเร็จจะรอ 1.5 วิ ก่อนเปลี่ยนหน้า — กันกดยื่นซ้ำในช่วงนั้น (backend ตอบ 409 PRE_T3_DUPLICATE)
+    if (!this.canSubmit() || this.isSubmitting() || this.submitResult() === 'success') return;
+    this.resubmitAck.set(false);
     this.showConfirm.set(true);
     document.body.style.overflow = 'hidden';
   }
@@ -238,8 +297,9 @@ export class PreT3 implements OnInit {
   }
 
   submit(): void {
+    if (this.resubmitInfo() && !this.resubmitAck()) return;   // ยื่นซ้ำต้องยืนยันก่อน
     this.closeConfirm();
-    if (!this.canSubmit() || this.isSubmitting()) return;
+    if (!this.canSubmit() || this.isSubmitting() || this.submitResult() === 'success') return;
     this.isSubmitting.set(true);
     this.submitResult.set(null);
 
@@ -255,26 +315,32 @@ export class PreT3 implements OnInit {
         quartile_or_tier: this.quartile(),
         is_discontinued:  this.isDiscontinued(),
         is_hijacked:      this.checklist().find(c => c.id === 8)?.status === 'fail',
-        eissn:            this.eissn(),
-        sjr_score:        parseFloat(this.sjr()) || 0,
-        cite_score:       parseFloat(this.citeScore()) || 0,
       },
       article_info: {
         title_en: this.titleEn(),
         title_th: this.titleTh(),
       },
       checklist_data: checklistData,
+      // X33: เอาช่องหมายเหตุออกแล้ว — backend ไม่มีคอลัมน์เก็บ ข้อความที่นิสิตพิมพ์หายไปโดยไม่มีใครเห็น
     };
 
     const headers = new HttpHeaders({ Authorization: `Bearer ${this.auth.token}` });
-    this.http
-      .post(`${this.constants.API_ENDPOINT}/pre-t3`, body, { headers })
-      .pipe(catchError(() => of(null)))
+    const rs = this.resubmitInfo();
+    const request$ = rs
+      ? this.http.patch(`${this.constants.API_ENDPOINT}/pre-t3/${rs.preT3Id}/resubmit`, body, { headers })
+      : this.http.post(`${this.constants.API_ENDPOINT}/pre-t3`, body, { headers });
+    request$
+      .pipe(catchError(err => of(apiFailure(err))))
       .subscribe(res => {
         this.isSubmitting.set(false);
-        this.submitResult.set(res ? 'success' : 'error');
-        if (res) setTimeout(() => this.router.navigateByUrl('/pre-t3-status'), 1500);
-        else setTimeout(() => this.submitResult.set(null), 3000);
+        const ok = (res as { success?: boolean } | null)?.success !== false;
+        this.submitResult.set(ok ? 'success' : 'error');
+        if (ok) {
+          setTimeout(() => this.router.navigateByUrl('/pre-t3-status'), 1500);
+        } else {
+          // ไม่ซ่อนเองแล้ว — เหตุผลอย่าง "ยังไม่มีที่ปรึกษา" นิสิตต้องอ่านทัน
+          this.submitError.set(failMsg(res));
+        }
       });
   }
 

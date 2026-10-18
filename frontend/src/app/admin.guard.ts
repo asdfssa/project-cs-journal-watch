@@ -1,11 +1,12 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
+import { AuthService } from './auth.service';
 
 export const adminGuard: CanActivateFn = () => {
   const router = inject(Router);
 
-  const token = localStorage.getItem('auth_token');
-  if (!token) {
+  // F33: token อยู่ในหน่วยความจำ (production) — ดูสถานะ login จาก AuthService แทน localStorage
+  if (!inject(AuthService).isLoggedIn) {
     // ไม่มี token แปลว่ายังไม่ login (หรือ session หมดไปแล้ว) — ล้าง user ที่อาจ
     // ค้างจาก session ก่อนหน้าทิ้งด้วย ไม่งั้น isAdmin (app.ts) จะยังอ่านเจอค่าเก่า
     // แล้วโชว์ sidebar admin ทั้งที่ redirect ไปหน้า login แล้ว

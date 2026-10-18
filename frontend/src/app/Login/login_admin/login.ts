@@ -1,18 +1,20 @@
-import { Component, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { PostLoginReq, PostLoginRes } from '../../model_admin/req/post_login_res';
 import { Constants } from '../../comfig/constants';
+import { ServerStatusService, SERVER_DOWN_MESSAGE } from '../../server-status.service';
 
 @Component({
   selector: 'app-login',
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink],
   templateUrl: './login.html',
   styleUrl: './login.scss',
 })
-export class Login {
+export class Login implements OnInit {
+  private serverStatus = inject(ServerStatusService);
   form: FormGroup;
   loading = signal(false);
   errorMsg = signal('');
@@ -28,13 +30,13 @@ export class Login {
       username: ['', Validators.required],
       password: ['', Validators.required],
     });
+  }
 
-    // ล็อกอิน admin ค้างอยู่แล้ว (key 'user' ถูกตั้งหลังผ่าน OTP เท่านั้น) → ข้ามไป dashboard เลย
-    try {
-      const role = JSON.parse(localStorage.getItem('user') ?? 'null')?.role;
-      if (localStorage.getItem('auth_token') && role === 'SuperAdmin') this.router.navigate(['/super-admin/dashboard']);
-      else if (localStorage.getItem('auth_token') && role === 'Admin') this.router.navigate(['/admin/dashboard']);
-    } catch {}
+  // เปิดหน้ามาแล้วเซิร์ฟเวอร์ล่มอยู่ → บอกเลย ไม่ต้องรอให้ผู้ใช้กรอกแล้วเจอ error
+  ngOnInit() {
+    this.serverStatus.check().subscribe(ok => {
+      if (!ok) this.errorMsg.set(SERVER_DOWN_MESSAGE);
+    });
   }
 
   togglePassword() {
@@ -60,19 +62,22 @@ export class Login {
         // รอบใหม่ (เช่น token เก่าหมดอายุ/ถูกเคลียร์แล้วต้อง login ใหม่) ค่าเก่าที่ค้างอยู่
         // จะทำให้ sidebar admin โผล่มาที่หน้ากรอก OTP ทั้งที่ยังไม่ login เสร็จจริง
         localStorage.removeItem('user');
-        localStorage.setItem('auth_token', res.data.otpToken);
+        // F8: otpToken ยังไม่ผ่าน 2FA — เก็บแยก key ไม่ให้นับว่า login แล้ว (auth_token = ผ่าน OTP แล้วเท่านั้น)
+        localStorage.setItem('otp_token', res.data.otpToken);
+        // ไม่ส่ง username/password ไปใน history.state แล้ว (F7: กด Back บนเครื่องใช้ร่วมกันแล้วอ่านรหัสได้)
+        // หน้า OTP ส่งรหัสใหม่ผ่าน /auth/resend-otp ด้วย otpToken แทนการ login ซ้ำ
         this.router.navigate(['/req-otp'], {
-          state: {
-            username: body.username,
-            password: body.password,
-            maskedEmail: res.data.maskedEmail,
-          },
+          state: { maskedEmail: res.data.maskedEmail },
         });
         this.loading.set(false);
       },
       error: (err) => {
-        this.errorMsg.set(err?.error?.message || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
-        this.loading.set(false);
+        // ไม่มี message จาก backend + ไม่ใช่ 4xx = ต่อเซิร์ฟเวอร์ไม่ได้/ขัดข้อง (เช็คผ่าน /health)
+        // ไม่ใช่ "รหัสผิด" เสมอไปเหมือนเดิม
+        this.serverStatus.explain(err, 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง').subscribe(msg => {
+          this.errorMsg.set(msg);
+          this.loading.set(false);
+        });
       },
     });
   }

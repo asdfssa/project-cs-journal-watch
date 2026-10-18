@@ -10,13 +10,17 @@ import type { PatchManageUsersReq } from '../../../model/req/patch_manage_users_
 import type { PostAddStudentReq }   from '../../../model/req/post_add_student_req';
 import type { PostAddAdvisorReq }          from '../../../model/req/post_add_advisor_req';
 import type { PatchStudentAddAdvisorReq } from '../../../model/req/patch_student-add_advisor_req';
+import { apiFailure, failMsg } from '../../../server-status.service';
+import { AppSelect } from '../../../Components/app-select/app-select';
+import { downloadBlob } from '../../../file-download';
+import { departmentOptions, departmentFits } from '../../../departments';
 
 type TabType = 'student' | 'advisor';
 
 @Component({
   selector: 'app-manage-users',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, AppSelect],
   templateUrl: './manage-users.html',
   styleUrl: './manage-users.scss',
 })
@@ -81,6 +85,20 @@ export class ManageUsers implements OnInit {
     });
   });
 
+  // แถบสรุปเหนือตาราง: จำนวนทั้งหมดของแท็บที่เปิดอยู่ (+ จำนวนที่พบเมื่อมีตัวกรอง)
+  get resultSummary(): { icon: string; label: string; unit: string; total: number; found: number; filtered: boolean } | null {
+    if (this.isLoading()) return null;
+    const isStudent = this.activeTab() === 'student';
+    return {
+      icon:     isStudent ? 'ti-school' : 'ti-user-check',
+      label:    isStudent ? 'นิสิต' : 'อาจารย์',
+      unit:     'คน',
+      total:    isStudent ? this.allStudents().length      : this.allAdvisors().length,
+      found:    isStudent ? this.filteredStudents().length : this.filteredAdvisors().length,
+      filtered: this.statusFilter() !== 'all' || !!this.searchText().trim(),
+    };
+  }
+
   studentTotalPages = computed(() => Math.ceil(this.filteredStudents().length / this.PAGE_SIZE));
   advisorTotalPages = computed(() => Math.ceil(this.filteredAdvisors().length / this.PAGE_SIZE));
 
@@ -100,6 +118,36 @@ export class ManageUsers implements OnInit {
   advisorPageNumbers = computed(() =>
     Array.from({ length: this.advisorTotalPages() }, (_, i) => i + 1)
   );
+
+  // N5: หลังบันทึกสำเร็จ modal ปิดเองใน 1.5–2 วิ — เก็บ timer ตัวเดียวไว้ยกเลิกได้
+  // เดิมใช้ setTimeout ตรงๆ ถ้าผู้ใช้ปิดเองแล้วเปิด modal ใหม่ภายในช่วงนั้น timer เก่าจะปิด modal ที่เพิ่งเปิด
+  // ถ้าเปิด modal ใหม่ก่อนถึงเวลา → ทำงานที่ค้างทันที (ปิด modal เก่า + โหลดรายการใหม่) แล้วค่อยเปิดตัวใหม่
+  private modalCloseTimer?: ReturnType<typeof setTimeout>;
+  private pendingModalClose?: () => void;
+
+  private closeModalLater(fn: () => void, ms: number): void {
+    this.flushModalClose();
+    this.pendingModalClose = fn;
+    this.modalCloseTimer = setTimeout(() => this.flushModalClose(), ms);
+  }
+
+  private flushModalClose(): void {
+    if (this.modalCloseTimer) clearTimeout(this.modalCloseTimer);
+    const fn = this.pendingModalClose;
+    this.modalCloseTimer = undefined;
+    this.pendingModalClose = undefined;
+    fn?.();
+  }
+
+  /**
+   * feedback backend ข้อ 6: เช็ครูปแบบอีเมลก่อนส่ง — เดิมใส่แค่รหัสนิสิต (ไม่มี @โดเมน) ก็บันทึกได้
+   * แล้วล็อกอินด้วย Google ไม่ได้ (backend ตรวจแล้วตอบ 400 INVALID_EMAIL แต่ให้ผู้ใช้เห็นทันทีที่หน้าเว็บ)
+   */
+  mailError(v: string | null | undefined): string {
+    const m = (v ?? '').trim();
+    if (!m) return '';
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m) ? '' : 'ต้องเป็นอีเมลเต็ม เช่น name@msu.ac.th (ใส่แค่รหัสนิสิตไม่ได้)';
+  }
 
   ngOnInit(): void { this.loadData(); }
 
@@ -153,14 +201,15 @@ export class ManageUsers implements OnInit {
   addStudentForm: PostAddStudentReq = {
     role: 'Student', prefix: '', first_name: '', last_name: '',
     msu_mail: '', phone: '', degree_level: '', curriculum_year: '',
-    study_plan_code: '', advisor_major_mail: '', advisor_co1_mail: '',
+    study_plan_code: '', department: '', advisor_major_mail: '', advisor_co1_mail: '',
   };
 
   openAddStudentModal(): void {
+    this.flushModalClose();
     this.addStudentForm = {
       role: 'Student', prefix: '', first_name: '', last_name: '',
       msu_mail: '', phone: '', degree_level: '', curriculum_year: '',
-      study_plan_code: '', advisor_major_mail: '', advisor_co1_mail: '',
+      study_plan_code: '', department: '', advisor_major_mail: '', advisor_co1_mail: '',
     };
     this.addSaveResult.set(null);
     this.addStudentModal.set(true);
@@ -183,14 +232,14 @@ export class ManageUsers implements OnInit {
         payload,
         { headers }
       )
-      .pipe(catchError(() => of(null)))
+      .pipe(catchError(err => of(apiFailure(err))))
       .subscribe(res => {
         this.isAddSaving.set(false);
         if (res?.success) {
           this.addSaveResult.set({ ok: true, msg: 'เพิ่มนิสิตเรียบร้อยแล้ว' });
-          setTimeout(() => { this.closeAddStudentModal(); this.loadData(); }, 1500);
+          this.closeModalLater(() => { this.closeAddStudentModal(); this.loadData(); }, 1500);
         } else {
-          this.addSaveResult.set({ ok: false, msg: res?.message ?? 'เกิดข้อผิดพลาด กรุณาลองใหม่' });
+          this.addSaveResult.set({ ok: false, msg: failMsg(res) });
         }
       });
   }
@@ -204,6 +253,7 @@ export class ManageUsers implements OnInit {
   };
 
   openAddAdvisorModal(): void {
+    this.flushModalClose();
     this.addAdvisorForm = {
       role: 'Supervisor', prefix: '', first_name: '', last_name: '', msu_mail: '', phone: '',
     };
@@ -232,14 +282,14 @@ export class ManageUsers implements OnInit {
         payload,
         { headers }
       )
-      .pipe(catchError(() => of(null)))
+      .pipe(catchError(err => of(apiFailure(err))))
       .subscribe(res => {
         this.isAdvisorSaving.set(false);
         if (res?.success) {
           this.advisorSaveResult.set({ ok: true, msg: 'เพิ่มอาจารย์เรียบร้อยแล้ว' });
-          setTimeout(() => { this.closeAddAdvisorModal(); this.loadData(); }, 1500);
+          this.closeModalLater(() => { this.closeAddAdvisorModal(); this.loadData(); }, 1500);
         } else {
-          this.advisorSaveResult.set({ ok: false, msg: res?.message ?? 'เกิดข้อผิดพลาด กรุณาลองใหม่' });
+          this.advisorSaveResult.set({ ok: false, msg: failMsg(res) });
         }
       });
   }
@@ -253,10 +303,11 @@ export class ManageUsers implements OnInit {
   };
 
   openAssignAdvisorModal(u: User): void {
+    this.flushModalClose();
     this.assignAdvisorForm = {
       advisor_major_mail: u.advisors?.Major?.mail ?? '',
       advisor_co1_mail:   u.advisors?.Co_1?.mail  ?? '',
-      advisor_co2_mail:   '',
+      advisor_co2_mail:   u.advisors?.Co_2?.mail  ?? '',
     };
     this.assignAdvisorResult.set(null);
     this.assignAdvisorModal.set(u);
@@ -281,14 +332,14 @@ export class ManageUsers implements OnInit {
         this.assignAdvisorForm,
         { headers }
       )
-      .pipe(catchError(() => of(null)))
+      .pipe(catchError(err => of(apiFailure(err))))
       .subscribe(res => {
         this.isAssignSaving.set(false);
         if (res?.success) {
           this.assignAdvisorResult.set({ ok: true, msg: 'กำหนดอาจารย์ที่ปรึกษาเรียบร้อยแล้ว' });
-          setTimeout(() => { this.closeAssignAdvisorModal(); this.loadData(); }, 1500);
+          this.closeModalLater(() => { this.closeAssignAdvisorModal(); this.loadData(); }, 1500);
         } else {
-          this.assignAdvisorResult.set({ ok: false, msg: res?.message ?? 'เกิดข้อผิดพลาด กรุณาลองใหม่' });
+          this.assignAdvisorResult.set({ ok: false, msg: failMsg(res) });
         }
       });
   }
@@ -296,14 +347,29 @@ export class ManageUsers implements OnInit {
   // ── Import CSV Modal ─────────────────────────────────────────────
   importModal   = signal(false);
   isImporting   = signal(false);
-  importResult  = signal<{ ok: boolean; msg: string } | null>(null);
+  importResult  = signal<{ ok: boolean; msg: string; errors?: string[] } | null>(null);
   selectedFile: File | null = null;
 
   openImportModal(): void {
+    this.flushModalClose();
     this.selectedFile = null;
     this.importResult.set(null);
     this.importModal.set(true);
     document.body.style.overflow = 'hidden';
+  }
+
+  /**
+   * ดาวน์โหลดไฟล์ CSV ตัวอย่างสำหรับนำเข้าผู้ใช้ (feedback backend ข้อ 5) — สร้างในเบราว์เซอร์
+   * ใส่ BOM ให้ Excel เปิดภาษาไทยได้ · แถวตัวอย่างเป็นข้อมูลสมมุติ ต้องแก้หรือลบก่อนนำเข้า
+   */
+  downloadCsvTemplate(): void {
+    const rows = [
+      ['role', 'first_name', 'last_name', 'msu_mail', 'prefix', 'phone', 'degree_level', 'curriculum_year', 'study_plan_code', 'advisor_major_mail', 'advisor_co1_mail', 'department'],
+      ['Supervisor', 'ตัวอย่าง', 'อาจารย์', 'example.supervisor@msu.ac.th', 'ผศ.ดร.', '0800000000', '', '', '', '', '', ''],
+      ['Student', 'ตัวอย่าง', 'นิสิต', 'example.student@msu.ac.th', 'นาย', '0900000000', 'Master', '2566', 'Master_A1', '', '', 'เทคโนโลยีสารสนเทศ'],
+    ];
+    const csv = rows.map(r => r.map(v => `"${v.replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    downloadBlob(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' }), 'users-import-template.csv');
   }
 
   closeImportModal(): void {
@@ -332,15 +398,16 @@ export class ManageUsers implements OnInit {
         formData,
         { headers }
       )
-      .pipe(catchError(() => of(null)))
+      .pipe(catchError(err => of(apiFailure(err))))
       .subscribe(res => {
         this.isImporting.set(false);
         if (res?.success) {
           const imported = res.data?.imported ?? 0;
           this.importResult.set({ ok: true, msg: `นำเข้าสำเร็จ ${imported} รายการ` });
-          setTimeout(() => { this.closeImportModal(); this.loadData(); }, 2000);
+          this.closeModalLater(() => { this.closeImportModal(); this.loadData(); }, 2000);
         } else {
-          this.importResult.set({ ok: false, msg: res?.message ?? 'เกิดข้อผิดพลาด กรุณาลองใหม่' });
+          // X35: แสดงทุกแถวที่ผิด (import เป็น all-or-nothing — แก้ไฟล์แล้วอัปโหลดใหม่ทั้งไฟล์)
+          this.importResult.set({ ok: false, msg: failMsg(res), errors: (res as { errors?: string[] }).errors });
         }
       });
   }
@@ -349,8 +416,23 @@ export class ManageUsers implements OnInit {
   suspendingId  = signal<number | null>(null);
   suspendResult = signal<{ ok: boolean; msg: string } | null>(null);
 
+  // F27: ระงับบัญชีมีผลทันที (ผู้ใช้ login ไม่ได้) — ถามยืนยันก่อน ส่วนเปิดใช้งาน/อนุมัติทำได้เลย
+  suspendConfirm = signal<{ name: string; run: () => void } | null>(null);
+
+  askSuspendUser(u: User): void {
+    if (u.account_status !== 'Active') { this.suspendUser(u); return; }
+    this.suspendConfirm.set({ name: this.fullName(u), run: () => this.suspendUser(u) });
+  }
+
+  confirmSuspend(): void {
+    const c = this.suspendConfirm();
+    this.suspendConfirm.set(null);
+    c?.run();
+  }
+
   suspendUser(u: User): void {
-    if (this.suspendingId() !== null) return;
+    // X24: Pending ยังไม่ใช่ Active — suspend ไม่ได้ และ staff อนุมัติไม่ได้ (/approve เฉพาะ Admin)
+    if (this.suspendingId() !== null || u.account_status === AccountStatus.Pending) return;
     this.suspendingId.set(u.user_id);
     this.suspendResult.set(null);
 
@@ -359,12 +441,12 @@ export class ManageUsers implements OnInit {
     const headers     = new HttpHeaders({ Authorization: `Bearer ${this.auth.token}` });
 
     this.http
-      .patch<{ success: boolean; message?: string }>(
+      .patch<{ success: boolean; message?: string; data?: { pending_approvals?: number } }>(
         `${this.constants.API_ENDPOINT}/manage/users/${u.user_id}/${endpoint}`,
         {},
         { headers }
       )
-      .pipe(catchError(() => of(null)))
+      .pipe(catchError(err => of(apiFailure(err))))
       .subscribe(res => {
         this.suspendingId.set(null);
         if (res?.success) {
@@ -372,14 +454,17 @@ export class ManageUsers implements OnInit {
           this.allUsers.update(users =>
             users.map(x => x.user_id === u.user_id ? { ...x, account_status: newStatus } : x)
           );
-          this.suspendResult.set({
-            ok:  true,
-            msg: isSuspended ? `✅ เปิดใช้งานบัญชีเรียบร้อยแล้ว` : `🚫 ระงับบัญชีเรียบร้อยแล้ว`,
-          });
+          let msg = isSuspended ? `เปิดใช้งานบัญชีเรียบร้อยแล้ว` : `ระงับบัญชีเรียบร้อยแล้ว`;
+          // B32: ระงับอาจารย์ที่ยังมีคำร้องรออนุมัติ — คำร้องจะค้าง ต้องเปลี่ยนอาจารย์ที่ปรึกษาของนิสิตเอง
+          const pending = ('data' in res ? res.data?.pending_approvals : 0) ?? 0;
+          if (!isSuspended && pending > 0) {
+            msg = `ระงับบัญชีแล้ว — อาจารย์ท่านนี้ยังมีคำร้องรออนุมัติ ${pending} รายการ กรุณาเปลี่ยนอาจารย์ที่ปรึกษาของนิสิตที่เกี่ยวข้อง`;
+          }
+          this.suspendResult.set({ ok: true, msg });
         } else {
-          this.suspendResult.set({ ok: false, msg: '⚠️ เกิดข้อผิดพลาด กรุณาลองใหม่' });
+          this.suspendResult.set({ ok: false, msg: `${failMsg(res)}` });
         }
-        setTimeout(() => this.suspendResult.set(null), 3000);
+        setTimeout(() => this.suspendResult.set(null), this.suspendResult()?.msg.includes('รออนุมัติ') ? 10000 : 3000);
       });
   }
 
@@ -387,7 +472,7 @@ export class ManageUsers implements OnInit {
   editModal      = signal<User | null>(null);
   editForm: PatchManageUsersReq = {
     prefix: '', first_name: '', last_name: '', msu_mail: '',
-    phone: '', degree_level: '', curriculum_year: '', study_plan_code: '',
+    phone: '', degree_level: '', curriculum_year: '', study_plan_code: '', department: '',
   };
   isEditSaving   = signal(false);
   editSaveResult = signal<{ ok: boolean; msg: string } | null>(null);
@@ -401,12 +486,21 @@ export class ManageUsers implements OnInit {
     { value: 'Doctoral', label: 'ป.เอก (Doctoral)' },
   ];
 
+  // สาขาวิชา — ปริญญาเอกมีแค่ 3 สาขาแรก · เปลี่ยนระดับแล้วสาขาเดิมใช้ไม่ได้ → เคลียร์ (backend ตอบ 400 ถ้าส่งคู่ที่ไม่ถูก)
+  readonly departmentOptions = departmentOptions;
+
+  onDegreeChange(form: { degree_level: string; department?: string }, degree: string): void {
+    form.degree_level = degree;
+    if (!departmentFits(form.department, degree)) form.department = '';
+  }
+
   readonly studyPlanOptions = [
     { group: 'Master',   values: ['Master_A1','Master_A2','Master_B','Master_P1A1','Master_P1A2','Master_P2B'] },
     { group: 'Doctoral', values: ['Doc_1_1','Doc_1_2','Doc_2_1','Doc_2_2','Doc_P1_1_1','Doc_P1_1_2','Doc_P2_2_1','Doc_P2_2_2'] },
   ];
 
   openEditModal(u: User): void {
+    this.flushModalClose();
     this.editForm = {
       prefix:          u.prefix          ?? '',
       first_name:      u.first_name      ?? '',
@@ -416,6 +510,7 @@ export class ManageUsers implements OnInit {
       degree_level:    u.degree_level    ?? '',
       curriculum_year: u.curriculum_year ?? '',
       study_plan_code: u.study_plan_code ?? '',
+      department:      u.department      ?? '',
     };
     this.editSaveResult.set(null);
     this.editModal.set(u);
@@ -433,14 +528,19 @@ export class ManageUsers implements OnInit {
     this.isEditSaving.set(true);
     this.editSaveResult.set(null);
 
+    // Staff เปลี่ยน msu_mail ไม่ได้ (backend ตอบ 403) — ไม่ส่ง field นี้ไป ให้ backend คงค่าเดิม
+    const { msu_mail: _mail, ...rest } = this.editForm;
+    // ระดับการศึกษา/ปีหลักสูตร/รหัสหลักสูตร/สาขา เป็นของนิสิตเท่านั้น — แก้อาจารย์ไม่ส่ง
+    const { degree_level: _d, curriculum_year: _c, study_plan_code: _s, department: _dep, ...common } = rest;
+    const body = u.role === Role.Student ? rest : common;
     const headers = new HttpHeaders({ Authorization: `Bearer ${this.auth.token}` });
     this.http
       .patch<{ success: boolean; message?: string }>(
         `${this.constants.API_ENDPOINT}/manage/users/${u.user_id}`,
-        this.editForm,
+        body,
         { headers }
       )
-      .pipe(catchError(() => of(null)))
+      .pipe(catchError(err => of(apiFailure(err))))
       .subscribe(res => {
         this.isEditSaving.set(false);
         if (res?.success) {
@@ -457,12 +557,13 @@ export class ManageUsers implements OnInit {
                   degree_level:    (this.editForm.degree_level   || null) as DegreeLevel | null,
                   curriculum_year: this.editForm.curriculum_year || null,
                   study_plan_code: this.editForm.study_plan_code || null,
+                  department:      u.role === Role.Student ? (this.editForm.department || null) : x.department,
                 }
               : x
           ));
-          setTimeout(() => this.closeEditModal(), 1500);
+          this.closeModalLater(() => this.closeEditModal(), 1500);
         } else {
-          this.editSaveResult.set({ ok: false, msg: 'เกิดข้อผิดพลาด กรุณาลองใหม่' });
+          this.editSaveResult.set({ ok: false, msg: failMsg(res) });
         }
       });
   }
@@ -470,10 +571,6 @@ export class ManageUsers implements OnInit {
   // ── Helpers ───────────────────────────────────────────────────────
   fullName(u: User): string {
     return `${u.prefix ? u.prefix + ' ' : ''}${u.first_name} ${u.last_name}`.trim();
-  }
-
-  initials(u: User): string {
-    return ((u.first_name?.[0] ?? '') + (u.last_name?.[0] ?? '')).toUpperCase();
   }
 
   studentId(u: User): string {
@@ -490,11 +587,9 @@ export class ManageUsers implements OnInit {
     return u.advisors?.Major?.name ?? '—';
   }
 
+  /** X44: นับที่ backend (Major + Co_1 + Co_2 จาก DB ทั้งหมด) — เดิมนับเองจากนิสิตที่โหลดมาและไม่นับ Co_2 */
   advisorStudentCount(u: User): number {
-    const mail = u.msu_mail;
-    return this.allStudents().filter(s =>
-      s.advisors?.Major?.mail === mail || s.advisors?.Co_1?.mail === mail
-    ).length;
+    return u.student_count ?? 0;
   }
 
   formatDate(d: Date | string | null): string {

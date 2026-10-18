@@ -193,7 +193,10 @@ $border:#E2E6F0;
 }
 
 .contact-icon {
-  font-size: 22px;
+  display: flex;
+  color: $navy;
+
+  svg { width: 22px; height: 22px; }
 }
 
 .contact-card-title {
@@ -246,8 +249,11 @@ $border:#E2E6F0;
 }
 
 .address-icon {
-  font-size: 28px;
+  display: flex;
+  color: $gold;
   margin-top: 2px;
+
+  svg { width: 28px; height: 28px; }
 }
 
 .address-title {
@@ -280,6 +286,7 @@ $border:#E2E6F0;
 .address-map-btn {
   display: inline-flex;
   align-items: center;
+  gap: 8px;
   padding: 10px 20px;
   border-radius: 8px;
   background: rgba(28,39,68,0.06);
@@ -290,6 +297,8 @@ $border:#E2E6F0;
   white-space: nowrap;
   transition: background 0.15s, color 0.15s;
   align-self: center;
+
+  svg { width: 15px; height: 15px; flex-shrink: 0; }
 
   &:hover {
     background: $navy;
@@ -362,6 +371,11 @@ $border:#E2E6F0;
   background: rgba(28,39,68,0.04);
   border-radius: 8px;
   padding: 12px 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+
+  svg { width: 17px; height: 17px; flex-shrink: 0; margin-top: 4px; }
 }
 
 /* ── BUG REPORT ── */
@@ -386,9 +400,12 @@ $border:#E2E6F0;
 }
 
 .bug-icon {
-  font-size: 32px;
+  display: flex;
+  color: $gold;
   flex-shrink: 0;
   margin-top: 2px;
+
+  svg { width: 32px; height: 32px; }
 }
 
 .bug-body { flex: 1; }
@@ -410,6 +427,7 @@ $border:#E2E6F0;
 .bug-btn {
   display: inline-flex;
   align-items: center;
+  gap: 8px;
   padding: 11px 24px;
   border-radius: 8px;
   background: $gold;
@@ -418,6 +436,8 @@ $border:#E2E6F0;
   font-weight: 700;
   text-decoration: none;
   transition: background 0.15s, transform 0.15s;
+
+  svg { width: 16px; height: 16px; flex-shrink: 0; }
 
   &:hover {
     background: #FFC01E;
@@ -461,6 +481,11 @@ $border:#E2E6F0;
   font-size: 14px;
   color: #962D2D;
   margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  svg { width: 18px; height: 18px; flex-shrink: 0; }
 }
 
 .staff-login-link {
@@ -574,8 +599,11 @@ $border:#E2E6F0;
 }
 
 .sci-icon {
-  font-size: 15px;
-  text-align: center;
+  display: flex;
+  justify-content: center;
+  color: $navy;
+
+  svg { width: 15px; height: 15px; }
 }
 
 .sci-label {
@@ -627,6 +655,8 @@ $border:#E2E6F0;
   font-weight: 700;
   text-decoration: none;
   transition: all 0.2s;
+
+  svg { width: 18px; height: 18px; flex-shrink: 0; }
 
   &:hover {
     background: $navy;

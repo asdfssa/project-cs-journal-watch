@@ -6,6 +6,8 @@ import { Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { Constants } from '../../comfig/constants';
 import { GOOGLE_CLIENT_ID } from '../../auth-config';
+import { loadGoogleIdentity } from '../../google-gsi';
+import { AuthService } from '../../auth.service';
 
 declare const google: any;
 
@@ -28,6 +30,8 @@ export class RegisterStaff implements OnInit {
   loading        = signal(false);
   errorCode      = signal<string | null>(null);
   errorMessage   = signal<string | null>(null);
+  /** สมัครสำเร็จ → แสดงหน้าสรุปค้างไว้ (เดิมเป็น snackbar 4 วิ แล้วเด้งไปหน้า login ผู้ใช้อ่านไม่ทัน) */
+  registered     = signal<{ name: string; email: string } | null>(null);
 
   ngOnInit() {
     this.loadGoogleScript().then(() => {
@@ -55,7 +59,7 @@ export class RegisterStaff implements OnInit {
           width: btnWidth,
         }
       );
-    });
+    }).catch(() => this.showSnack('โหลดปุ่มลงทะเบียนด้วย Google ไม่สำเร็จ กรุณารีเฟรชหน้า', 'error'));
   }
 
   private handleGoogleCallback(response: any) {
@@ -68,10 +72,11 @@ export class RegisterStaff implements OnInit {
         idToken: response.credential,
       })
       .subscribe({
-        next: (res) => {
+        next: () => {
           this.loading.set(false);
-          this.showSnack('ลงทะเบียนสำเร็จ กรุณารอการอนุมัติจากผู้ดูแลระบบ', 'success');
-          setTimeout(() => this.router.navigate(['/login']), 2000);
+          // ชื่อ/อีเมลจาก token ของ Google (แค่ใช้แสดงผล) — ให้ผู้สมัครเห็นว่าสมัครด้วยบัญชีไหน
+          const c = AuthService.decodeJwt(response.credential) ?? {};
+          this.registered.set({ name: String(c['name'] ?? ''), email: String(c['email'] ?? '') });
         },
         error: (err) => {
           this.loading.set(false);
@@ -83,24 +88,13 @@ export class RegisterStaff implements OnInit {
       });
   }
 
+  // F16: ใช้ loader กลางที่รอจน google.accounts พร้อมจริง (กัน race ตอนสคริปต์ยังโหลดไม่เสร็จ)
   private loadGoogleScript(): Promise<void> {
-    return new Promise((resolve) => {
-      if (document.getElementById('google-gsi-script')) {
-        resolve();
-        return;
-      }
-      const script    = document.createElement('script');
-      script.id       = 'google-gsi-script';
-      script.src      = 'https://accounts.google.com/gsi/client';
-      script.async    = true;
-      script.defer    = true;
-      script.onload   = () => resolve();
-      document.head.appendChild(script);
-    });
+    return loadGoogleIdentity();
   }
 
   private showSnack(message: string, type: 'success' | 'error' | 'info') {
-    this.snackBar.open(message, '✕', {
+    this.snackBar.open(message, 'ปิด', {
       duration: 4000,
       panelClass: [`snack-${type}`],
       horizontalPosition: 'center',

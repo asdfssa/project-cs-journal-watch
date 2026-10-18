@@ -8,6 +8,15 @@
     </div>
   }
 
+  <!-- N15: โหลดไม่สำเร็จ — เดิมหน้าว่างเปล่า ไม่บอกอะไรเลย -->
+  @if (!isLoading() && loadError()) {
+    <div class="loading-card loading-card--error">
+      <div class="loading-error-icon"><i class="ti ti-cloud-off"></i></div>
+      <div class="loading-text">{{ loadError() }}</div>
+      <button type="button" class="btn-retry" (click)="loadProfile()"><i class="ti ti-refresh"></i> ลองใหม่</button>
+    </div>
+  }
+
   @if (!isLoading() && me(); as d) {
 
     <!-- ══ การ์ดเดียวรวมทุกส่วน พื้นหลังขาวทั้งใบ ══ -->
@@ -33,9 +42,6 @@
         </div>
         <div class="hero-right">
           <span class="hero-status">{{ d.accountStatus }}</span>
-          @if (d.lastLoginAt) {
-            <div class="hero-login-time">เข้าสู่ระบบล่าสุด: {{ d.lastLoginAt | date:'dd/MM/yyyy HH:mm' }}</div>
-          }
         </div>
       </div>
 
@@ -48,10 +54,6 @@
             <span class="pcard-title">ข้อมูลบัญชี</span>
           </div>
           <div class="row-list">
-            <div class="row-item">
-              <span class="row-label">รหัสผู้ใช้</span>
-              <span class="row-val mono">#{{ d.userId }}</span>
-            </div>
             <div class="row-item">
               <span class="row-label">ชื่อ - นามสกุล</span>
               <span class="row-val bold">{{ fullName }}</span>
@@ -125,7 +127,7 @@
                 <div class="save-result success"><i class="ri-checkbox-circle-line"></i> บันทึกข้อมูลสำเร็จ</div>
               }
               @if (saveResult() === 'error') {
-                <div class="save-result error"><i class="ri-error-warning-line"></i> เกิดข้อผิดพลาด กรุณาลองใหม่</div>
+                <div class="save-result error"><i class="ri-error-warning-line"></i> {{ saveError() }}</div>
               }
               <button class="btn-save" (click)="saveProfile()" [disabled]="isSaving()">
                 @if (isSaving()) { <span class="save-spinner"></span> กำลังบันทึก... }
@@ -137,21 +139,13 @@
 
       </div>
 
-      <!-- ── ข้อมูลการเข้าใช้งาน ── -->
+      <!-- ── สังกัด (เดิม "ข้อมูลการเข้าใช้งาน" — v3 ไม่มีเวลาเข้าสู่ระบบ/คณะแล้ว) ── -->
       <div class="pcard-section">
         <div class="pcard-hd">
-          <span class="pcard-icon"><i class="ri-time-line"></i></span>
-          <span class="pcard-title">ข้อมูลการเข้าใช้งาน</span>
+          <span class="pcard-icon"><i class="ri-building-line"></i></span>
+          <span class="pcard-title">สังกัด</span>
         </div>
-        <div class="row-list row-list--3col">
-          <div class="row-item">
-            <span class="row-label">เข้าสู่ระบบล่าสุด</span>
-            <span class="row-val bold">{{ d.lastLoginAt | date:'dd/MM/yyyy HH:mm' }}</span>
-          </div>
-          <div class="row-item">
-            <span class="row-label">คณะ / หน่วยงาน</span>
-            <span class="row-val bold">{{ d.faculty || '—' }}</span>
-          </div>
+        <div class="row-list">
           <div class="row-item">
             <span class="row-label">ภาควิชา</span>
             <span class="row-val bold">{{ d.department || '—' }}</span>

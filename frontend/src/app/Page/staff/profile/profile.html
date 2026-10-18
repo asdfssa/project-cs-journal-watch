@@ -8,6 +8,15 @@
     </div>
   }
 
+  <!-- N15: โหลดไม่สำเร็จ — เดิมหน้าว่างเปล่า ไม่บอกอะไรเลย -->
+  @if (!isLoading() && loadError()) {
+    <div class="loading-card loading-card--error">
+      <div class="loading-error-icon"><i class="ti ti-cloud-off"></i></div>
+      <div class="loading-text">{{ loadError() }}</div>
+      <button type="button" class="btn-retry" (click)="loadProfile()"><i class="ti ti-refresh"></i> ลองใหม่</button>
+    </div>
+  }
+
   @if (!isLoading() && profile(); as p) {
 
     <!-- ══ การ์ดเดียวรวมทุกส่วน พื้นหลังขาวทั้งใบ ══ -->
@@ -34,9 +43,6 @@
         </div>
         <div class="hero-right">
           <span class="hero-status">{{ p.accountStatus === 'active' ? 'Active' : p.accountStatus }}</span>
-          @if (p.lastLoginAt) {
-            <div class="hero-login-time">เข้าสู่ระบบล่าสุด: {{ formatDate(p.lastLoginAt) }}</div>
-          }
         </div>
       </div>
 
@@ -49,10 +55,6 @@
             <span class="pcard-title">ข้อมูลบัญชี</span>
           </div>
           <div class="row-list">
-            <div class="row-item">
-              <span class="row-label">รหัสผู้ใช้</span>
-              <span class="row-val mono">#{{ p.userId }}</span>
-            </div>
             <div class="row-item">
               <span class="row-label">ชื่อ - นามสกุล</span>
               <span class="row-val bold">{{ p.firstName }} {{ p.lastName }}</span>
@@ -96,7 +98,7 @@
               </div>
               <div class="row-item">
                 <span class="row-label">Line ID</span>
-                <span class="row-val">{{ p.lineId || '—' }}</span>
+                <span class="row-val bold">{{ p.lineId || '—' }}</span>
               </div>
             </div>
           } @else {
@@ -130,28 +132,6 @@
           }
         </div>
 
-      </div>
-
-      <!-- ── ข้อมูลการเข้าใช้งาน ── -->
-      <div class="pcard-section">
-        <div class="pcard-hd">
-          <span class="pcard-icon"><i class="ri-time-line"></i></span>
-          <span class="pcard-title">ข้อมูลการเข้าใช้งาน</span>
-        </div>
-        <div class="row-list row-list--3col">
-          <div class="row-item">
-            <span class="row-label">เข้าสู่ระบบล่าสุด</span>
-            <span class="row-val bold">{{ formatDate(p.lastLoginAt) }}</span>
-          </div>
-          <div class="row-item">
-            <span class="row-label">คณะ / หน่วยงาน</span>
-            <span class="row-val bold">{{ p.faculty || 'บัณฑิตวิทยาลัย' }}</span>
-          </div>
-          <div class="row-item">
-            <span class="row-label">ภาควิชา</span>
-            <span class="row-val bold">{{ p.department || '—' }}</span>
-          </div>
-        </div>
       </div>
 
     </div>

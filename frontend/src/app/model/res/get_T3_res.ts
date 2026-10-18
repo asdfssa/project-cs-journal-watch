@@ -13,8 +13,9 @@ export interface Datum {
     publication_details:        PublicationDetails;
     journal_metrics:            JournalMetrics;
     advisor_approval:           Approval;
+    co_advisor_1_approval:      Approval;
+    co_advisor_2_approval:      Approval;
     faculty_com_approval:       FacultyCOMApproval;
-    grad_school_approval:       Approval;
     submission_date:            null;
     submission_round_cutoff:    null;
     created_at:                 Date;

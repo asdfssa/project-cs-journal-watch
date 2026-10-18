@@ -40,9 +40,15 @@ body { margin: 0; font-family: 'Sarabun', Roboto, "Helvetica Neue", sans-serif; 
 code, pre, .mono { font-family: 'IBM Plex Mono', monospace; }
 
 @media print {
-  /* Hide chrome + footer (prevents extra blank page) */
+  /* Hide chrome + footer (prevents extra blank page)
+     sidebar มี 4 ตัวตาม role (นิสิต/อาจารย์/staff/admin) — เดิมซ่อนแค่ app-sidebar ของนิสิต
+     staff/อาจารย์/admin กดพิมพ์ผลค้นหาแล้ว sidebar ติดไปในกระดาษ */
   app-header,
+  app-header-admin,
   app-sidebar,
+  app-sidebar-advisor,
+  app-sidebar-staff,
+  app-sidebar-admin,
   app-footer { display: none !important; }
 
   /* Break flex layout → prevent blank pages */
@@ -76,7 +82,7 @@ code, pre, .mono { font-family: 'IBM Plex Mono', monospace; }
     .main-content { padding: 0 !important; margin: 0 !important; }
 
     /* ซ่อน page-level content */
-    .status-page, .history-page, .t3-history-page, .page { display: none !important; }
+    .status-page, .history-page, .t3-history-page, .send-t3-page, .page { display: none !important; }
 
     /* modal backdrop: static, transparent */
     .modal-backdrop {
@@ -182,4 +188,120 @@ code, pre, .mono { font-family: 'IBM Plex Mono', monospace; }
     .tl-detail    { font-size: 8.5px !important; margin-top: 4px !important; padding-top: 4px !important; }
     .tl-item:has(.tl-waiting) { display: none !important; }
   }
+}
+
+/* F24: สถานะ "โหลดข้อมูลไม่สำเร็จ" ในหน้ารายการ (ใช้ร่วมกันหลายหน้า — .empty-state ของแต่ละหน้าคุม layout) */
+.empty-state--error {
+  .empty-icon { color: #C0392B; }
+  .empty-text { color: #C0392B; font-weight: 600; text-align: center; padding: 0 16px; }
+}
+
+.btn-retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border: 1.5px solid #1C2744;
+  border-radius: 10px;
+  background: #fff;
+  color: #1C2744;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+
+  &:hover { background: #1C2744; color: #fff; }
+}
+
+/* X32: ไฟล์หลักฐาน T3 ที่ไม่ได้แนบ / เปิดไฟล์ไม่สำเร็จ (หน้าอาจารย์และ staff) */
+.evidence-missing {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #9CA3AF;
+
+  i { font-size: 13px; }
+}
+
+.file-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: rgba(192, 57, 43, 0.07);
+  border: 1px solid rgba(192, 57, 43, 0.25);
+  color: #C0392B;
+  font-size: 13px;
+  font-weight: 600;
+
+  i { font-size: 16px; flex-shrink: 0; }
+}
+
+/* X35: รายการแถวที่ผิดตอน import CSV (หน้าจัดการผู้ใช้ / วารสารต้องห้าม) */
+.import-errors {
+  margin: 8px 0 0;
+  padding: 10px 12px 10px 28px;
+  max-height: 180px;
+  overflow-y: auto;
+  border-radius: 10px;
+  background: rgba(192, 57, 43, 0.05);
+  border: 1px solid rgba(192, 57, 43, 0.2);
+  color: #962D2D;
+  font-size: 12.5px;
+  line-height: 1.6;
+
+  li + li { margin-top: 2px; }
+}
+
+/* กล่องสถานะบัญชี (สมัคร staff สำเร็จ / รออนุมัติ / ถูกระงับ) — ใช้ในหน้า login และหน้าสมัคร */
+.status-panel {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  font-family: 'Sarabun', sans-serif;
+
+  &--pending   { background: #FFF8E6; border: 1px solid rgba(192, 120, 0, 0.35); }
+  &--suspended { background: #FDECEA; border: 1px solid rgba(192, 57, 43, 0.3); }
+
+  &__icon {
+    font-size: 26px;
+    line-height: 1;
+    flex-shrink: 0;
+    .status-panel--pending &   { color: #C07800; }
+    .status-panel--suspended & { color: #C0392B; }
+  }
+
+  &__title { font-size: 15px; font-weight: 700; color: #1C2744; margin-bottom: 4px; }
+  &__text  { font-size: 13.5px; color: #374151; line-height: 1.6; }
+  &__hint  { margin-top: 8px; font-size: 12.5px; color: #6B7280;
+             a { color: #1A5FAB; font-weight: 600; } }
+
+  &__back {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1C2744;
+    text-decoration: none;
+    &:hover { text-decoration: underline; }
+  }
+}
+
+
+/* ═══ หน้าสถานะ Pre-T3 / T3: อาจารย์อนุมัติแล้ว ยกเลิกเองไม่ได้ → แนะนำให้ติดต่อเจ้าหน้าที่ ═══ */
+.contact-staff-note {
+  display: flex; gap: 8px; align-items: flex-start;
+  margin: 0 24px 12px; padding: 12px 14px; border-radius: 10px;
+  background: #eef3ff; color: #1a3a8a; font-size: 13px; line-height: 1.6;
+  > i { font-size: 16px; margin-top: 2px; flex-shrink: 0; }
+  a { color: #1a3a8a; font-weight: 600; text-decoration: underline; white-space: nowrap; cursor: pointer; }
 }

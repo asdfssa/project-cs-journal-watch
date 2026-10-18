@@ -8,7 +8,7 @@
       @if (userPicture) {
         <img class="welcome-avatar" [src]="userPicture" [alt]="userName" referrerpolicy="no-referrer" />
       } @else {
-        🎓
+        <i class="ti ti-school"></i>
       }
     </div>
 
@@ -88,11 +88,11 @@
     <div class="quick-actions">
 
       <a routerLink="/search" class="action-btn navy">
-        🔍 ค้นหาวารสาร
+        <i class="ti ti-search"></i> ค้นหาวารสาร
       </a>
 
       <a routerLink="/pre-t3" class="action-btn yellow">
-        📋 ยื่น Pre-T3
+        <i class="ti ti-clipboard-text"></i> ยื่น Pre-T3
       </a>
 
     </div>
