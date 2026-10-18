@@ -18,3 +18,5 @@ uploads/
 test-insert/
 data/
 .claude/scheduled_tasks.lock
+# โฟลเดอร์ชั่วคราวที่ test (x27/x41) สร้างเพื่อจำลอง Angular build — ห้ามค้างใน repo (build จริงถูก COPY เข้า image ตอน docker build)
+frontend/
