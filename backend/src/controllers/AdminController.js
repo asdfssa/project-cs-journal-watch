@@ -35,6 +35,17 @@ function departmentError(department, degreeLevel) {
     return `สาขา "${department}" ไม่มีในระดับปริญญาเอก (ใช้ ${DOCTORAL_DEPARTMENTS.join(' / ')})`;
   return null;
 }
+/**
+ * รหัสแผนการศึกษาต้องตรงกับระดับ: Master ใช้ Master_..., Doctoral ใช้ Doc_...
+ * เรียกจาก: AdminController.updateUser, createUser, importUsers (เฉพาะแถวที่เป็น Student)
+ * @returns {string|null} ข้อความ error (ผู้เรียกตอบ 400) · null = ผ่าน (ไม่ระบุรหัสหรือระดับ = ผ่าน เหมือน departmentError)
+ */
+function studyPlanError(studyPlanCode, degreeLevel) {
+  const prefix = { Master: 'Master_', Doctoral: 'Doc_' }[degreeLevel];
+  if (!studyPlanCode || !prefix) return null;
+  if (String(studyPlanCode).startsWith(prefix)) return null;
+  return `study_plan_code "${studyPlanCode}" ไม่ตรงกับ degree_level ${degreeLevel} (ปริญญาโทใช้ Master_..., ปริญญาเอกใช้ Doc_...)`;
+}
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /**
  * ตรวจรูปแบบอีเมลและโดเมนต้องอยู่ใน config.google.allowedDomains (ไม่งั้นผู้ใช้ล็อกอินด้วย Google ไม่ได้)
@@ -455,6 +466,10 @@ const [rows] = await db.query(
         const deptErr = departmentError(merged.department, merged.degree_level);
         if (deptErr) return res.status(400).json({ success: false, code: 'INVALID_DEPARTMENT', message: deptErr });
       }
+      if (current.role === 'Student' && (body.study_plan_code !== undefined || body.degree_level !== undefined)) {
+        const planErr = studyPlanError(merged.study_plan_code, merged.degree_level);
+        if (planErr) return res.status(400).json({ success: false, code: 'INVALID_STUDY_PLAN', message: planErr });
+      }
 
       await db.query(
         `UPDATE users SET
@@ -522,6 +537,8 @@ const [rows] = await db.query(
 
       const deptErr = role === 'Student' ? departmentError(department, degree_level) : null;
       if (deptErr) return res.status(400).json({ success: false, code: 'INVALID_DEPARTMENT', message: deptErr });
+      const planErr = role === 'Student' ? studyPlanError(study_plan_code, degree_level) : null;
+      if (planErr) return res.status(400).json({ success: false, code: 'INVALID_STUDY_PLAN', message: planErr });
 
       const mailLower = msu_mail.toLowerCase().trim();
 
@@ -730,6 +747,8 @@ records = parse(req.file.buffer, {
           if (row.role === 'Student') {
             const deptErr = departmentError(row.department, row.degree_level);
             if (deptErr) errors.push(`Row ${rowNum}: ${deptErr}`);
+            const planErr = studyPlanError(row.study_plan_code, row.degree_level);
+            if (planErr) errors.push(`Row ${rowNum}: ${planErr}`);
           }
           if (row.phone && row.phone.length > 20) errors.push(`Row ${rowNum}: phone ยาวเกิน 20 ตัวอักษร`);
           if (row.prefix && row.prefix.length > 50) errors.push(`Row ${rowNum}: prefix ยาวเกิน 50 ตัวอักษร`);
