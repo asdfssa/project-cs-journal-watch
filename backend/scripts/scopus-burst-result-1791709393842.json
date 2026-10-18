@@ -1,0 +1,226 @@
+{
+  "issn": "00280836",
+  "allRounds": [
+    {
+      "burstSize": 2,
+      "results": [
+        {
+          "n": 1,
+          "status": 200,
+          "ms": 2381,
+          "rl": {
+            "limit": "20000",
+            "remaining": "19893",
+            "reset": "1791779603"
+          }
+        },
+        {
+          "n": 2,
+          "status": 200,
+          "ms": 1570,
+          "rl": {
+            "limit": "20000",
+            "remaining": "19896",
+            "reset": "1791779603"
+          }
+        }
+      ]
+    },
+    {
+      "burstSize": 3,
+      "results": [
+        {
+          "n": 1,
+          "status": 200,
+          "ms": 607,
+          "rl": {
+            "limit": "20000",
+            "remaining": "19889",
+            "reset": "1791779603"
+          }
+        },
+        {
+          "n": 2,
+          "status": 200,
+          "ms": 606,
+          "rl": {
+            "limit": "20000",
+            "remaining": "19889",
+            "reset": "1791779603"
+          }
+        },
+        {
+          "n": 3,
+          "status": 200,
+          "ms": 1320,
+          "rl": {
+            "limit": "20000",
+            "remaining": "19886",
+            "reset": "1791779603"
+          }
+        }
+      ]
+    },
+    {
+      "burstSize": 4,
+      "results": [
+        {
+          "n": 1,
+          "status": 200,
+          "ms": 731,
+          "rl": {
+            "limit": "20000",
+            "remaining": "19882",
+            "reset": "1791779603"
+          }
+        },
+        {
+          "n": 2,
+          "status": 200,
+          "ms": 812,
+          "rl": {
+            "limit": "20000",
+            "remaining": "19882",
+            "reset": "1791779603"
+          }
+        },
+        {
+          "n": 3,
+          "status": 200,
+          "ms": 539,
+          "rl": {
+            "limit": "20000",
+            "remaining": "19882",
+            "reset": "1791779603"
+          }
+        },
+        {
+          "n": 4,
+          "status": 200,
+          "ms": 1470,
+          "rl": {
+            "limit": "20000",
+            "remaining": "19878",
+            "reset": "1791779603"
+          }
+        }
+      ]
+    },
+    {
+      "burstSize": 5,
+      "results": [
+        {
+          "n": 1,
+          "status": 200,
+          "ms": 536,
+          "rl": {
+            "limit": "20000",
+            "remaining": "19873",
+            "reset": "1791779603"
+          }
+        },
+        {
+          "n": 2,
+          "status": 200,
+          "ms": 534,
+          "rl": {
+            "limit": "20000",
+            "remaining": "19873",
+            "reset": "1791779603"
+          }
+        },
+        {
+          "n": 3,
+          "status": 200,
+          "ms": 534,
+          "rl": {
+            "limit": "20000",
+            "remaining": "19873",
+            "reset": "1791779603"
+          }
+        },
+        {
+          "n": 4,
+          "status": 200,
+          "ms": 533,
+          "rl": {
+            "limit": "20000",
+            "remaining": "19873",
+            "reset": "1791779603"
+          }
+        },
+        {
+          "n": 5,
+          "status": 200,
+          "ms": 1524,
+          "rl": {
+            "limit": "20000",
+            "remaining": "19867",
+            "reset": "1791779603"
+          }
+        }
+      ]
+    },
+    {
+      "burstSize": 6,
+      "results": [
+        {
+          "n": 1,
+          "status": 200,
+          "ms": 537,
+          "rl": {
+            "limit": "20000",
+            "remaining": "19863",
+            "reset": "1791779603"
+          }
+        },
+        {
+          "n": 2,
+          "status": 200,
+          "ms": 537,
+          "rl": {
+            "limit": "20000",
+            "remaining": "19863",
+            "reset": "1791779603"
+          }
+        },
+        {
+          "n": 3,
+          "status": 200,
+          "ms": 537,
+          "rl": {
+            "limit": "20000",
+            "remaining": "19863",
+            "reset": "1791779603"
+          }
+        },
+        {
+          "n": 4,
+          "status": 200,
+          "ms": 536,
+          "rl": {
+            "limit": "20000",
+            "remaining": "19863",
+            "reset": "1791779603"
+          }
+        },
+        {
+          "n": 5,
+          "status": 200,
+          "ms": 536,
+          "rl": {
+            "limit": "20000",
+            "remaining": "19863",
+            "reset": "1791779603"
+          }
+        },
+        {
+          "n": 6,
+          "status": 429,
+          "ms": 1300,
+          "rl": null
+        }
+      ]
+    }
+  ]
+}

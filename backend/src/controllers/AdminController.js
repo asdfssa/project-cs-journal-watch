@@ -5,7 +5,7 @@
  */
 const db          = require('../config/database');
 const config      = require('../config');
-const { parsePagination, nonStringField, nonScalarField, likeContains } = require('../utils/input');
+const { phoneError, parsePagination, nonStringField, nonScalarField, likeContains } = require('../utils/input');
 
 // field ของผู้ใช้ที่ลง SQL ตรงๆ แต่ไม่บังคับว่าต้องเป็นข้อความ — ห้ามเป็น object/array (B45)
 // CSV import: จำกัดจำนวนแถว + ค่า enum ที่คอลัมน์ users รับ (ผิด → แจ้งรายแถว ไม่ปล่อยไปชน MySQL แล้ว 500 ทั้งก้อน)
@@ -424,6 +424,9 @@ const [rows] = await db.query(
       const badField = nonStringField(req.body, ['first_name', 'last_name', 'msu_mail']) || nonScalarField(req.body, USER_SCALAR_FIELDS);
       if (badField) return res.status(400).json({ success: false, code: 'INVALID_INPUT', message: `${badField} ต้องเป็นข้อความ` });
 
+      const phoneErr = phoneError(req.body.phone);
+      if (phoneErr) return res.status(400).json({ success: false, code: 'INVALID_PHONE', message: phoneErr });
+
       const current = target[0];
       const body = req.body;
 
@@ -523,6 +526,8 @@ const [rows] = await db.query(
       if (badField) return res.status(400).json({ success: false, code: 'INVALID_INPUT', message: `${badField} ต้องเป็นข้อความ` });
 
       // ===== Validate required =====
+      const phoneErr = phoneError(phone);
+      if (phoneErr) return res.status(400).json({ success: false, code: 'INVALID_PHONE', message: phoneErr });
       if (!role)       return res.status(400).json({ success: false, message: 'กรุณาระบุ Role' });
       if (!first_name) return res.status(400).json({ success: false, message: 'กรุณาระบุชื่อ' });
       if (!last_name)  return res.status(400).json({ success: false, message: 'กรุณาระบุนามสกุล' });
@@ -750,7 +755,7 @@ records = parse(req.file.buffer, {
             const planErr = studyPlanError(row.study_plan_code, row.degree_level);
             if (planErr) errors.push(`Row ${rowNum}: ${planErr}`);
           }
-          if (row.phone && row.phone.length > 20) errors.push(`Row ${rowNum}: phone ยาวเกิน 20 ตัวอักษร`);
+          { const pe = phoneError(row.phone); if (pe) errors.push(`Row ${rowNum}: ${pe}`); }
           if (row.prefix && row.prefix.length > 50) errors.push(`Row ${rowNum}: prefix ยาวเกิน 50 ตัวอักษร`);
 
           if (row.role === 'Student') {
@@ -1302,7 +1307,7 @@ records = parse(req.file.buffer, {
 
   /**
    * เรียกจาก: routes/userManageRoutes.js — DELETE /:id (Admin/SuperAdmin) · ลบถาวร Student/Supervisor/Staff (Admin/SuperAdmin ใช้ DELETE /admin/admins/:id)
-   * ลบไม่ได้ (409 USER_HAS_DATA) ถ้ามีข้อมูลผูกอยู่ เพื่อไม่ให้ประวัติคำขอหาย: นิสิตที่มี Pre-T3/T3 · อาจารย์ที่ยังเป็นที่ปรึกษา/เคยตัดสินคำขอ · ผู้สร้างรายการ unwanted
+   * ลบไม่ได้ (409 USER_HAS_DATA) ถ้ามีข้อมูลผูกอยู่ เพื่อไม่ให้ประวัติคำขอหาย: นิสิตที่มี Pre-T3/T3 · อาจารย์ที่ยังเป็นที่ปรึกษา/เคยตัดสินคำขอ (รายการ unwanted ที่คนนี้สร้างไว้ยังอยู่ created_by เป็น NULL ตาม FK SET NULL)
    * นิสิตที่มีแค่การมอบหมายอาจารย์ (advisor_assignments) → ลบแถวนั้นทิ้งพร้อมกัน · token/OTP ถูกลบตาม FK CASCADE
    */
   // ============================================================
@@ -1324,16 +1329,14 @@ records = parse(req.file.buffer, {
            (SELECT COUNT(*) FROM pre_t3_requests WHERE student_id = ?)        AS pre_t3,
            (SELECT COUNT(*) FROM t3_requests WHERE student_id = ?)            AS t3,
            (SELECT COUNT(*) FROM advisor_assignments WHERE advisor_id = ?)    AS advisor_of,
-           (SELECT COUNT(*) FROM request_approvals WHERE approver_id = ?)     AS approvals,
-           (SELECT COUNT(*) FROM msu_unwanted_journals WHERE created_by = ?)  AS unwanted`,
-        [id, id, id, id, id]
+           (SELECT COUNT(*) FROM request_approvals WHERE approver_id = ?)     AS approvals`,
+        [id, id, id, id]
       );
       const reasons = [
         used.pre_t3 && `มีคำขอ Pre-T3 ${used.pre_t3} รายการ`,
         used.t3 && `มีคำขอ T3 ${used.t3} รายการ`,
         used.advisor_of && `เป็นอาจารย์ที่ปรึกษาของนิสิต ${used.advisor_of} คน`,
         used.approvals && `เคยมีรายการอนุมัติ ${used.approvals} รายการ`,
-        used.unwanted && `เป็นผู้สร้างรายการ unwanted ${used.unwanted} รายการ`,
       ].filter(Boolean);
       if (reasons.length)
         return res.status(409).json({

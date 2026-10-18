@@ -13,7 +13,7 @@
  */
 const PreT3Model  = require('../models/PreT3Model');
 const UserModel   = require('../models/UserModel');
-const { advisorViewFields, advisorsAllApproved } = require('../models/_approvalHelpers');
+const { advisorViewFields, advisorsAllApproved, MAJOR_ADVISOR_INACTIVE } = require('../models/_approvalHelpers');
 const MailService = require('../services/MailService');
 const db          = require('../config/database');
 const { serverError } = require('../utils/errorResponse');
@@ -122,7 +122,7 @@ class PreT3Controller {
       // ดึง Advisor จาก DB
       const [advisorRows] = await db.query(
         `SELECT aa.advisor_id, aa.advisor_type,
-                u.prefix, u.first_name, u.last_name, u.role
+                u.prefix, u.first_name, u.last_name, u.role, u.account_status
            FROM advisor_assignments aa
            JOIN users u ON u.user_id = aa.advisor_id
           WHERE aa.student_id = ? AND aa.is_active = TRUE`,
@@ -147,6 +147,10 @@ class PreT3Controller {
           code: 'NO_MAJOR_ADVISOR',
           message: 'บัญชีนี้ยังไม่มีที่ปรึกษาหลัก (Major Advisor) กรุณาติดต่อ Admin',
         });
+      }
+
+      if (majorAdvisor.account_status !== 'Active') {
+        return res.status(400).json({ success: false, ...MAJOR_ADVISOR_INACTIVE });
       }
 
       // article_info — รับจาก Frontend (นิสิตกรอกเอง)

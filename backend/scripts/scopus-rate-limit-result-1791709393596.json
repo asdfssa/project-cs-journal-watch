@@ -1,0 +1,223 @@
+{
+  "issn": "00280836",
+  "hit429": true,
+  "totalRequests": 22,
+  "log": [
+    {
+      "n": 1,
+      "elapsedMs": 1076,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19897",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 2,
+      "elapsedMs": 1617,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19896",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 3,
+      "elapsedMs": 2237,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19894",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 4,
+      "elapsedMs": 2709,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19892",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 5,
+      "elapsedMs": 3735,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19891",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 6,
+      "elapsedMs": 4163,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19890",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 7,
+      "elapsedMs": 4671,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19887",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 8,
+      "elapsedMs": 5176,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19886",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 9,
+      "elapsedMs": 5689,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19884",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 10,
+      "elapsedMs": 6815,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19883",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 11,
+      "elapsedMs": 7445,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19881",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 12,
+      "elapsedMs": 8547,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19878",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 13,
+      "elapsedMs": 8983,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19876",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 14,
+      "elapsedMs": 9474,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19875",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 15,
+      "elapsedMs": 10000,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19874",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 16,
+      "elapsedMs": 10507,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19869",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 17,
+      "elapsedMs": 11034,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19868",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 18,
+      "elapsedMs": 11655,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19866",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 19,
+      "elapsedMs": 12282,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19865",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 20,
+      "elapsedMs": 12780,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19864",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 21,
+      "elapsedMs": 13475,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19863",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 22,
+      "elapsedMs": 13784,
+      "status": 429,
+      "rateLimitHeaders": null
+    }
+  ]
+}

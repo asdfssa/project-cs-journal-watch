@@ -1,0 +1,30 @@
+{
+  "issn": "00280836",
+  "allRounds": [
+    {
+      "burstSize": 2,
+      "results": [
+        {
+          "n": 1,
+          "status": 429,
+          "ms": 2482,
+          "rl": {
+            "limit": "20000",
+            "remaining": "0",
+            "reset": "1791763200"
+          }
+        },
+        {
+          "n": 2,
+          "status": 429,
+          "ms": 3031,
+          "rl": {
+            "limit": "20000",
+            "remaining": "0",
+            "reset": "1791763200"
+          }
+        }
+      ]
+    }
+  ]
+}

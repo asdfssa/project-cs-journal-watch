@@ -190,4 +190,10 @@ async function advisorsAllApproved(requestType, requestId) {
   return rows.length > 0;
 }
 
-module.exports = { slotFromApproval, fetchApprovalsMap, reviewAdvisorSlot, withTransaction, advisorViewFields, advisorNotAllApprovedSql, advisorsAllApproved };
+// ที่ปรึกษาหลักถูกระงับ/ยังไม่ Active → ยื่น Pre-T3/T3 ไม่ได้ (อาจารย์เข้าระบบมาตัดสินไม่ได้ คำขอจะค้าง) · ตรวจเฉพาะ Major, Co ไม่ตรวจ
+const MAJOR_ADVISOR_INACTIVE = {
+  code: 'MAJOR_ADVISOR_SUSPENDED',
+  message: 'ที่ปรึกษาหลักของคุณถูกระงับบัญชีอยู่ขณะนี้ กรุณาติดต่อ Admin',
+};
+
+module.exports = { MAJOR_ADVISOR_INACTIVE, slotFromApproval, fetchApprovalsMap, reviewAdvisorSlot, withTransaction, advisorViewFields, advisorNotAllApprovedSql, advisorsAllApproved };

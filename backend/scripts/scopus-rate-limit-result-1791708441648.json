@@ -1,0 +1,203 @@
+{
+  "issn": "00280836",
+  "hit429": true,
+  "totalRequests": 20,
+  "log": [
+    {
+      "n": 1,
+      "elapsedMs": 1039,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19979",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 2,
+      "elapsedMs": 1470,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19977",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 3,
+      "elapsedMs": 2000,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19975",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 4,
+      "elapsedMs": 2480,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19974",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 5,
+      "elapsedMs": 2979,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19973",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 6,
+      "elapsedMs": 3920,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19972",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 7,
+      "elapsedMs": 4660,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19969",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 8,
+      "elapsedMs": 5177,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19967",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 9,
+      "elapsedMs": 6379,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19966",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 10,
+      "elapsedMs": 7918,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19962",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 11,
+      "elapsedMs": 8433,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19960",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 12,
+      "elapsedMs": 9031,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19959",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 13,
+      "elapsedMs": 9540,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19958",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 14,
+      "elapsedMs": 10058,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19956",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 15,
+      "elapsedMs": 10696,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19952",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 16,
+      "elapsedMs": 11279,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19950",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 17,
+      "elapsedMs": 12115,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19949",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 18,
+      "elapsedMs": 12615,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19948",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 19,
+      "elapsedMs": 13061,
+      "status": 200,
+      "rateLimitHeaders": {
+        "limit": "20000",
+        "remaining": "19942",
+        "reset": "1791779603"
+      }
+    },
+    {
+      "n": 20,
+      "elapsedMs": 13453,
+      "status": 429,
+      "rateLimitHeaders": null
+    }
+  ]
+}

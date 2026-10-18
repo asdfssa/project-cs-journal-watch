@@ -104,4 +104,10 @@ function optionalDecimal(value, max) {
   return Number.isFinite(n) && n >= 0 && n < max ? n : NaN;
 }
 
-module.exports = { parsePagination, nonStringField, nonScalarField, likeContains, normalizeIssn, pickIssns, optionalDecimal };
+// เบอร์โทร: ว่าง/null = ล้างค่า (ผ่าน) · ถ้ากรอกต้องเป็นตัวเลข 10 หลักพอดี (ไม่มี - หรือช่องว่าง) คืนข้อความ error หรือ null ถ้าผ่าน
+function phoneError(v) {
+  if (v === undefined || v === null || String(v).trim() === '') return null;
+  return /^\d{10}$/.test(String(v)) ? null : 'เบอร์โทรต้องเป็นตัวเลข 10 หลัก';
+}
+
+module.exports = { phoneError, parsePagination, nonStringField, nonScalarField, likeContains, normalizeIssn, pickIssns, optionalDecimal };

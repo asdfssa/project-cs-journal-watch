@@ -16,7 +16,7 @@ const fs   = require('fs/promises');
 const T3Model     = require('../models/T3Model');
 const PreT3Model  = require('../models/PreT3Model');
 const UserModel   = require('../models/UserModel');
-const { advisorViewFields, advisorsAllApproved } = require('../models/_approvalHelpers');
+const { advisorViewFields, advisorsAllApproved, MAJOR_ADVISOR_INACTIVE } = require('../models/_approvalHelpers');
 const MailService = require('../services/MailService');
 const db          = require('../config/database');
 const { serverError } = require('../utils/errorResponse');
@@ -208,9 +208,10 @@ class T3Controller {
 
     // ดึง Advisor ของนิสิต
     const [advisorRows] = await db.query(
-      `SELECT advisor_id, advisor_type
-         FROM advisor_assignments
-        WHERE student_id = ? AND is_active = TRUE`,
+      `SELECT aa.advisor_id, aa.advisor_type, u.account_status
+         FROM advisor_assignments aa
+         JOIN users u ON u.user_id = aa.advisor_id
+        WHERE aa.student_id = ? AND aa.is_active = TRUE`,
       [studentId]
     );
 
@@ -220,6 +221,10 @@ class T3Controller {
 
     if (!majorAdvisor) {
       return { error: { status: 400, code: 'NO_MAJOR_ADVISOR', message: 'บัญชีนี้ยังไม่มีที่ปรึกษาหลัก (Major Advisor) กรุณาติดต่อ Admin' } };
+    }
+
+    if (majorAdvisor.account_status !== 'Active') {
+      return { error: { status: 400, ...MAJOR_ADVISOR_INACTIVE } };
     }
 
     let t3Id;

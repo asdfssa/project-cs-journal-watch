@@ -11,7 +11,7 @@
 const db        = require('../config/database');
 const UserModel = require('../models/UserModel');
 const { serverError } = require('../utils/errorResponse');
-const { nonScalarField, likeContains } = require('../utils/input');
+const { phoneError, nonScalarField, likeContains } = require('../utils/input');
 
 /**
  * Controller โปรไฟล์ของผู้ใช้ที่ login — ผูกใน routes/userRoutes.js (base path /api/v3/user) ทุก role เข้าได้ (requireAuth → requireRole(...ALL_ROLES))
@@ -107,6 +107,8 @@ class UserController {
       if (badField) return res.status(400).json({ success: false, code: 'INVALID_INPUT', message: `${badField} รูปแบบไม่ถูกต้อง` });
 
       const { phone, facebook_id, line_id } = req.body;
+      const phoneErr = phoneError(phone);
+      if (phoneErr) return res.status(400).json({ success: false, code: 'INVALID_PHONE', message: phoneErr });
 
       // Merge: ถ้า field ไม่ได้ส่งมา ใช้ค่าเดิม
       const merged = {

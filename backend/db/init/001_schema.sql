@@ -97,7 +97,10 @@ CREATE TABLE users (
     prefix              VARCHAR(50)     NULL,
     first_name          VARCHAR(100)    NOT NULL,
     last_name           VARCHAR(100)    NOT NULL,
-    department          VARCHAR(150)    NULL,
+    department          ENUM(
+                            'วิทยาการคอมพิวเตอร์','เทคโนโลยีสารสนเทศ','สื่อนฤมิต',
+                            'สารสนเทศและนวัตกรรมดิจิทัล','นิเทศศาสตร์สร้างสรรค์ดิจิทัล'
+                        )               NULL COMMENT 'สาขาวิชาของนิสิต — ปริญญาเอกมีเฉพาะ 3 สาขาแรก (ตรวจที่ AdminController)',
 
     -- Student-only academic info. Kept nullable on the shared table rather than
     -- a separate `student_profiles` table — one extra JOIN on every single
@@ -173,7 +176,7 @@ CREATE TABLE msu_unwanted_journals (
     note                TEXT         NULL,
     evidence_file_path  VARCHAR(255) NULL,
     recorded_date       DATE         NOT NULL,
-    created_by          INT          NOT NULL,
+    created_by          INT          NULL,  -- NULL = ผู้สร้างถูกลบบัญชีไปแล้ว
     created_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     PRIMARY KEY (unwanted_id),
@@ -181,7 +184,7 @@ CREATE TABLE msu_unwanted_journals (
     INDEX idx_muj_journal_name (journal_name),
 
     CONSTRAINT fk_muj_created_by FOREIGN KEY (created_by) REFERENCES users (user_id)
-        ON UPDATE CASCADE ON DELETE RESTRICT
+        ON UPDATE CASCADE ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 

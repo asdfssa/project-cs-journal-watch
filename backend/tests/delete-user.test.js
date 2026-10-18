@@ -6,7 +6,7 @@ const path = require('node:path');
 const src = (p) => path.join(__dirname, '..', 'src', p);
 const log = [];
 let targetRole = 'Student';
-let used = { pre_t3: 0, t3: 0, advisor_of: 0, approvals: 0, unwanted: 0 };
+let used = { pre_t3: 0, t3: 0, advisor_of: 0, approvals: 0 };
 const dbPath = src('config/database.js');
 const query = async (sql) => {
   log.push(sql);
@@ -28,7 +28,7 @@ const makeRes = () => ({ code: 200, body: null, status(c) { this.code = c; retur
 async function call(target, { id = '9', sub = 1, data = {} } = {}) {
   log.length = 0;
   targetRole = target;
-  used = { pre_t3: 0, t3: 0, advisor_of: 0, approvals: 0, unwanted: 0, ...data };
+  used = { pre_t3: 0, t3: 0, advisor_of: 0, approvals: 0, ...data };
   const res = makeRes();
   await AdminController.deleteUser({ params: { id }, user: { role: 'Admin', sub } }, res, (e) => { throw e; });
   return res;
@@ -62,7 +62,7 @@ test('ลบตัวเอง = 400', async () => {
 });
 
 test('มีข้อมูลผูก = 409 USER_HAS_DATA และไม่ลบ', async () => {
-  for (const data of [{ t3: 1 }, { pre_t3: 2 }, { advisor_of: 1 }, { approvals: 3 }, { unwanted: 1 }]) {
+  for (const data of [{ t3: 1 }, { pre_t3: 2 }, { advisor_of: 1 }, { approvals: 3 }]) {
     const res = await call('Student', { data });
     assert.equal(res.code, 409);
     assert.equal(res.body.code, 'USER_HAS_DATA');

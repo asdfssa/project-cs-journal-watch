@@ -25,7 +25,7 @@ function run(preT3, clientType) {
   const created = {};
   PreT3Model.findById = async () => ({ student_id: 1, overall_status: 'Approved', ...preT3 });
   UserModel.findById = async () => ({ user_id: 1 });
-  dbStub.reply = async () => [[{ advisor_id: 5, advisor_type: 'Major' }]];
+  dbStub.reply = async () => [[{ advisor_id: 5, advisor_type: 'Major', account_status: 'Active' }]];
   T3Model.create = async (_s, _p, _paper, pub) => { Object.assign(created, pub); return 99; };
   return T3Controller._validateAndCreate(1, body(clientType)).then((r) => ({ r, created }));
 }

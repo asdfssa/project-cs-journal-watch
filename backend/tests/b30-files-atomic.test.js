@@ -107,6 +107,25 @@ test('X32: ไม่แนบ acceptance_letter/full_paper → 400 MISSING_REQUI
   } finally { T3Controller._validateAndCreate = orig; }
 });
 
+test('Published: ไม่ต้องมี acceptance_letter แต่ต้องมี full_paper + journal_cover + table_of_contents', async () => {
+  let called = false;
+  const orig = T3Controller._validateAndCreate;
+  T3Controller._validateAndCreate = async () => { called = true; return { error: { status: 400, code: 'STOP', message: 'stop' } }; };
+  const f = REQ_FILES().full_paper;
+  const req = (files) => ({ ...makeReq(files), body: { pre_t3_id: '1', publication_details: JSON.stringify({ status: 'published' }) } });
+  try {
+    const res = makeRes();
+    await T3Controller.submitWithFiles(req({ full_paper: f }), res);
+    assert.equal(res.body.code, 'MISSING_REQUIRED_FILES');
+    assert.deepEqual(res.body.missing, ['journal_cover', 'table_of_contents']);
+    assert.equal(called, false);
+
+    const ok = makeRes();
+    await T3Controller.submitWithFiles(req({ full_paper: f, journal_cover: f, table_of_contents: f }), ok);
+    assert.equal(called, true); // ผ่านด่านไฟล์โดยไม่มี acceptance_letter
+  } finally { T3Controller._validateAndCreate = orig; }
+});
+
 test('X32: ไม่มี POST /t3 แบบ JSON แล้ว (เหลือ /with-files ทางเดียว)', () => {
   const router = require(src('routes/t3Routes.js'));
   const posts = router.stack.filter(l => l.route?.methods.post).map(l => l.route.path);
