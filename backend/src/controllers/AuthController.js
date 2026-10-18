@@ -7,12 +7,13 @@
  */
 const { AuthService } = require('../services/AuthService');
 const UserModel = require('../models/UserModel');
+const config = require('../config');
 // Cookie options สำหรับ refresh token
 const REFRESH_COOKIE_OPTIONS = {
   httpOnly: true,          // JS อ่านไม่ได้ ป้องกัน XSS
   secure: process.env.NODE_ENV === 'production', // HTTPS only ใน production
   sameSite: 'strict',      // ป้องกัน CSRF
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 วัน (ms)
+  maxAge: config.jwt.refreshExpiresMs, // เท่ากับอายุ refresh token ใน DB (JWT_REFRESH_EXPIRES)
   path: '/api/v3/auth', // ส่ง cookie เฉพาะ /api/v3/auth routes
 };
 
