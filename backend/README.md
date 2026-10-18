@@ -78,7 +78,7 @@ cp .env.example .env
 |---|---|
 | `PORT` | พอร์ตที่ server รัน (ใน Docker compose ถูกตั้งเป็น 3000) |
 | `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` | การเชื่อมต่อ MySQL/MariaDB |
-| `JWT_SECRET`, `JWT_ACCESS_EXPIRES_IN`, `JWT_OTP_EXPIRES_IN`, `JWT_REFRESH_EXPIRES_MS` | อายุ/secret ของ token แต่ละประเภท |
+| `JWT_SECRET`, `JWT_ACCESS_EXPIRES_IN`, `JWT_OTP_EXPIRES_IN`, `JWT_REFRESH_EXPIRES` | อายุ/secret ของ token แต่ละประเภท (refresh เป็นจำนวนวัน เช่น `7d` · ไม่ตั้ง = 7d) |
 | `OTP_LENGTH`, `OTP_EXPIRES_MINUTES`, `OTP_MAX_ATTEMPTS` | ค่ากำหนดของ OTP |
 | `MAIL_MODE`, `MAIL_FROM`, `SMTP_*` | โหมดส่งอีเมล (`console` สำหรับ dev, `smtp` สำหรับ production) |
 | `CORS_ORIGIN` | origin ของ frontend ที่อนุญาต |
