@@ -46,21 +46,25 @@ class ScopusProxyService {
     // ไฟล์ state เวอร์ชันเก่าใช้ key จริงเป็นคีย์ — อ่านต่อได้ แล้วเขียนทับด้วยรูปแบบ hash ทันที
     const hasLegacy = config.scopus.apiKeys.some(key => persisted[key]);
 
+    let clearedExpired = false;
     this.keys = config.scopus.apiKeys.map((key, index) => {
       const saved = persisted[keyId(key)] || persisted[key] || {};
+      // ล็อกที่หมดเวลาแล้วไม่ต้องเก็บต่อ — ไม่งั้นไฟล์ดูเหมือน key ยังถูกพักอยู่
+      const stillLocked = saved.unavailableUntil > Date.now();
+      if (saved.unavailableUntil && !stillLocked) clearedExpired = true;
       return {
         key,
         index,
         weeklyLimit: saved.weeklyLimit ?? DEFAULT_WEEKLY_LIMIT,
         weeklyRemaining: saved.weeklyRemaining ?? DEFAULT_WEEKLY_LIMIT,
         weeklyResetAt: saved.weeklyResetAt ?? null, // unix seconds จาก header X-RateLimit-Reset
-        unavailableUntil: saved.unavailableUntil ?? null, // ms epoch, null = available
+        unavailableUntil: stillLocked ? saved.unavailableUntil : null, // ms epoch, null = available
         recentRequestTimestamps: [], // per-second throttle — ไม่ persist ตั้งใจ (transient)
       };
     });
     this.currentIndex = 0;
     this._writeQueue = Promise.resolve(); // serialize เขียนไฟล์กันไฟล์ state พัง
-    if (hasLegacy) this._persist().catch(() => {});
+    if (hasLegacy || clearedExpired) this._persist().catch(() => {});
   }
 
   /**
@@ -204,9 +208,13 @@ class ScopusProxyService {
 
   /**
    * key ถูกพักอยู่ (unavailableUntil ยังไม่ถึง) หรือไม่ · เรียกจาก: getNextKey, getStatus
+   * หมดเวลาพักแล้ว → ล้างเป็น null (เขียนลงไฟล์ตอน _persist ครั้งถัดไป ซึ่งเกิดทุกคำขอที่ได้ response)
    */
   _isLocked(keyObj) {
-    return keyObj.unavailableUntil !== null && Date.now() < keyObj.unavailableUntil;
+    if (keyObj.unavailableUntil === null) return false;
+    if (Date.now() < keyObj.unavailableUntil) return true;
+    keyObj.unavailableUntil = null;
+    return false;
   }
 
   /**
