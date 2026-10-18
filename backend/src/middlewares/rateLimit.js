@@ -69,10 +69,12 @@ const clientIp = (req) => {
 /**
  * ใช้ที่: POST /auth/login (routes/authRoutes.js) · key = IP
  */
-// 5 login attempts per 15 min per IP (username/password)
+// 5 failed login attempts per 15 min per IP (username/password) — นับเฉพาะครั้งที่พลาด (status >= 400)
+// เพื่อไม่ให้ Admin หลายคนหลัง NAT เดียวกันใช้โควตาร่วมกันหมดจากการล็อกอินสำเร็จ
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
+  skipSuccessfulRequests: true,
   skip: skipLocalhost,
   keyGenerator: clientIp,
   message: {
