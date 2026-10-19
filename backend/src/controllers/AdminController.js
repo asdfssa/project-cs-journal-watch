@@ -1,11 +1,12 @@
 /**
  * Admin Controller
- * รับ HTTP request → เรียก DB โดยตรง → ส่ง response
+ * รับ HTTP request → ตรวจข้อมูล → เรียก model (AdminUserModel/AdminStatsModel) → ส่ง response
  * เฉพาะ Admin และ SuperAdmin เท่านั้น
  */
-const db          = require('../config/database');
+const AdminStatsModel = require('../models/AdminStatsModel');
+const AdminUserModel  = require('../models/AdminUserModel');
 const config      = require('../config');
-const { phoneError, parsePagination, nonStringField, nonScalarField, likeContains } = require('../utils/input');
+const { phoneError, parsePagination, nonStringField, nonScalarField } = require('../utils/input');
 
 // field ของผู้ใช้ที่ลง SQL ตรงๆ แต่ไม่บังคับว่าต้องเป็นข้อความ — ห้ามเป็น object/array (B45)
 // CSV import: จำกัดจำนวนแถว + ค่า enum ที่คอลัมน์ users รับ (ผิด → แจ้งรายแถว ไม่ปล่อยไปชน MySQL แล้ว 500 ทั้งก้อน)
@@ -86,7 +87,7 @@ const mailOf = (v) => String(v ?? '').trim().toLowerCase();
  * Controller ฝั่งผู้ดูแล — ผูกใน 2 router: routes/adminRoutes.js (/api/v3/admin: stats + จัดการ Admin, เฉพาะ Admin/SuperAdmin)
  *   และ routes/userManageRoutes.js (/api/v3/manage/users: จัดการผู้ใช้ทั่วไป, Admin/SuperAdmin/Staff — approve จำกัด Admin/SuperAdmin)
  * ทุก method อ่านผู้ทำจาก req.user (sub, role) ที่ requireAuth ใส่ไว้ และ req.params.id ที่ requireNumericId ตรวจแล้ว
- * ไม่มี Model แยก: query ตาราง users / advisor_assignments / request_approvals ตรงๆ ผ่าน config/database · error ส่ง next(err) ไป middlewares/errorHandler
+ * ข้อมูลอ่าน/เขียนผ่าน models/AdminUserModel (users/advisor_assignments/request_approvals) และ models/AdminStatsModel · error ส่ง next(err) ไป middlewares/errorHandler
  * ผลข้างเคียงที่ออกนอกตาราง: OtpModel / RefreshTokenModel (ตัด OTP และ session เมื่อเปลี่ยนอีเมลบัญชี), MailService (อีเมลแจ้งอนุมัติ)
  */
 class AdminController {
@@ -101,45 +102,7 @@ class AdminController {
   // ============================================================
   static async getStats(req, res, next) {
     try {
-      const [
-        [userRows],
-        [preT3Rows],
-        [t3Rows],
-        [unwantedRows],
-      ] = await Promise.all([
-        db.query(`
-          SELECT
-            COUNT(*)                                              AS total,
-            SUM(role = 'Student')                                AS students,
-            SUM(role = 'Supervisor')                             AS supervisors,
-            SUM(role = 'Staff')                                  AS staff,
-            SUM(role IN ('Admin','SuperAdmin'))                  AS admins,
-            SUM(account_status = 'Pending')                     AS pending,
-            SUM(account_status = 'Active')                      AS active,
-            SUM(account_status = 'Suspended')                   AS suspended
-          FROM users
-        `),
-        db.query(`
-          SELECT COUNT(*) AS total,
-            SUM(overall_status = 'Pending')  AS pending,
-            SUM(overall_status = 'Approved') AS approved,
-            SUM(overall_status = 'Rejected') AS rejected,
-            SUM(overall_status = 'Cancelled') AS cancelled
-          FROM pre_t3_requests
-        `),
-        db.query(`
-          SELECT COUNT(*) AS total,
-            SUM(overall_status = 'Pending')  AS pending,
-            SUM(overall_status = 'Approved') AS approved,
-            SUM(overall_status = 'Rejected') AS rejected,
-            SUM(overall_status = 'Cancelled') AS cancelled
-          FROM t3_requests
-        `),
-        db.query(`
-          SELECT COUNT(*) AS total
-          FROM msu_unwanted_journals
-        `),
-      ]);
+      const { users: userRow, preT3: preT3Row, t3: t3Row, unwanted: unwantedRow } = await AdminStatsModel.getOverview();
 
       let apiKeyStats = [];
       try {
@@ -151,18 +114,18 @@ class AdminController {
         success: true,
         data: {
           users: {
-            total:       Number(userRows[0].total),
-            students:    Number(userRows[0].students),
-            supervisors: Number(userRows[0].supervisors),
-            staff:       Number(userRows[0].staff),
-            admins:      Number(userRows[0].admins),
-            pending:     Number(userRows[0].pending),
-            active:      Number(userRows[0].active),
-            suspended:   Number(userRows[0].suspended),
+            total:       Number(userRow.total),
+            students:    Number(userRow.students),
+            supervisors: Number(userRow.supervisors),
+            staff:       Number(userRow.staff),
+            admins:      Number(userRow.admins),
+            pending:     Number(userRow.pending),
+            active:      Number(userRow.active),
+            suspended:   Number(userRow.suspended),
           },
-          pre_t3:  { total: Number(preT3Rows[0].total), pending: Number(preT3Rows[0].pending), approved: Number(preT3Rows[0].approved), rejected: Number(preT3Rows[0].rejected), cancelled: Number(preT3Rows[0].cancelled) },
-          t3:      { total: Number(t3Rows[0].total),    pending: Number(t3Rows[0].pending),    approved: Number(t3Rows[0].approved),    rejected: Number(t3Rows[0].rejected), cancelled: Number(t3Rows[0].cancelled) },
-          msu_unwanted: { total: Number(unwantedRows[0].total) },
+          pre_t3:  { total: Number(preT3Row.total), pending: Number(preT3Row.pending), approved: Number(preT3Row.approved), rejected: Number(preT3Row.rejected), cancelled: Number(preT3Row.cancelled) },
+          t3:      { total: Number(t3Row.total),    pending: Number(t3Row.pending),    approved: Number(t3Row.approved),    rejected: Number(t3Row.rejected), cancelled: Number(t3Row.cancelled) },
+          msu_unwanted: { total: Number(unwantedRow.total) },
           api_keys: apiKeyStats,
         },
       });
@@ -185,50 +148,13 @@ class AdminController {
       // ponytail: เพดาน 1000 เพราะหน้า staff manage-users ดึง limit=1000 แล้วกรองฝั่ง client — ลดได้เมื่อ FE ทำ pagination จริง
       const { page, limit, offset } = parsePagination(req.query, 1000);
 
-      let where = ["u.role NOT IN ('Admin','SuperAdmin')"];
-      const params = [];
-
-      if (role)   { where.push('u.role = ?');           params.push(role); }
-      if (status) { where.push('u.account_status = ?'); params.push(status); }
-      if (search) {
-        where.push('(u.first_name LIKE ? OR u.last_name LIKE ? OR u.msu_mail LIKE ?)');
-        const like = likeContains(search);
-        params.push(like, like, like);
-      }
-
-      const whereSQL = where.join(' AND ');
-
-      const [countRows] = await db.query(
-        `SELECT COUNT(*) AS total FROM users u WHERE ${whereSQL}`,
-        params
-      );
-
-const [rows] = await db.query(
-        `SELECT
-          u.user_id, u.prefix, u.first_name, u.last_name,
-          u.msu_mail, u.role, u.degree_level, u.account_status,
-          u.phone, u.facebook_id, u.line_id,
-          u.curriculum_year, u.study_plan_code, u.department,
-          u.created_at
-         FROM users u
-         WHERE ${whereSQL}
-         ORDER BY u.created_at DESC
-         LIMIT ? OFFSET ?`,
-        [...params, Number(limit), offset]
-      );
+      const { rows, total } = await AdminUserModel.findPage({ role, status, search, limit, offset });
 
       // ดึง advisor ของ student แต่ละคน
       const studentIds = rows.filter(r => r.role === 'Student').map(r => r.user_id);
       let advisorMap = {};
       if (studentIds.length > 0) {
-        const [advRows] = await db.query(
-          `SELECT aa.student_id, aa.advisor_type,
-                  u.msu_mail AS advisor_mail, u.first_name, u.last_name
-           FROM advisor_assignments aa
-           JOIN users u ON u.user_id = aa.advisor_id
-           WHERE aa.student_id IN (?) AND aa.is_active = 1`,
-          [studentIds]
-        );
+        const advRows = await AdminUserModel.findAdvisorsOfStudents(studentIds);
         for (const a of advRows) {
           if (!advisorMap[a.student_id]) advisorMap[a.student_id] = {};
           advisorMap[a.student_id][a.advisor_type] = {
@@ -242,13 +168,7 @@ const [rows] = await db.query(
       const supervisorIds = rows.filter(r => r.role === 'Supervisor').map(r => r.user_id);
       const studentCount = {};
       if (supervisorIds.length > 0) {
-        const [cntRows] = await db.query(
-          `SELECT advisor_id, COUNT(DISTINCT student_id) AS n
-             FROM advisor_assignments
-            WHERE advisor_id IN (?) AND is_active = 1
-            GROUP BY advisor_id`,
-          [supervisorIds]
-        );
+        const cntRows = await AdminUserModel.countStudentsPerAdvisor(supervisorIds);
         for (const c of cntRows) studentCount[c.advisor_id] = Number(c.n);
       }
 
@@ -263,10 +183,10 @@ const [rows] = await db.query(
         data: {
           users: usersWithAdvisors,
           pagination: {
-            total: Number(countRows[0].total),
+            total,
             page:  Number(page),
             limit: Number(limit),
-            totalPages: Math.ceil(Number(countRows[0].total) / Number(limit)),
+            totalPages: Math.ceil(total / Number(limit)),
           },
         },
       });
@@ -283,21 +203,14 @@ const [rows] = await db.query(
   static async approveUser(req, res, next) {
     try {
       const { id } = req.params;
-      const [target] = await db.query(
-        `SELECT user_id, account_status, role, msu_mail, first_name, last_name
-           FROM users WHERE user_id = ?`,
-        [id]
-      );
-      if (!target.length) return res.status(404).json({ success: false, message: 'ไม่พบผู้ใช้' });
-      if (target[0].account_status !== 'Pending')
+      const target = await AdminUserModel.findForApproval(id);
+      if (!target) return res.status(404).json({ success: false, message: 'ไม่พบผู้ใช้' });
+      if (target.account_status !== 'Pending')
         return res.status(400).json({ success: false, message: 'สถานะต้องเป็น Pending เท่านั้น' });
 
-      await db.query(
-        `UPDATE users SET account_status = 'Active' WHERE user_id = ?`,
-        [id]
-      );
+      await AdminUserModel.setActive(id);
 
-      const { msu_mail, first_name, last_name } = target[0];
+      const { msu_mail, first_name, last_name } = target;
       const fullName = `${first_name || ''} ${last_name || ''}`.trim();
       MailService.sendAccountApproved(msu_mail, fullName).catch(() => {});
 
@@ -319,40 +232,22 @@ const [rows] = await db.query(
       if (Number(id) === req.user.sub)
         return res.status(400).json({ success: false, message: 'ไม่สามารถระงับบัญชีตัวเองได้' });
 
-      const [target] = await db.query(
-        `SELECT user_id, account_status, role FROM users WHERE user_id = ?`,
-        [id]
-      );
-      if (!target.length) return res.status(404).json({ success: false, message: 'ไม่พบผู้ใช้' });
-      if (['Admin','SuperAdmin'].includes(target[0].role))
+      const target = await AdminUserModel.findStatusAndRole(id);
+      if (!target) return res.status(404).json({ success: false, message: 'ไม่พบผู้ใช้' });
+      if (['Admin','SuperAdmin'].includes(target.role))
         return res.status(403).json({ success: false, message: 'ไม่สามารถระงับ Admin ได้' });
-      if (staffTouchingStaff(req, target[0]))
+      if (staffTouchingStaff(req, target))
         return res.status(403).json({ success: false, message: 'Staff ไม่สามารถระงับบัญชี Staff ได้ กรุณาติดต่อ Admin' });
       // ระงับได้เฉพาะ Active · บัญชี Pending (Staff ที่สมัครรออนุมัติ) ใช้ endpoint นี้เป็น "ปฏิเสธ" ได้ด้วย (X39)
       // ผลคือ Suspended — คนที่ถูกปฏิเสธสมัครซ้ำด้วยอีเมลเดิมไม่ได้ (register-staff ตอบ ACCOUNT_SUSPENDED)
-      const wasPending = target[0].account_status === 'Pending';
-      if (target[0].account_status !== 'Active' && !wasPending)
+      const wasPending = target.account_status === 'Pending';
+      if (target.account_status !== 'Active' && !wasPending)
         return res.status(400).json({ success: false, message: 'ระงับได้เฉพาะบัญชีที่มีสถานะ Active หรือ Pending เท่านั้น' });
 
-      await db.query(
-        `UPDATE users SET account_status = 'Suspended' WHERE user_id = ?`,
-        [id]
-      );
+      await AdminUserModel.setSuspended(id);
 
       // อาจารย์ที่ถูกระงับตัดสินคำขอไม่ได้ — บอกจำนวนที่ค้างให้แอดมินไปเปลี่ยนอาจารย์ของนิสิต (B32)
-      let pendingApprovals = 0;
-      if (target[0].role === 'Supervisor') {
-        const count = async (table, idCol, type) => {
-          const [[row]] = await db.query(
-            `SELECT COUNT(*) AS n FROM request_approvals ra
-               JOIN ${table} r ON ra.request_type = '${type}' AND ra.request_id = r.${idCol}
-              WHERE ra.approver_id = ? AND ra.status = 'Pending' AND r.overall_status = 'Pending'`,
-            [id]
-          );
-          return row.n;
-        };
-        pendingApprovals = (await count('pre_t3_requests', 'pre_t3_id', 'Pre_T3')) + (await count('t3_requests', 't3_id', 'T3'));
-      }
+      const pendingApprovals = target.role === 'Supervisor' ? await AdminUserModel.countPendingApprovalsOf(id) : 0;
       return res.json({
         success: true,
         message: pendingApprovals
@@ -372,22 +267,16 @@ const [rows] = await db.query(
   static async activateUser(req, res, next) {
     try {
       const { id } = req.params;
-      const [target] = await db.query(
-        `SELECT user_id, account_status, role FROM users WHERE user_id = ?`,
-        [id]
-      );
-      if (!target.length) return res.status(404).json({ success: false, message: 'ไม่พบผู้ใช้' });
-      if (['Admin', 'SuperAdmin'].includes(target[0].role))
+      const target = await AdminUserModel.findStatusAndRole(id);
+      if (!target) return res.status(404).json({ success: false, message: 'ไม่พบผู้ใช้' });
+      if (['Admin', 'SuperAdmin'].includes(target.role))
         return res.status(403).json({ success: false, message: 'ไม่สามารถคืนสถานะ Admin ผ่านหน้านี้ได้' });
-      if (staffTouchingStaff(req, target[0]))
+      if (staffTouchingStaff(req, target))
         return res.status(403).json({ success: false, message: 'Staff ไม่สามารถคืนสถานะบัญชี Staff ได้ กรุณาติดต่อ Admin' });
-      if (target[0].account_status !== 'Suspended')
+      if (target.account_status !== 'Suspended')
         return res.status(400).json({ success: false, message: 'สถานะต้องเป็น Suspended เท่านั้น' });
 
-      await db.query(
-        `UPDATE users SET account_status = 'Active' WHERE user_id = ?`,
-        [id]
-      );
+      await AdminUserModel.setActive(id);
       return res.json({ success: true, message: 'คืนสถานะบัญชีเรียบร้อยแล้ว' });
     } catch (err) { next(err); }
   }
@@ -407,18 +296,11 @@ const [rows] = await db.query(
       const { id } = req.params;
 
       // ดึงข้อมูลเดิมมาก่อน เพื่อทำ merge
-      const [target] = await db.query(
-        `SELECT user_id, prefix, first_name, last_name, msu_mail,
-                phone, facebook_id, line_id,
-                degree_level, curriculum_year, study_plan_code, department, role
-         FROM users
-         WHERE user_id = ?`,
-        [id]
-      );
-      if (!target.length) return res.status(404).json({ success: false, message: 'ไม่พบผู้ใช้' });
-      if (['Admin', 'SuperAdmin'].includes(target[0].role))
+      const target = await AdminUserModel.findEditable(id);
+      if (!target) return res.status(404).json({ success: false, message: 'ไม่พบผู้ใช้' });
+      if (['Admin', 'SuperAdmin'].includes(target.role))
         return res.status(403).json({ success: false, message: 'ไม่สามารถแก้ไขข้อมูล Admin ผ่านหน้านี้ได้' });
-      if (staffTouchingStaff(req, target[0]))
+      if (staffTouchingStaff(req, target))
         return res.status(403).json({ success: false, message: 'Staff ไม่สามารถแก้ไขข้อมูล Staff ได้ กรุณาติดต่อ Admin' });
 
       const badField = nonStringField(req.body, ['first_name', 'last_name', 'msu_mail']) || nonScalarField(req.body, USER_SCALAR_FIELDS);
@@ -427,7 +309,7 @@ const [rows] = await db.query(
       const phoneErr = phoneError(req.body.phone);
       if (phoneErr) return res.status(400).json({ success: false, code: 'INVALID_PHONE', message: phoneErr });
 
-      const current = target[0];
+      const current = target;
       const body = req.body;
 
       // Merge: ถ้า field นั้นไม่ได้ส่งมา ใช้ค่าเดิม
@@ -474,27 +356,19 @@ const [rows] = await db.query(
         if (planErr) return res.status(400).json({ success: false, code: 'INVALID_STUDY_PLAN', message: planErr });
       }
 
-      await db.query(
-        `UPDATE users SET
-          prefix = ?, first_name = ?, last_name = ?, msu_mail = ?,
-          phone = ?, facebook_id = ?, line_id = ?,
-          degree_level = ?, curriculum_year = ?, study_plan_code = ?, department = ?
-         WHERE user_id = ?`,
-        [
-          merged.prefix || null,
-          merged.first_name,
-          merged.last_name,
-          mailOf(merged.msu_mail),
-          merged.phone || null,
-          merged.facebook_id || null,
-          merged.line_id || null,
-          merged.degree_level || null,
-          merged.curriculum_year || null,
-          merged.study_plan_code || null,
-          merged.department || null,
-          id,
-        ]
-      );
+      await AdminUserModel.updateProfile(id, {
+        prefix: merged.prefix || null,
+        first_name: merged.first_name,
+        last_name: merged.last_name,
+        msu_mail: mailOf(merged.msu_mail),
+        phone: merged.phone || null,
+        facebook_id: merged.facebook_id || null,
+        line_id: merged.line_id || null,
+        degree_level: merged.degree_level || null,
+        curriculum_year: merged.curriculum_year || null,
+        study_plan_code: merged.study_plan_code || null,
+        department: merged.department || null,
+      });
       if (mailChanged) await OtpModel.invalidateActive(id, 'password_reset');
 
       return res.json({ success: true, message: 'แก้ไขข้อมูลเรียบร้อยแล้ว' });
@@ -548,88 +422,38 @@ const [rows] = await db.query(
       const mailLower = msu_mail.toLowerCase().trim();
 
       // ===== เช็ก msu_mail ซ้ำ =====
-      const [existing] = await db.query(
-        `SELECT user_id FROM users WHERE msu_mail = ?`,
-        [mailLower]
-      );
-      if (existing.length)
+      if (await AdminUserModel.mailExists(mailLower))
         return res.status(400).json({ success: false, message: `MSU Mail ${mailLower} มีอยู่ในระบบแล้ว` });
 
       // ===== เช็ก advisor (เฉพาะ Student) =====
       let advisorMajorId = null;
       let advisorCo1Id   = null;
 
-if (role === 'Student') {
+      if (role === 'Student') {
         // advisor เป็น optional — ไม่บังคับ
         if (advisor_major_mail) {
-          const [majRows] = await db.query(
-            `SELECT user_id FROM users
-             WHERE msu_mail = ? AND role = 'Supervisor'`,
-            [advisor_major_mail.toLowerCase().trim()]
-          );
-          if (!majRows.length)
+          advisorMajorId = await AdminUserModel.findSupervisorIdByMail(advisor_major_mail.toLowerCase().trim());
+          if (!advisorMajorId)
             return res.status(400).json({ success: false, message: `ไม่พบอาจารย์ที่ปรึกษาหลัก: ${advisor_major_mail}` });
-          advisorMajorId = majRows[0].user_id;
         }
 
         if (advisor_co1_mail) {
-          const [co1Rows] = await db.query(
-            `SELECT user_id FROM users
-             WHERE msu_mail = ? AND role = 'Supervisor'`,
-            [advisor_co1_mail.toLowerCase().trim()]
-          );
-          if (!co1Rows.length)
+          advisorCo1Id = await AdminUserModel.findSupervisorIdByMail(advisor_co1_mail.toLowerCase().trim());
+          if (!advisorCo1Id)
             return res.status(400).json({ success: false, message: `ไม่พบอาจารย์ที่ปรึกษาร่วม: ${advisor_co1_mail}` });
-          advisorCo1Id = co1Rows[0].user_id;
         }
       }
 
       // ===== Insert user + advisor_assignments ในทรานแซกชันเดียว =====
       // กัน user ถูกสร้างค้างไว้แบบไม่มี advisor ถ้า insert assignment พังกลางทาง
-      let newUserId;
-      const conn = await db.getConnection();
-      try {
-        await conn.beginTransaction();
-
-        const [result] = await conn.query(
-          `INSERT INTO users
-             (msu_mail,
-              role, prefix, first_name, last_name,
-              phone, degree_level, curriculum_year, study_plan_code, department,
-              account_status)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Active')`,
-          [
-            mailLower, role,
-            prefix || null, first_name.trim(), last_name.trim(),
-            phone || null,
-            degree_level || null, curriculum_year || null, study_plan_code || null,
-            role === 'Student' ? (department || null) : null,
-          ]
-        );
-        newUserId = result.insertId;
-
-        if (advisorMajorId) {
-          await conn.query(
-            `INSERT INTO advisor_assignments
-               (student_id, advisor_id, advisor_type) VALUES (?, ?, 'Major')`,
-            [newUserId, advisorMajorId]
-          );
-        }
-        if (advisorCo1Id) {
-          await conn.query(
-            `INSERT INTO advisor_assignments
-               (student_id, advisor_id, advisor_type) VALUES (?, ?, 'Co_1')`,
-            [newUserId, advisorCo1Id]
-          );
-        }
-
-        await conn.commit();
-      } catch (txErr) {
-        await conn.rollback();
-        throw txErr;
-      } finally {
-        conn.release();
-      }
+      const [newUserId] = await AdminUserModel.createUsersWithAdvisors([{
+        mail: mailLower, role,
+        prefix: prefix || null, first_name: first_name.trim(), last_name: last_name.trim(),
+        phone: phone || null,
+        degree_level: degree_level || null, curriculum_year: curriculum_year || null, study_plan_code: study_plan_code || null,
+        department: role === 'Student' ? (department || null) : null,
+        majorAdvisorId: advisorMajorId, co1AdvisorId: advisorCo1Id,
+      }]);
 
       return res.status(201).json({
         success: true,
@@ -699,25 +523,8 @@ records = parse(req.file.buffer, {
           ...records.map(r => r.advisor_co1_mail?.toLowerCase().trim()),
         ].filter(Boolean);
 
-        let existingMailSet = new Set();
-        if (allMails.length) {
-          const [existingRows] = await db.query(
-            `SELECT msu_mail FROM users WHERE msu_mail IN (?)`,
-            [allMails]
-          );
-          // collation ของ DB ไม่สนตัวพิมพ์ จึงเจอแถวที่เก็บ "Somchai@msu.ac.th" — ต้อง lowercase ก่อนเทียบกับค่าที่ lowercase แล้วในไฟล์
-          existingMailSet = new Set(existingRows.map(r => r.msu_mail.toLowerCase()));
-        }
-
-        let advisorMailMap = {};
-        if (allAdvisorMails.length) {
-          const [advisorRows] = await db.query(
-            `SELECT user_id, msu_mail FROM users
-             WHERE msu_mail IN (?) AND role = 'Supervisor'`,
-            [allAdvisorMails]
-          );
-          for (const a of advisorRows) advisorMailMap[a.msu_mail.toLowerCase()] = a.user_id;
-        }
+        const existingMailSet = await AdminUserModel.findExistingMails(allMails);
+        const advisorMailMap = await AdminUserModel.findSupervisorIdsByMails(allAdvisorMails);
 
         // ===== Validate ทุก row ก่อน (all-or-nothing) =====
         for (let i = 0; i < records.length; i++) {
@@ -782,68 +589,24 @@ records = parse(req.file.buffer, {
         }
 
         // ===== ผ่านทั้งหมด → Insert (transaction เดียว — all-or-nothing จริง) =====
-        let imported = 0;
-        const conn = await db.getConnection();
-        try {
-          await conn.beginTransaction();
-
-          for (const row of records) {
-            const mailLower = row.msu_mail.toLowerCase().trim();
-
-            const [result] = await conn.query(
-              `INSERT INTO users
-                 (msu_mail,
-                  role, prefix, first_name, last_name,
-                  phone, degree_level, curriculum_year, study_plan_code, department,
-                  account_status)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Active')`,
-              [
-                mailLower, row.role,
-                row.prefix || null, row.first_name.trim(), row.last_name.trim(),
-                row.phone || null,
-                row.degree_level || null, row.curriculum_year || null, row.study_plan_code || null,
-                row.role === 'Student' ? (row.department || null) : null,
-              ]
-            );
-            const newUserId = result.insertId;
-
-            // ใช้ advisorMailMap ที่ fetch ไว้แล้ว ไม่ต้อง query ซ้ำ
-            // เช็ค major/co1 แยกอิสระจากกัน (เหมือนตอน validate) กัน row ที่มีแค่
-            // advisor_co1_mail แต่ไม่มี advisor_major_mail ไม่ได้ insert assignment เลย
-            if (row.role === 'Student') {
-              if (row.advisor_major_mail) {
-                const majorAdvisorId = advisorMailMap[row.advisor_major_mail.toLowerCase().trim()];
-                if (majorAdvisorId) {
-                  await conn.query(
-                    `INSERT INTO advisor_assignments
-                       (student_id, advisor_id, advisor_type) VALUES (?, ?, 'Major')`,
-                    [newUserId, majorAdvisorId]
-                  );
-                }
-              }
-
-              if (row.advisor_co1_mail) {
-                const co1AdvisorId = advisorMailMap[row.advisor_co1_mail.toLowerCase().trim()];
-                if (co1AdvisorId) {
-                  await conn.query(
-                    `INSERT INTO advisor_assignments
-                       (student_id, advisor_id, advisor_type) VALUES (?, ?, 'Co_1')`,
-                    [newUserId, co1AdvisorId]
-                  );
-                }
-              }
-            }
-
-            imported++;
-          }
-
-          await conn.commit();
-        } catch (txErr) {
-          await conn.rollback();
-          throw txErr;
-        } finally {
-          conn.release();
-        }
+        const imported = (await AdminUserModel.createUsersWithAdvisors(records.map(row => {
+          const isStudent = row.role === 'Student';
+          return {
+            mail: row.msu_mail.toLowerCase().trim(),
+            role: row.role,
+            prefix: row.prefix || null,
+            first_name: row.first_name.trim(),
+            last_name: row.last_name.trim(),
+            phone: row.phone || null,
+            degree_level: row.degree_level || null,
+            curriculum_year: row.curriculum_year || null,
+            study_plan_code: row.study_plan_code || null,
+            department: isStudent ? (row.department || null) : null,
+            // ใช้ advisorMailMap ที่ fetch ไว้แล้ว ไม่ต้อง query ซ้ำ · major/co1 เช็คแยกอิสระจากกัน
+            majorAdvisorId: isStudent && row.advisor_major_mail ? advisorMailMap[row.advisor_major_mail.toLowerCase().trim()] : null,
+            co1AdvisorId: isStudent && row.advisor_co1_mail ? advisorMailMap[row.advisor_co1_mail.toLowerCase().trim()] : null,
+          };
+        }))).length;
 
         return res.json({
           success: true,
@@ -881,9 +644,9 @@ records = parse(req.file.buffer, {
         return res.status(400).json({ success: false, code: 'NOTHING_TO_UPDATE', message: 'ต้องระบุอาจารย์อย่างน้อยหนึ่งช่อง' });
       }
 
-      const [target] = await db.query(`SELECT user_id, role FROM users WHERE user_id = ?`, [id]);
-      if (!target.length) return res.status(404).json({ success: false, message: 'ไม่พบผู้ใช้' });
-      if (target[0].role !== 'Student')
+      const target = await AdminUserModel.findRole(id);
+      if (!target) return res.status(404).json({ success: false, message: 'ไม่พบผู้ใช้' });
+      if (target.role !== 'Student')
         return res.status(400).json({ success: false, message: 'ผู้ใช้นี้ไม่ใช่นิสิต' });
 
       // ช่องที่ส่งมา → user_id ใหม่ (null = ถอดออก); ช่องที่ไม่ส่งไม่อยู่ใน changes
@@ -897,87 +660,22 @@ records = parse(req.file.buffer, {
           changes[slot] = null;
           continue;
         }
-        const [rows] = await db.query(
-          `SELECT user_id, account_status FROM users WHERE msu_mail = ? AND role = 'Supervisor'`, [mail]
-        );
-        if (!rows.length) return res.status(400).json({ success: false, message: `ไม่พบอาจารย์ที่ปรึกษา: ${mail}` });
-        if (rows[0].account_status !== 'Active')
+        const advisor = await AdminUserModel.findSupervisorByMail(mail);
+        if (!advisor) return res.status(400).json({ success: false, message: `ไม่พบอาจารย์ที่ปรึกษา: ${mail}` });
+        if (advisor.account_status !== 'Active')
           return res.status(400).json({ success: false, code: 'ADVISOR_NOT_ACTIVE', message: `อาจารย์ ${mail} ไม่ได้อยู่ในสถานะ Active` });
-        changes[slot] = rows[0].user_id;
+        changes[slot] = advisor.user_id;
       }
 
-      const STEP_OF = { Major: 'Advisor', Co_1: 'Co_Advisor_1', Co_2: 'Co_Advisor_2' };
-      // คำขอ Pending ของนิสิตคนนี้ ที่ขั้น step ยังรอตัดสิน (ใช้ทั้งนับและย้าย approver)
-      const PENDING_JOIN = (table, idCol, type) =>
-        `request_approvals ra JOIN ${table} r ON ra.request_type = '${type}' AND ra.request_id = r.${idCol}`;
-      const PENDING_WHERE = `r.student_id = ? AND r.overall_status = 'Pending' AND ra.step = ? AND ra.status = 'Pending'`;
-
-      const conn = await db.getConnection();
-      try {
-        await conn.beginTransaction();
-        // lock นิสิต ให้ admin สองคนแก้พร้อมกันต่อคิว
-        await conn.query(`SELECT user_id FROM users WHERE user_id = ? FOR UPDATE`, [id]);
-
-        const [currentRows] = await conn.query(
-          `SELECT advisor_id, advisor_type FROM advisor_assignments WHERE student_id = ?`, [id]
-        );
-        const current = {};
-        for (const r of currentRows) current[r.advisor_type] = r.advisor_id;
-        const final = { ...current, ...changes };
-
-        if (!final.Major) {
-          await conn.rollback();
-          return res.status(400).json({ success: false, code: 'MAJOR_REQUIRED', message: 'ต้องมีอาจารย์ที่ปรึกษาหลักเสมอ' });
-        }
-        const ids = ['Major', 'Co_1', 'Co_2'].map(s => final[s]).filter(Boolean);
-        if (new Set(ids).size !== ids.length) {
-          await conn.rollback();
-          return res.status(400).json({ success: false, code: 'DUPLICATE_ADVISOR', message: 'อาจารย์คนเดียวกันใส่ได้ช่องเดียว' });
-        }
-
-        let reassigned = 0;
-        for (const slot of Object.keys(changes)) {
-          if ((current[slot] ?? null) === (final[slot] ?? null)) continue;
-          const step = STEP_OF[slot];
-
-          if (!final[slot]) {
-            // ถอด Co: ถ้ายังมีคำขอ Pending รอขั้นนี้อยู่ → บล็อก ไม่งั้นแถว approval จะค้างไม่มีใครตัดสิน
-            const [[a]] = await conn.query(`SELECT COUNT(*) AS n FROM ${PENDING_JOIN('pre_t3_requests', 'pre_t3_id', 'Pre_T3')} WHERE ${PENDING_WHERE}`, [id, step]);
-            const [[b]] = await conn.query(`SELECT COUNT(*) AS n FROM ${PENDING_JOIN('t3_requests', 't3_id', 'T3')} WHERE ${PENDING_WHERE}`, [id, step]);
-            if (a.n + b.n > 0) {
-              await conn.rollback();
-              return res.status(409).json({
-                success: false, code: 'ADVISOR_HAS_PENDING_REQUESTS',
-                message: 'ถอดอาจารย์ร่วมไม่ได้ เพราะยังมีคำขอที่รอการอนุมัติจากอาจารย์ท่านนี้อยู่ กรุณารอให้ตัดสินก่อน หรือเปลี่ยนเป็นอาจารย์คนอื่นแทน',
-              });
-            }
-          } else {
-            const [ra] = await conn.query(`UPDATE ${PENDING_JOIN('pre_t3_requests', 'pre_t3_id', 'Pre_T3')} SET ra.approver_id = ? WHERE ${PENDING_WHERE}`, [final[slot], id, step]);
-            const [rb] = await conn.query(`UPDATE ${PENDING_JOIN('t3_requests', 't3_id', 'T3')} SET ra.approver_id = ? WHERE ${PENDING_WHERE}`, [final[slot], id, step]);
-            reassigned += ra.affectedRows + rb.affectedRows;
-          }
-
-          await conn.query(`DELETE FROM advisor_assignments WHERE student_id = ? AND advisor_type = ?`, [id, slot]);
-          if (final[slot]) {
-            await conn.query(
-              `INSERT INTO advisor_assignments (student_id, advisor_id, advisor_type) VALUES (?, ?, ?)`,
-              [id, final[slot], slot]
-            );
-          }
-        }
-
-        await conn.commit();
-        return res.json({
-          success: true,
-          message: 'อัปเดตอาจารย์ที่ปรึกษาเรียบร้อยแล้ว',
-          data: { requests_reassigned: reassigned },
-        });
-      } catch (txErr) {
-        await conn.rollback();
-        throw txErr;
-      } finally {
-        conn.release();
+      const result = await AdminUserModel.reassignAdvisors(id, changes);
+      if (result.error) {
+        return res.status(result.error.status).json({ success: false, code: result.error.code, message: result.error.message });
       }
+      return res.json({
+        success: true,
+        message: 'อัปเดตอาจารย์ที่ปรึกษาเรียบร้อยแล้ว',
+        data: { requests_reassigned: result.reassigned },
+      });
     } catch (err) { next(err); }
   }
 
@@ -994,44 +692,17 @@ records = parse(req.file.buffer, {
       const { status, search } = req.query;
       const { page, limit, offset } = parsePagination(req.query);
 
-      let where = ["u.role IN ('Admin','SuperAdmin')"];
-      const params = [];
-
-      if (status) { where.push('u.account_status = ?'); params.push(status); }
-      if (search) {
-        where.push('(u.username LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ? OR u.msu_mail LIKE ?)');
-        const like = likeContains(search);
-        params.push(like, like, like, like);
-      }
-
-      const whereSQL = where.join(' AND ');
-
-      const [[countRow]] = await db.query(
-        `SELECT COUNT(*) AS total FROM users u WHERE ${whereSQL}`,
-        params
-      );
-
-      const [rows] = await db.query(
-        `SELECT
-          u.user_id, u.username, u.first_name, u.last_name,
-          u.msu_mail, u.role, u.account_status,
-          u.created_at
-         FROM users u
-         WHERE ${whereSQL}
-         ORDER BY u.role DESC, u.created_at ASC
-         LIMIT ? OFFSET ?`,
-        [...params, Number(limit), offset]
-      );
+      const { rows, total } = await AdminUserModel.findAdminPage({ status, search, limit, offset });
 
       return res.json({
         success: true,
         data: {
           admins: rows,
           pagination: {
-            total:      Number(countRow.total),
+            total,
             page:       Number(page),
             limit:      Number(limit),
-            totalPages: Math.ceil(Number(countRow.total) / Number(limit)),
+            totalPages: Math.ceil(total / Number(limit)),
           },
         },
       });
@@ -1068,42 +739,28 @@ records = parse(req.file.buffer, {
         return res.status(400).json({ success: false, code: 'WEAK_PASSWORD', message: 'รหัสผ่านต้องยาว 8-128 ตัว มีตัวพิมพ์ใหญ่ ตัวพิมพ์เล็ก และตัวเลข' });
 
       // เช็ค username ซ้ำ
-      const [dupUser] = await db.query(
-        `SELECT user_id FROM users WHERE username = ?`,
-        [username.trim().toLowerCase()]
-      );
-      if (dupUser.length)
+      if (await AdminUserModel.usernameExists(username.trim().toLowerCase()))
         return res.status(400).json({ success: false, message: `Username "${username}" มีอยู่ในระบบแล้ว` });
 
       // เช็ค msu_mail ซ้ำ
-      const [dupMail] = await db.query(
-        `SELECT user_id FROM users WHERE msu_mail = ?`,
-        [msu_mail.trim().toLowerCase()]
-      );
-      if (dupMail.length)
+      if (await AdminUserModel.mailExists(msu_mail.trim().toLowerCase()))
         return res.status(400).json({ success: false, message: `Email "${msu_mail}" มีอยู่ในระบบแล้ว` });
 
       const bcrypt = require('bcrypt');
       const passwordHash = await bcrypt.hash(password, 12);
 
-      const [result] = await db.query(
-        `INSERT INTO users
-           (username, password_hash, msu_mail, role,
-            first_name, last_name, account_status)
-         VALUES (?, ?, ?, 'Admin', ?, ?, 'Active')`,
-        [
-          username.trim().toLowerCase(),
-          passwordHash,
-          msu_mail.trim().toLowerCase(),
-          first_name.trim(),
-          last_name.trim(),
-        ]
-      );
+      const userId = await AdminUserModel.createAdmin({
+        username: username.trim().toLowerCase(),
+        passwordHash,
+        msu_mail: msu_mail.trim().toLowerCase(),
+        first_name: first_name.trim(),
+        last_name: last_name.trim(),
+      });
 
       return res.status(201).json({
         success: true,
         message: `สร้าง Admin "${username}" เรียบร้อยแล้ว`,
-        data: { user_id: result.insertId },
+        data: { user_id: userId },
       });
     } catch (err) { next(err); }
   }
@@ -1124,28 +781,21 @@ records = parse(req.file.buffer, {
       if (Number(id) === callerId)
         return res.status(400).json({ success: false, message: 'ไม่สามารถระงับบัญชีตัวเองได้' });
 
-      const [target] = await db.query(
-        `SELECT user_id, role, account_status FROM users
-         WHERE user_id = ?`,
-        [id]
-      );
-      if (!target.length)
+      const target = await AdminUserModel.findRoleAndStatus(id);
+      if (!target)
         return res.status(404).json({ success: false, message: 'ไม่พบผู้ใช้' });
 
       // Admin แตะ SuperAdmin ไม่ได้
-      if (callerRole === 'Admin' && target[0].role === 'SuperAdmin')
+      if (callerRole === 'Admin' && target.role === 'SuperAdmin')
         return res.status(403).json({ success: false, message: 'ไม่สามารถระงับ SuperAdmin ได้' });
 
-      if (!['Admin', 'SuperAdmin'].includes(target[0].role))
+      if (!['Admin', 'SuperAdmin'].includes(target.role))
         return res.status(400).json({ success: false, message: 'ผู้ใช้นี้ไม่ใช่ Admin' });
 
-      if (target[0].account_status !== 'Active')
+      if (target.account_status !== 'Active')
         return res.status(400).json({ success: false, message: 'ระงับได้เฉพาะบัญชีที่มีสถานะ Active เท่านั้น' });
 
-      await db.query(
-        `UPDATE users SET account_status = 'Suspended' WHERE user_id = ?`,
-        [id]
-      );
+      await AdminUserModel.setSuspended(id);
       return res.json({ success: true, message: 'ระงับบัญชี Admin เรียบร้อยแล้ว' });
     } catch (err) { next(err); }
   }
@@ -1161,27 +811,20 @@ records = parse(req.file.buffer, {
       const { id } = req.params;
       const callerRole = req.user.role;
 
-      const [target] = await db.query(
-        `SELECT user_id, role, account_status FROM users
-         WHERE user_id = ?`,
-        [id]
-      );
-      if (!target.length)
+      const target = await AdminUserModel.findRoleAndStatus(id);
+      if (!target)
         return res.status(404).json({ success: false, message: 'ไม่พบผู้ใช้' });
 
-      if (callerRole === 'Admin' && target[0].role === 'SuperAdmin')
+      if (callerRole === 'Admin' && target.role === 'SuperAdmin')
         return res.status(403).json({ success: false, message: 'ไม่สามารถแก้ไข SuperAdmin ได้' });
 
-      if (!['Admin', 'SuperAdmin'].includes(target[0].role))
+      if (!['Admin', 'SuperAdmin'].includes(target.role))
         return res.status(400).json({ success: false, message: 'ผู้ใช้นี้ไม่ใช่ Admin' });
 
-      if (target[0].account_status !== 'Suspended')
+      if (target.account_status !== 'Suspended')
         return res.status(400).json({ success: false, message: 'คืนสถานะได้เฉพาะบัญชีที่ถูกระงับเท่านั้น' });
 
-      await db.query(
-        `UPDATE users SET account_status = 'Active' WHERE user_id = ?`,
-        [id]
-      );
+      await AdminUserModel.setActive(id);
       return res.json({ success: true, message: 'คืนสถานะ Admin เรียบร้อยแล้ว' });
     } catch (err) { next(err); }
   }
@@ -1198,26 +841,20 @@ records = parse(req.file.buffer, {
   static async updateAdmin(req, res, next) {
     try {
       const { id } = req.params;
-      const [target] = await db.query(
-        `SELECT user_id, role, prefix, first_name, last_name, msu_mail
-         FROM users
-         WHERE user_id = ?`,
-        [id]
-      );
-      if (!target.length)
+      const cur = await AdminUserModel.findAdminEditable(id);
+      if (!cur)
         return res.status(404).json({ success: false, message: 'ไม่พบผู้ใช้' });
 
       // Admin แก้ SuperAdmin ไม่ได้ (ยกเว้นบัญชีตัวเอง) — SuperAdmin เป็นตำแหน่งสูงสุด
-      if (req.user.role === 'Admin' && target[0].role === 'SuperAdmin')
+      if (req.user.role === 'Admin' && cur.role === 'SuperAdmin')
         return res.status(403).json({ success: false, message: 'ไม่สามารถแก้ไข SuperAdmin ได้' });
 
-      if (!['Admin', 'SuperAdmin'].includes(target[0].role))
+      if (!['Admin', 'SuperAdmin'].includes(cur.role))
         return res.status(400).json({ success: false, message: 'ผู้ใช้นี้ไม่ใช่ Admin' });
 
       const badField = nonStringField(req.body, ['prefix', 'first_name', 'last_name', 'msu_mail', 'current_password']);
       if (badField) return res.status(400).json({ success: false, code: 'INVALID_INPUT', message: `${badField} ต้องเป็นข้อความ` });
 
-      const cur  = target[0];
       const body = req.body;
 
       const merged = {
@@ -1240,19 +877,19 @@ records = parse(req.file.buffer, {
         if (!password) {
           return res.status(400).json({ success: false, code: 'PASSWORD_REQUIRED', message: 'การเปลี่ยนอีเมลต้องยืนยันด้วยรหัสผ่านปัจจุบันของคุณ (current_password)' });
         }
-        const [actorRows] = await db.query(`SELECT password_hash FROM users WHERE user_id = ?`, [req.user.sub]);
-        const ok = actorRows[0]?.password_hash && await bcryptjs.compare(password, actorRows[0].password_hash);
+        const actorHash = await AdminUserModel.findPasswordHash(req.user.sub);
+        const ok = actorHash && await bcryptjs.compare(password, actorHash);
         if (!ok) {
           return res.status(403).json({ success: false, code: 'INVALID_PASSWORD', message: 'รหัสผ่านไม่ถูกต้อง' });
         }
       }
 
-      await db.query(
-        `UPDATE users
-         SET prefix = ?, first_name = ?, last_name = ?, msu_mail = ?
-         WHERE user_id = ?`,
-        [merged.prefix || null, merged.first_name, merged.last_name, merged.msu_mail, id]
-      );
+      await AdminUserModel.updateAdminProfile(id, {
+        prefix: merged.prefix || null,
+        first_name: merged.first_name,
+        last_name: merged.last_name,
+        msu_mail: merged.msu_mail,
+      });
       if (mailChanged) {
         await OtpModel.invalidateActive(id, 'password_reset');
         // ตัดทุก session ของเจ้าของอีเมล — refresh token ที่อาจหลุดอยู่จะใช้ต่อไม่ได้ (access token เดิมอยู่ได้จนหมดอายุ)
@@ -1283,24 +920,17 @@ records = parse(req.file.buffer, {
       if (Number(id) === callerId)
         return res.status(400).json({ success: false, message: 'ไม่สามารถลบบัญชีตัวเองได้' });
 
-      const [target] = await db.query(
-        `SELECT user_id, role FROM users
-         WHERE user_id = ?`,
-        [id]
-      );
-      if (!target.length)
+      const target = await AdminUserModel.findRole(id);
+      if (!target)
         return res.status(404).json({ success: false, message: 'ไม่พบผู้ใช้' });
 
-      if (target[0].role === 'SuperAdmin')
+      if (target.role === 'SuperAdmin')
         return res.status(403).json({ success: false, message: 'ไม่สามารถลบ SuperAdmin ได้' });
 
-      if (target[0].role !== 'Admin')
+      if (target.role !== 'Admin')
         return res.status(400).json({ success: false, message: 'ผู้ใช้นี้ไม่ใช่ Admin' });
 
-      await db.query(
-        `DELETE FROM users WHERE user_id = ?`,
-        [id]
-      );
+      await AdminUserModel.deleteById(id);
       return res.json({ success: true, message: 'ลบ Admin เรียบร้อยแล้ว' });
     } catch (err) { next(err); }
   }
@@ -1319,19 +949,12 @@ records = parse(req.file.buffer, {
       if (Number(id) === req.user.sub)
         return res.status(400).json({ success: false, message: 'ไม่สามารถลบบัญชีตัวเองได้' });
 
-      const [target] = await db.query(`SELECT user_id, role FROM users WHERE user_id = ?`, [id]);
-      if (!target.length) return res.status(404).json({ success: false, message: 'ไม่พบผู้ใช้' });
-      if (['Admin', 'SuperAdmin'].includes(target[0].role))
+      const target = await AdminUserModel.findRole(id);
+      if (!target) return res.status(404).json({ success: false, message: 'ไม่พบผู้ใช้' });
+      if (['Admin', 'SuperAdmin'].includes(target.role))
         return res.status(403).json({ success: false, message: 'ไม่สามารถลบ Admin ผ่านหน้านี้ได้ ใช้ DELETE /api/admin/admins/:id' });
 
-      const [[used]] = await db.query(
-        `SELECT
-           (SELECT COUNT(*) FROM pre_t3_requests WHERE student_id = ?)        AS pre_t3,
-           (SELECT COUNT(*) FROM t3_requests WHERE student_id = ?)            AS t3,
-           (SELECT COUNT(*) FROM advisor_assignments WHERE advisor_id = ?)    AS advisor_of,
-           (SELECT COUNT(*) FROM request_approvals WHERE approver_id = ?)     AS approvals`,
-        [id, id, id, id]
-      );
+      const used = await AdminUserModel.countRelatedData(id);
       const reasons = [
         used.pre_t3 && `มีคำขอ Pre-T3 ${used.pre_t3} รายการ`,
         used.t3 && `มีคำขอ T3 ${used.t3} รายการ`,
@@ -1345,13 +968,7 @@ records = parse(req.file.buffer, {
           message: `ลบไม่ได้เพราะมีข้อมูลผูกอยู่ (${reasons.join(', ')}) ใช้ระงับบัญชีแทน`,
         });
 
-      const conn = await db.getConnection();
-      try {
-        await conn.beginTransaction();
-        await conn.query(`DELETE FROM advisor_assignments WHERE student_id = ?`, [id]);
-        await conn.query(`DELETE FROM users WHERE user_id = ?`, [id]);
-        await conn.commit();
-      } catch (e) { await conn.rollback(); throw e; } finally { conn.release(); }
+      await AdminUserModel.deleteWithAssignments(id);
       return res.json({ success: true, message: 'ลบผู้ใช้เรียบร้อยแล้ว' });
     } catch (err) { next(err); }
   }
