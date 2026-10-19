@@ -52,7 +52,7 @@ const dbPath = src('config/database.js');
 const ROW = {
   unwanted_id: 7, issn: '1234-5678', journal_name: 'J', publisher: 'P', note: null,
   evidence_file_path: 'uploads/unwanted/evidence/secret-name.pdf', recorded_date: '2026-01-01',
-  created_at: '2026-01-02', first_name: 'สมชาย', last_name: 'ใจดี', msu_mail: 'creator@msu.ac.th',
+  created_at: '2026-01-02',
 };
 const NO_FILE = { ...ROW, unwanted_id: 8, evidence_file_path: null };
 require.cache[dbPath] = {
@@ -66,12 +66,9 @@ const list = async (role) => {
   return res.body.data.journals;
 };
 
-test('getAll: Student/Supervisor ไม่เห็นชื่อ/อีเมลผู้สร้าง และไม่เห็น path ไฟล์บนเซิร์ฟเวอร์', async () => {
+test('getAll: Student/Supervisor ไม่เห็น path ไฟล์บนเซิร์ฟเวอร์', async () => {
   for (const role of ['Student', 'Supervisor']) {
     const [withFile, noFile] = await list(role);
-    assert.equal(withFile.first_name, null);
-    assert.equal(withFile.last_name, null);
-    assert.equal(withFile.msu_mail, null);
     assert.equal(withFile.has_evidence, true);
     assert.equal(withFile.evidence_file_path, '/unwanted-journals/7/evidence'); // truthy ให้ FE ยังโชว์ปุ่มดูไฟล์
     assert.ok(!JSON.stringify(withFile).includes('secret-name'));
@@ -83,8 +80,6 @@ test('getAll: Student/Supervisor ไม่เห็นชื่อ/อีเม�
 test('getAll: Admin/SuperAdmin/Staff เห็นครบเหมือนเดิม', async () => {
   for (const role of ['Admin', 'SuperAdmin', 'Staff']) {
     const [withFile] = await list(role);
-    assert.equal(withFile.msu_mail, 'creator@msu.ac.th');
-    assert.equal(withFile.first_name, 'สมชาย');
     assert.equal(withFile.evidence_file_path, ROW.evidence_file_path);
     assert.equal(withFile.has_evidence, true);
   }

@@ -153,7 +153,7 @@ async function extractSourceDetails(page, issn) {
 async function scrapeScopusByIssn(issn) {
   if (!issn) throw new Error('ISSN is empty');
 
-  const browser = await chromium.launch({ headless: false, slowMo: 400 });
+  const browser = await chromium.launch({ headless: true, slowMo: 400 });
   const context = await browser.newContext();
   const page = await context.newPage();
 

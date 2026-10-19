@@ -176,15 +176,11 @@ CREATE TABLE msu_unwanted_journals (
     note                TEXT         NULL,
     evidence_file_path  VARCHAR(255) NULL,
     recorded_date       DATE         NOT NULL,
-    created_by          INT          NULL,  -- NULL = ผู้สร้างถูกลบบัญชีไปแล้ว
     created_at          TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     PRIMARY KEY (unwanted_id),
     INDEX idx_muj_issn         (issn),
-    INDEX idx_muj_journal_name (journal_name),
-
-    CONSTRAINT fk_muj_created_by FOREIGN KEY (created_by) REFERENCES users (user_id)
-        ON UPDATE CASCADE ON DELETE SET NULL
+    INDEX idx_muj_journal_name (journal_name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 

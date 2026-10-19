@@ -1,276 +1,180 @@
-/**
- * ScopusProxyService
- * จัดการ API Key Rotation + Rate Limit Tracking
- * รองรับหลาย key แบบ Round-robin
- *
- * Rate limit จริงมี 2 ชั้น (ยืนยันด้วยการยิงทดสอบจริง — ดู scripts/scopus-*-result-*.json):
- *   1. Per-second throttle ต่อ key — Elsevier ตัด 429 ที่ ~6 concurrent req/sec ต่อ key
- *      (นับเองใน memory ล้วนๆ เพราะ Elsevier ไม่มี header บอกเรตนี้)
- *   2. Weekly quota ต่อ key (20000 req/สัปดาห์) — อ่านจาก header X-RateLimit-*
- *      หลังทุก response แทนการนับเอง (นับเอง imprecise กว่า อ่านจาก Elsevier ตรงๆ)
- *
- * State persist ลงไฟล์ JSON (write-through, atomic write) เพื่อให้รอด restart —
- * ด้วยเหตุนี้ต้องเลิกใช้ setInterval/setTimeout (ไม่รอด restart) เปลี่ยนเป็น
- * lazy-check เทียบ timestamp ทุกครั้งที่ getNextKey() ถูกเรียกแทน
- */
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
-const config = require('../config');
+//Unix epoch = จำนวนมิลลิวินาทีตั้งแต่ 1970-01-01T00:00:00Z
 
-// ponytail: ตัวเลขจาก burst test จริง (เจอ 429 ครั้งแรกที่ concurrent request ตัวที่ 6)
-// ถ้า Elsevier เปลี่ยนเรต ต้องรัน scripts/test-scopus-rate-limit-burst.js ใหม่แล้วปรับเลขนี้
-// ตั้งทับได้ด้วย env SCOPUS_PER_SECOND_LIMIT (ใช้ทดสอบเทียบอัตรา) — นับเป็นจำนวนคำขอเต็มในหน้าต่าง 1 วินาทีที่เลื่อนไปเรื่อยๆ
-// ค่าทศนิยมจึงทำงานเหมือนปัดขึ้น (2.5 = 3 คำขอ/วินาที)
+const fs = require('fs');                
+const path = require('path');             
+const crypto = require('crypto');         
+const config = require('../config');     
+
 const PER_SECOND_LIMIT = Number(process.env.SCOPUS_PER_SECOND_LIMIT) || 5;
-const UNAVAILABLE_MS = 60 * 60 * 1000; // 1 ชม. — ใช้เมื่อ 429 และไม่รู้ว่า quota เหลือเท่าไร (ไม่มี header)
-const BURST_COOLDOWN_MS = 30 * 1000;  // 429 ที่ quota รายสัปดาห์ยังเหลือ = ชน throttle รายวินาที พักสั้นๆ พอ
-const REJECTED_MS = 24 * 60 * 60 * 1000; // 401/403: key ใช้ไม่ได้ พัก 1 วัน (ค่อยลองใหม่หลังแก้ key หรือรีสตาร์ท)
+const UNAVAILABLE_MS = 60 * 60 * 1000;    
+const BURST_COOLDOWN_MS = 30 * 1000;      
+const REJECTED_MS = 24 * 60 * 60 * 1000; 
 const DEFAULT_WEEKLY_LIMIT = 20000;
 
 const STATE_DIR = path.join(__dirname, '..', '..', 'data');
 const STATE_FILE = path.join(STATE_DIR, 'scopus-proxy-state.json');
 
-// รหัสแทน key ในไฟล์ state — ไม่เก็บ API key จริงลงดิสก์ (B49)
 const keyId = (key) => crypto.createHash('sha256').update(key).digest('hex').slice(0, 16);
 
-/**
- * ตัวจัดการ API key ของ Scopus (singleton — module นี้ export instance เดียว)
- * เรียกจาก: ScopusService (getNextKey → incrementUsage / markKeyUnavailable / markKeyRejected ต่อ 1 คำขอ) และ AdminController.getStats (getStatus สำหรับหน้า dashboard)
- * state ของแต่ละ key เก็บในไฟล์ data/scopus-proxy-state.json โดยใช้ hash ของ key เป็นรหัส (ไม่เก็บ key จริง)
- */
+// ===== class: ตัวจัดการ key =====
 class ScopusProxyService {
-  constructor() {
-    const persisted = this._loadState();
+  constructor() {                         
+    const persisted = this._loadState();  
 
-    // ไฟล์ state เวอร์ชันเก่าใช้ key จริงเป็นคีย์ — อ่านต่อได้ แล้วเขียนทับด้วยรูปแบบ hash ทันที
     const hasLegacy = config.scopus.apiKeys.some(key => persisted[key]);
 
-    let clearedExpired = false;
-    this.keys = config.scopus.apiKeys.map((key, index) => {
-      const saved = persisted[keyId(key)] || persisted[key] || {};
-      // ล็อกที่หมดเวลาแล้วไม่ต้องเก็บต่อ — ไม่งั้นไฟล์ดูเหมือน key ยังถูกพักอยู่
-      const stillLocked = saved.unavailableUntil > Date.now();
-      if (saved.unavailableUntil && !stillLocked) clearedExpired = true;
+    let clearedExpired = false;          
+    this.keys = config.scopus.apiKeys.map((key, index) => {   
+      const saved = persisted[keyId(key)] || persisted[key] || {};  
+      const stillLocked = saved.unavailableUntil > Date.now();     
+      if (saved.unavailableUntil && !stillLocked) clearedExpired = true; 
       return {
-        key,
-        index,
-        weeklyLimit: saved.weeklyLimit ?? DEFAULT_WEEKLY_LIMIT,
+        key,                           
+        index,                           
+        weeklyLimit: saved.weeklyLimit ?? DEFAULT_WEEKLY_LIMIT,        
         weeklyRemaining: saved.weeklyRemaining ?? DEFAULT_WEEKLY_LIMIT,
-        weeklyResetAt: saved.weeklyResetAt ?? null, // unix seconds จาก header X-RateLimit-Reset
-        unavailableUntil: stillLocked ? saved.unavailableUntil : null, // ms epoch, null = available
-        recentRequestTimestamps: [], // per-second throttle — ไม่ persist ตั้งใจ (transient)
+        weeklyResetAt: saved.weeklyResetAt ?? null,                    
+        unavailableUntil: stillLocked ? saved.unavailableUntil : null, // พักถึงเมื่อไร (หน่วย ms) null = ใช้ได้
+        recentRequestTimestamps: [],      // สมุดจดเวลาที่เลือกใช้ key (ไว้นับต่อวินาที ไม่บันทึกลงไฟล์)
       };
     });
-    this.currentIndex = 0;
-    this._writeQueue = Promise.resolve(); // serialize เขียนไฟล์กันไฟล์ state พัง
-    if (hasLegacy || clearedExpired) this._persist().catch(() => {});
+    this.currentIndex = 0;                // ตัวชี้ว่ารอบหน้าเริ่มดู key ตัวไหน
+    this._writeQueue = Promise.resolve(); // คิวเขียนไฟล์ กันเขียนซ้อนกันจนไฟล์พัง
+    if (hasLegacy || clearedExpired) this._persist().catch(() => {});  // ต้องเขียนไฟล์ใหม่ทันที
   }
 
-  /**
-   * ดึง key ถัดไปแบบ Round-robin
-   * ข้าม key ที่: ล็อกจาก 429 จริงอยู่ / หมด weekly quota / ชน per-second throttle
-   *
-   * เรียกจาก: ScopusService._fetchFromApi (ทุกคำขอ และทุกครั้งที่ต้องเปลี่ยน key)
-   * @returns {Promise<{key:string, index:number}>} object ของ key ที่เลือก (ส่ง index ต่อให้ incrementUsage/markKey*)
-   * throw code 'SCOPUS_QUOTA_EXCEEDED' เมื่อไม่มี key ใดใช้ได้
-   */
-  async getNextKey() {
-    const total = this.keys.length;
-    let attempts = 0;
+  // ===== เลือก key =====
+  async getNextKey() {                    
+    const total = this.keys.length;       
+    let attempts = 0;                     // นับว่าดู key ไปแล้วกี่ตัวในรอบนี้
 
-    while (attempts < total) {
-      const keyObj = this.keys[this.currentIndex];
-      this.currentIndex = (this.currentIndex + 1) % total;
-      attempts++;
+    while (attempts < total) {            // ลองไม่เกิน 1 รอบวงของ key
+      const keyObj = this.keys[this.currentIndex];            // หยิบ key ตัวที่ถึงคิว
+      this.currentIndex = (this.currentIndex + 1) % total;    // ขยับตัวชี้ไปตัวถัดไป วนกลับต้นเมื่อสุด
+      attempts++;                         
 
-      if (this._isLocked(keyObj)) continue;
-      if (keyObj.weeklyRemaining !== null && keyObj.weeklyRemaining <= 0) {
-        // weekly reset ผ่านไปแล้วตาม header เดิม แต่ยังไม่มี response ใหม่มา update —
-        // ให้ลองใหม่ได้ ปล่อยให้ response ถัดไปแก้ตัวเลขให้ถูกต้องเอง
-        if (keyObj.weeklyResetAt && Date.now() / 1000 >= keyObj.weeklyResetAt) {
-          keyObj.weeklyRemaining = keyObj.weeklyLimit;
-          await this._persist(); // เขียนลงไฟล์ทันที ให้ตรงกับ "write-through" ตามที่ตั้งใจไว้
+      if (this._isLocked(keyObj)) continue;                  
+      if (keyObj.weeklyRemaining !== null && keyObj.weeklyRemaining <= 0) {  
+        if (keyObj.weeklyResetAt && Date.now() / 1000 >= keyObj.weeklyResetAt) {  
+          keyObj.weeklyRemaining = keyObj.weeklyLimit;        
+          await this._persist();                           
         } else {
-          continue;
+          continue;                                          
         }
       }
-      if (this._isThrottled(keyObj)) continue;
+      if (this._isThrottled(keyObj)) continue;                // ยิงครบลิมิตต่อวินาทีแล้ว → ข้าม
 
-      // นับ timestamp ตอน "เลือก" key นี้เลย ไม่ใช่ตอน response กลับมา (ใน
-      // incrementUsage() เดิม) — ฟังก์ชันนี้ไม่มี await เลยก่อนจุดนี้ เลยไม่มี
-      // request อื่นมาแทรกได้ กัน concurrent request หลายตัวผ่าน throttle check
-      // พร้อมกันหมดก่อนตัวไหนจะ resolve จริง (burst เกิน PER_SECOND_LIMIT)
-      keyObj.recentRequestTimestamps.push(Date.now());
-
-      return keyObj;
+      keyObj.recentRequestTimestamps.push(Date.now());        // จดเวลาตอน "เลือก"
+      return keyObj;                                        
     }
 
-    throw Object.assign(new Error('All Scopus API keys are throttled, rate-limited, or out of quota'), { code: 'SCOPUS_QUOTA_EXCEEDED' });
+    throw Object.assign(new Error('All Scopus API keys ...'), { code: 'SCOPUS_QUOTA_EXCEEDED' });
   }
 
-  /**
-   * เพิ่มนับ usage หลังใช้ key สำเร็จ
-   * rateLimitHeaders: axios response.headers (lowercase keys) — ใช้ค่าจาก Elsevier
-   * แทนการนับเอง เพราะแม่นกว่า (ยืนยันแล้วจากการทดสอบยิงจริง 500 request ไม่มี drift)
-   *
-   * เรียกจาก: ScopusService._fetchFromApi หลังได้ response สำเร็จ
-   * @param {number} keyIndex index จาก getNextKey
-   * @param {object} [rateLimitHeaders] response.headers ของ axios (อ่าน x-ratelimit-limit/remaining/reset)
-   */
-  async incrementUsage(keyIndex, rateLimitHeaders = null) {
-    const keyObj = this.keys[keyIndex];
-    if (!keyObj) return;
-
-    // recentRequestTimestamps ถูกนับไปแล้วตอน getNextKey() เลือก key นี้
-    this._applyRateLimitHeaders(keyObj, rateLimitHeaders);
-    await this._persist();
+  // ===== หลังยิงสำเร็จ =====
+  async incrementUsage(keyIndex, rateLimitHeaders = null) {   
+    const keyObj = this.keys[keyIndex];  
+    if (!keyObj) return;                 
+    this._applyRateLimitHeaders(keyObj, rateLimitHeaders);    // อ่านโควตาล่าสุดจาก header ของ Elsevier มาอัปเดต
+    await this._persist();                
   }
 
-  /**
-   * Mark key ว่าไม่ available ชั่วคราว (เจอ 429 จริงหลังหลุดรอด throttle แล้ว)
-   * ใช้ timestamp แทน setTimeout เพื่อให้รอด restart (lazy-check ใน getNextKey/_isLocked)
-   *
-   * rateLimitHeaders (ถ้ามี — axios ใส่ header มาให้แม้ status เป็น error) ใช้แยกว่า
-   * 429 นี้เป็น weekly quota หมดจริงหรือแค่ burst throttle ชั่วคราว: ถ้า header บอกว่า
-   * weeklyRemaining <= 0 จริง ล็อคยาวจนถึง weeklyResetAt แทนที่จะล็อคแค่ 1 ชม. คงที่
-   * (ของเดิมปลดล็อคหลัง 1 ชม. แล้วโดน 429 ซ้ำวนไปเรื่อยๆ ทั้งที่ quota ยังไม่รีเซ็ตจริง)
-   *
-   * เรียกจาก: ScopusService._fetchFromApi เมื่อได้ HTTP 429
-   * @param {number} keyIndex
-   * @param {object} [rateLimitHeaders] header จาก error response ใช้แยกว่า quota รายสัปดาห์หมดจริงหรือแค่ชน throttle
-   */
+  // ===== เมื่อได้ 429 =====
   async markKeyUnavailable(keyIndex, rateLimitHeaders = null) {
     const keyObj = this.keys[keyIndex];
     if (!keyObj) return;
+    this._applyRateLimitHeaders(keyObj, rateLimitHeaders);    // อัปเดตโควตาจาก header (ถ้ามี)
 
-    this._applyRateLimitHeaders(keyObj, rateLimitHeaders);
+    const quotaExhausted = keyObj.weeklyRemaining !== null && keyObj.weeklyRemaining <= 0;   
+    const resetMs = keyObj.weeklyResetAt ? keyObj.weeklyResetAt * 1000 : null;                // แปลงเวลา reset จากวินาทีเป็น ms
 
-    const quotaExhausted = keyObj.weeklyRemaining !== null && keyObj.weeklyRemaining <= 0;
-    const resetMs = keyObj.weeklyResetAt ? keyObj.weeklyResetAt * 1000 : null;
-
-    const quotaKnownLeft = keyObj.weeklyRemaining !== null && keyObj.weeklyRemaining > 0;
+    const quotaKnownLeft = keyObj.weeklyRemaining !== null && keyObj.weeklyRemaining > 0;     // รู้ว่าโควตายังเหลือไหม
     keyObj.unavailableUntil = (quotaExhausted && resetMs && resetMs > Date.now())
-      ? resetMs
+      ? resetMs                                                  
       : Date.now() + (quotaKnownLeft ? BURST_COOLDOWN_MS : UNAVAILABLE_MS);
-
-    console.warn(`[ScopusProxy] key #${keyIndex} ได้ 429 จาก Elsevier — พักถึง ${new Date(keyObj.unavailableUntil).toISOString()} (โควตารายสัปดาห์เหลือ ${keyObj.weeklyRemaining})`);
-    await this._persist();
+                                                                
+    console.warn(`[ScopusProxy] key #${keyIndex} ได้ 429 ...`); 
+    await this._persist();                                       
   }
 
-  /**
-   * key ถูก Elsevier ปฏิเสธ (401/403) — พักยาวเพื่อไม่ให้ทุกคำขอไปชน key ที่ใช้ไม่ได้ซ้ำๆ
-   *
-   * เรียกจาก: ScopusService._fetchFromApi เมื่อได้ HTTP 401/403
-   * @param {number} keyIndex
-   */
-  async markKeyRejected(keyIndex) {
+  // ===== เมื่อ key ถูกปฏิเสธ =====
+  async markKeyRejected(keyIndex) {       // เรียกเมื่อได้ 401/403
     const keyObj = this.keys[keyIndex];
     if (!keyObj) return;
-    console.error(`[ScopusProxy] key #${keyIndex} ถูกปฏิเสธ (401/403) — พัก 24 ชั่วโมง ตรวจ key ใน .env`);
-    keyObj.unavailableUntil = Date.now() + REJECTED_MS;
-    try { await this._persist(); } catch (_) { /* state เขียนพังไม่ควรบังคับให้คำขอล้ม */ }
+    console.error(`[ScopusProxy] key #${keyIndex} ถูกปฏิเสธ ...`);   
+    keyObj.unavailableUntil = Date.now() + REJECTED_MS;          // พักไป 24 ชั่วโมง
+    try { await this._persist(); } catch (_) { }                
   }
 
-  /**
-   * อัปเดต weeklyLimit/weeklyRemaining/weeklyResetAt ของ key จาก header ของ Elsevier
-   * เรียกจาก: incrementUsage, markKeyUnavailable
-   */
+  // ===== อ่าน header ของ Elsevier =====
   _applyRateLimitHeaders(keyObj, rateLimitHeaders) {
-    if (!rateLimitHeaders) return;
-    const limit = parseInt(rateLimitHeaders['x-ratelimit-limit'], 10);
-    const remaining = parseInt(rateLimitHeaders['x-ratelimit-remaining'], 10);
-    const reset = parseInt(rateLimitHeaders['x-ratelimit-reset'], 10);
-    if (!isNaN(limit)) keyObj.weeklyLimit = limit;
+    if (!rateLimitHeaders) return;                               
+    const limit = parseInt(rateLimitHeaders['x-ratelimit-limit'], 10);         // โควตาทั้งหมด
+    const remaining = parseInt(rateLimitHeaders['x-ratelimit-remaining'], 10); // โควตาที่เหลือ
+    const reset = parseInt(rateLimitHeaders['x-ratelimit-reset'], 10);         // เวลา reset (วินาที)
+    if (!isNaN(limit)) keyObj.weeklyLimit = limit;               // แปลงได้ถึงจะอัปเดต (กัน NaN ทับค่าเดิม)
     if (!isNaN(remaining)) keyObj.weeklyRemaining = remaining;
     if (!isNaN(reset)) keyObj.weeklyResetAt = reset;
   }
 
-  /**
-   * ดูสถานะ keys ทั้งหมด (สำหรับ admin dashboard)
-   *
-   * เรียกจาก: AdminController.getStats (ใส่ใน apiKeyStats ของหน้า dashboard ผู้ดูแล)
-   * @returns {object[]} สถานะ key ละ 1 รายการ (ไม่มี key จริง เห็นแค่ 4 ตัวท้าย)
-   */
+  // ===== ดูสถานะ (หน้า dashboard) =====
   getStatus() {
     return this.keys.map(k => ({
-      index: k.index,
-      weeklyUsage: k.weeklyLimit - k.weeklyRemaining,
-      weeklyLimit: k.weeklyLimit,
-      remaining: k.weeklyRemaining,
-      weeklyResetAt: k.weeklyResetAt,
-      isAvailable: !this._isLocked(k),
-      keyPreview: k.key ? `…${k.key.slice(-4)}` : 'N/A', // 4 ตัวท้ายพอให้แยก key ได้
+      index: k.index,                                  
+      weeklyUsage: k.weeklyLimit - k.weeklyRemaining, 
+      weeklyLimit: k.weeklyLimit,                     
+      remaining: k.weeklyRemaining,                   
+      weeklyResetAt: k.weeklyResetAt,                 
+      isAvailable: !this._isLocked(k),                 
+      keyPreview: k.key ? `…${k.key.slice(-4)}` : 'N/A',   // โชว์แค่ 4 ตัวท้าย ไม่เปิดเผย key เต็ม
     }));
   }
 
-  // ===== Internal =====
-
-  /**
-   * key ถูกพักอยู่ (unavailableUntil ยังไม่ถึง) หรือไม่ · เรียกจาก: getNextKey, getStatus
-   * หมดเวลาพักแล้ว → ล้างเป็น null (เขียนลงไฟล์ตอน _persist ครั้งถัดไป ซึ่งเกิดทุกคำขอที่ได้ response)
-   */
-  _isLocked(keyObj) {
-    if (keyObj.unavailableUntil === null) return false;
-    if (Date.now() < keyObj.unavailableUntil) return true;
-    keyObj.unavailableUntil = null;
-    return false;
+  // ===== ฟังก์ชันภายใน =====
+  _isLocked(keyObj) {                                  // key ถูกพักอยู่ไหม
+    if (keyObj.unavailableUntil === null) return false;         
+    if (Date.now() < keyObj.unavailableUntil) return true;      
+    keyObj.unavailableUntil = null;                             
+    return false;                                              
   }
 
-  /**
-   * เช็คว่า key นี้ถูกใช้ถึง PER_SECOND_LIMIT ภายใน 1 วินาทีล่าสุดแล้วหรือยัง (ล้าง timestamp เก่าให้ด้วย) · เรียกจาก: getNextKey
-   */
-  _isThrottled(keyObj) {
-    const now = Date.now();
+  _isThrottled(keyObj) {                               
+    const now = Date.now();                                       
     keyObj.recentRequestTimestamps = keyObj.recentRequestTimestamps.filter(t => now - t < 1000);
-    return keyObj.recentRequestTimestamps.length >= PER_SECOND_LIMIT;
+                                                                 // เก็บเฉพาะเวลาที่ห่างไม่ถึง 1 วินาที (ทิ้งอันเก่า)
+    return keyObj.recentRequestTimestamps.length >= PER_SECOND_LIMIT;   // เหลือถึง 5 = ชนลิมิต
   }
 
-  /**
-   * อ่าน state จากไฟล์ตอน constructor — ไม่มีไฟล์/ไฟล์เสียคืน {} · เรียกจาก: constructor
-   */
-  _loadState() {
+  _loadState() {                                      
     try {
-      const raw = fs.readFileSync(STATE_FILE, 'utf8');
-      return JSON.parse(raw);
+      const raw = fs.readFileSync(STATE_FILE, 'utf8');           
+      return JSON.parse(raw);                                   
     } catch (_) {
-      return {}; // ไม่มีไฟล์ (first run) หรือไฟล์เสีย — เริ่มจาก default ทั้งหมด
+      return {};                                                
     }
   }
 
-  /**
-   * เขียน state ลงไฟล์ผ่านคิวเรียงลำดับ · เรียกจาก: constructor (ถ้าเจอรูปแบบเก่า), getNextKey, incrementUsage, markKeyUnavailable, markKeyRejected
-   */
-  async _persist() {
-    const snapshot = {};
+  async _persist() {                                   // เขียนสถานะลงไฟล์
+    const snapshot = {};                                         
     for (const k of this.keys) {
-      snapshot[keyId(k.key)] = {
+      snapshot[keyId(k.key)] = {                                 
         weeklyLimit: k.weeklyLimit,
         weeklyRemaining: k.weeklyRemaining,
         weeklyResetAt: k.weeklyResetAt,
-        unavailableUntil: k.unavailableUntil,
+        unavailableUntil: k.unavailableUntil,                    
       };
     }
-
-    // serialize เขียนไฟล์ผ่าน queue กันสอง request พร้อมกันเขียนแข่งกันจนไฟล์พัง
-    // .catch(() => {}) ก่อน .then() กัน queue ค้าง rejected ถาวรถ้าเขียนครั้งก่อนพัง
-    // (ไม่งั้น incrementUsage()/markKeyUnavailable() ถัดไปทุกครั้งจะ throw ตลอดไป
-    // จนกว่า process จะ restart) — แต่ยัง reject การเขียนครั้งนี้ให้ caller เห็นอยู่
     const task = this._writeQueue.catch(() => {}).then(() => this._writeAtomic(snapshot));
-    this._writeQueue = task.catch(() => {});
-    return task;
+    this._writeQueue = task.catch(() => {});                     
+    return task;                                                 
   }
 
-  /**
-   * เขียนไฟล์ชั่วคราวแล้ว rename ทับ (atomic) · เรียกจาก: _persist
-   */
-  async _writeAtomic(snapshot) {
-    await fs.promises.mkdir(STATE_DIR, { recursive: true });
-    const tmpFile = `${STATE_FILE}.${process.pid}.tmp`;
-    await fs.promises.writeFile(tmpFile, JSON.stringify(snapshot, null, 2));
-    await fs.promises.rename(tmpFile, STATE_FILE); // rename เป็น atomic operation
+  async _writeAtomic(snapshot) {                       // เขียนไฟล์แบบ atomic
+    await fs.promises.mkdir(STATE_DIR, { recursive: true });    
+    const tmpFile = `${STATE_FILE}.${process.pid}.tmp`;          // ไฟล์ชั่วคราว (มีเลข process กันชื่อชน)
+    await fs.promises.writeFile(tmpFile, JSON.stringify(snapshot, null, 2));   // เขียนลงไฟล์ชั่วคราวก่อน
+    await fs.promises.rename(tmpFile, STATE_FILE);               // แล้วสลับชื่อทับไฟล์จริง
   }
 }
 
-// Singleton instance
-module.exports = new ScopusProxyService();
+module.exports = new ScopusProxyService();            

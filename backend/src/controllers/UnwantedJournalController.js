@@ -3,14 +3,14 @@
  * Base path: /api/admin/unwanted-journals
  * เฉพาะ Admin, SuperAdmin, Staff
  */
-const db = require('../config/database');
+const UnwantedJournalModel = require('../models/UnwantedJournalModel');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { parse } = require('csv-parse/sync');
 const { serverError } = require('../utils/errorResponse');
-const { parsePagination, normalizeIssn, nonStringField, likeContains } = require('../utils/input');
+const { parsePagination, normalizeIssn, nonStringField } = require('../utils/input');
 const { toMysqlDate } = require('../utils/date');
 
 const MAX_IMPORT_ROWS = 2000;
@@ -67,40 +67,6 @@ const uploadEvidence = multer({
   limits: { fileSize: 10 * 1024 * 1024, files: 1, fields: 10, fieldSize: 64 * 1024 },
 }).single('evidence_file');
 
-// เขียนตาราง msu_unwanted_journals ทีละคน (ล็อกระดับ MySQL ข้าม connection/instance) — คอลัมน์ issn เป็นแค่ INDEX
-// ไม่ใช่ UNIQUE การ "เช็คซ้ำแล้วค่อย insert" จึงชนกันได้ถ้าสองคำขอมาพร้อมกัน (B52)
-const WRITE_LOCK = 'msu_unwanted_journals_write';
-/**
- * ขอ lock ระดับ MySQL (GET_LOCK) ก่อนเขียนตาราง msu_unwanted_journals เพื่อกันสองคำขอเช็คซ้ำแล้ว insert ชนกัน
- * เรียกจาก: createOne, importCsv, updateOne (เมื่อ ISSN เปลี่ยน)
- * @returns {Promise<() => Promise<void>>} ฟังก์ชันปล่อย lock ต้องเรียกใน finally · throw code 'LOCK_TIMEOUT' ถ้ารอเกิน 10 วินาที (ผู้เรียกตอบ 503 BUSY)
- */
-async function acquireWriteLock() {
-  const conn = await db.getConnection();
-  try {
-    const [[r]] = await conn.query('SELECT GET_LOCK(?, 10) AS got', [WRITE_LOCK]);
-    if (r.got !== 1) throw Object.assign(new Error('unwanted-journals write lock timeout'), { code: 'LOCK_TIMEOUT' });
-  } catch (e) { conn.release(); throw e; }
-  return async () => {
-    try { await conn.query('SELECT RELEASE_LOCK(?)', [WRITE_LOCK]); } finally { conn.release(); }
-  };
-}
-
-/**
- * เช็คว่า ISSN (รูปแบบ XXXX-XXXX) ซ้ำกับแถวอื่นไหม
- * เรียกจาก: createOne, updateOne
- * @param {string} issn
- * @param {number} [exceptId] unwanted_id ที่ไม่นับ (ใช้ตอนแก้ไขแถวตัวเอง)
- */
-// ISSN (normalize แล้ว) ซ้ำกับแถวอื่นไหม — เทียบทั้งแบบมี/ไม่มีขีด เผื่อแถวเก่าเก็บไม่มีขีด
-async function issnExists(issn, exceptId = 0) {
-  const [rows] = await db.query(
-    'SELECT unwanted_id FROM msu_unwanted_journals WHERE issn IN (?, ?) AND unwanted_id != ? LIMIT 1',
-    [issn, issn.replace('-', ''), exceptId]
-  );
-  return rows.length > 0;
-}
-
 /**
  * Controller รายการวารสารที่ไม่พึงประสงค์ของ มมส. (ตาราง msu_unwanted_journals) — ผูกใน routes/unwantedJournalRoutes.js (base path /api/v3/unwanted-journals)
  * ทุก route ผ่าน requireAuth · เส้นเขียน (single, import, PATCH, DELETE) จำกัด Admin/SuperAdmin/Staff ที่ route
@@ -128,23 +94,13 @@ class UnwantedJournalController {
         return res.status(400).json({ success: false, message: 'รูปแบบ ISSN ไม่ถูกต้อง (เช่น 1234-5678)' });
       }
 
-      const [rows] = await db.query(
-        `SELECT
-          unwanted_id, issn, journal_name, publisher,
-          note, recorded_date, created_at
-         FROM msu_unwanted_journals
-         WHERE issn IN (?, ?)
-         LIMIT 1`,
-        [issn, issn.replace('-', '')]
-      );
-
-      const found = rows.length > 0;
+      const journal = await UnwantedJournalModel.findByIssn(issn);
 
       return res.json({
         success: true,
         data: {
-          isUnwanted: found,
-          journal: found ? rows[0] : null,
+          isUnwanted: !!journal,
+          journal,
         },
       });
     } catch (err) { next(err); }
@@ -164,44 +120,9 @@ class UnwantedJournalController {
       const { search } = req.query;
       const { page, limit, offset } = parsePagination(req.query);
 
-      let where = ['1=1'];
-      const params = [];
+      const { rows, total } = await UnwantedJournalModel.search({ search, limit, offset });
 
-      if (search) {
-        const like = likeContains(search);
-        // ISSN เก็บเป็น XXXX-XXXX → ค้น "12345678" ต้องเทียบแบบตัดขีดด้วย ไม่งั้นไม่เจอ
-        const digits = String(search).replace(/[\s-]/g, '');
-        if (digits.length >= 4 && /^[0-9Xx]+$/.test(digits)) {
-          where.push("(journal_name LIKE ? OR issn LIKE ? OR REPLACE(issn, '-', '') LIKE ? OR publisher LIKE ?)");
-          params.push(like, like, `%${digits}%`, like);
-        } else {
-          where.push('(journal_name LIKE ? OR issn LIKE ? OR publisher LIKE ?)');
-          params.push(like, like, like);
-        }
-      }
-
-      const whereSQL = where.join(' AND ');
-
-      const [countRows] = await db.query(
-        `SELECT COUNT(*) AS total FROM msu_unwanted_journals uj WHERE ${whereSQL}`,
-        params
-      );
-
-      const [rows] = await db.query(
-        `SELECT
-          uj.unwanted_id, uj.issn, uj.journal_name, uj.publisher,
-          uj.note, uj.evidence_file_path, uj.recorded_date,
-          uj.created_at,
-          u.first_name, u.last_name, u.msu_mail
-         FROM msu_unwanted_journals uj
-         LEFT JOIN users u ON u.user_id = uj.created_by
-         WHERE ${whereSQL}
-         ORDER BY uj.created_at DESC
-         LIMIT ? OFFSET ?`,
-        [...params, Number(limit), offset]
-      );
-
-      // ผู้สร้างรายการ (ชื่อ/อีเมล) และ path ไฟล์บนเซิร์ฟเวอร์ เห็นได้เฉพาะผู้จัดการรายการ — role อื่นได้แค่ว่ามีไฟล์หรือไม่
+      // path ไฟล์บนเซิร์ฟเวอร์ เห็นได้เฉพาะผู้จัดการรายการ — role อื่นได้แค่ว่ามีไฟล์หรือไม่
       // evidence_file_path ของ role อื่นเป็นเส้นทางดาวน์โหลดตาม id (FE ใช้เป็นแค่ตัวบอกว่ามีไฟล์) ไม่ใช่ path จริง (B49)
       const isManager = ['Admin', 'SuperAdmin', 'Staff'].includes(req.user.role);
       const journals = rows.map(r => {
@@ -209,7 +130,6 @@ class UnwantedJournalController {
         if (isManager) return { ...r, has_evidence };
         return {
           ...r,
-          first_name: null, last_name: null, msu_mail: null,
           has_evidence,
           evidence_file_path: has_evidence ? `/unwanted-journals/${r.unwanted_id}/evidence` : null,
         };
@@ -220,10 +140,10 @@ class UnwantedJournalController {
         data: {
           journals,
           pagination: {
-            total: Number(countRows[0].total),
+            total,
             page:  Number(page),
             limit: Number(limit),
-            totalPages: Math.ceil(Number(countRows[0].total) / Number(limit)),
+            totalPages: Math.ceil(total / Number(limit)),
           },
         },
       });
@@ -233,7 +153,7 @@ class UnwantedJournalController {
   /**
    * เรียกจาก: routes/unwantedJournalRoutes.js — POST /single (Admin/SuperAdmin/Staff)
    * รับ multipart: issn?, journal_name (บังคับ), publisher?, note?, recorded_date (บังคับ) + ไฟล์ evidence_file? (uploadEvidence → req.file)
-   * ลำดับ: ตรวจ magic bytes (verifyFileType) → nonStringField → normalizeIssn → acquireWriteLock + issnExists → INSERT (created_by = req.user.sub)
+   * ลำดับ: ตรวจ magic bytes (verifyFileType) → nonStringField → normalizeIssn → acquireWriteLock + issnExists → INSERT
    * ถ้าไม่ผ่านขั้นไหนจะลบไฟล์ที่เพิ่งอัปโหลดทิ้ง · ตอบ 201
    */
   // ============================================================
@@ -284,8 +204,8 @@ class UnwantedJournalController {
         }
 
         if (issnNorm) {
-          release = await acquireWriteLock();
-          if (await issnExists(issnNorm)) {
+          release = await UnwantedJournalModel.acquireWriteLock();
+          if (await UnwantedJournalModel.issnExists(issnNorm)) {
             if (req.file) removeFile(req.file.path);
             return res.status(400).json({ success: false, message: `ISSN ${issn} มีอยู่ในรายการแล้ว` });
           }
@@ -295,20 +215,14 @@ class UnwantedJournalController {
           ? path.relative(process.cwd(), req.file.path).replace(/\\/g, '/')
           : null;
 
-        await db.query(
-          `INSERT INTO msu_unwanted_journals
-             (issn, journal_name, publisher, note, evidence_file_path, recorded_date, created_by)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [
-            issnNorm,
-            journal_name.trim(),
-            publisher?.trim() || null,
-            note?.trim() || null,
-            evidenceFilePath,
-            recorded_date,
-            req.user.sub,
-          ]
-        );
+        await UnwantedJournalModel.create({
+          issn: issnNorm,
+          journal_name: journal_name.trim(),
+          publisher: publisher?.trim() || null,
+          note: note?.trim() || null,
+          evidence_file_path: evidenceFilePath,
+          recorded_date,
+        });
 
         return res.status(201).json({ success: true, message: 'เพิ่มวารสารเรียบร้อยแล้ว' });
       } catch (err2) {
@@ -363,7 +277,7 @@ class UnwantedJournalController {
           return res.status(400).json({ success: false, code: 'TOO_MANY_ROWS', message: `ไฟล์มี ${records.length} แถว เกินที่รองรับ (สูงสุด ${MAX_IMPORT_ROWS} แถวต่อไฟล์) กรุณาแบ่งไฟล์` });
 
         const errors = [];
-        release = await acquireWriteLock();
+        release = await UnwantedJournalModel.acquireWriteLock();
 
         records.forEach(r => {
           r._issn = r.issn?.trim() ? normalizeIssn(r.issn) : null;
@@ -373,14 +287,7 @@ class UnwantedJournalController {
         // ISSN ที่มีอยู่แล้วใน DB — query ครั้งเดียว (เดิมต่อแถว) · นับซ้ำในไฟล์ด้วย Map (เดิม filter ต่อแถว = O(n²))
         const fileIssns = new Map();
         for (const r of records) if (r._issn) fileIssns.set(r._issn, (fileIssns.get(r._issn) || 0) + 1);
-        const existingIssns = new Set();
-        if (fileIssns.size) {
-          const [dbRows] = await db.query(
-            'SELECT issn FROM msu_unwanted_journals WHERE issn IN (?)',
-            [[...fileIssns.keys()].flatMap(i => [i, i.replace('-', '')])]
-          );
-          for (const r of dbRows) existingIssns.add(normalizeIssn(r.issn));
-        }
+        const existingIssns = await UnwantedJournalModel.findExistingIssns([...fileIssns.keys()]);
         for (let i = 0; i < records.length; i++) {
           const row = records[i];
           const rowNum = i + 2;
@@ -408,35 +315,13 @@ class UnwantedJournalController {
           });
         }
 
-        let imported = 0;
-        const conn = await db.getConnection();
-        try {
-          await conn.beginTransaction();
-
-          for (const row of records) {
-            await conn.query(
-              `INSERT INTO msu_unwanted_journals
-                 (issn, journal_name, publisher, note, recorded_date, created_by)
-               VALUES (?, ?, ?, ?, ?, ?)`,
-              [
-                row._issn,
-                row.journal_name.trim(),
-                row.publisher?.trim() || null,
-                row.note?.trim() || null,
-                row._date,
-                req.user.sub,
-              ]
-            );
-            imported++;
-          }
-
-          await conn.commit();
-        } catch (txErr) {
-          await conn.rollback();
-          throw txErr;
-        } finally {
-          conn.release();
-        }
+        const imported = await UnwantedJournalModel.createMany(records.map(row => ({
+          issn: row._issn,
+          journal_name: row.journal_name.trim(),
+          publisher: row.publisher?.trim() || null,
+          note: row.note?.trim() || null,
+          recorded_date: row._date,
+        })));
 
         return res.json({
           success: true,
@@ -489,17 +374,12 @@ class UnwantedJournalController {
         }
 
         const { id } = req.params;
-        const [target] = await db.query(
-          `SELECT * FROM msu_unwanted_journals
-           WHERE unwanted_id = ?`,
-          [id]
-        );
-        if (!target.length) {
+        const cur = await UnwantedJournalModel.findById(id);
+        if (!cur) {
           if (req.file) removeFile(req.file.path);
           return res.status(404).json({ success: false, message: 'ไม่พบวารสาร' });
         }
 
-        const cur = target[0];
         const body = req.body;
 
         const merged = {
@@ -524,8 +404,8 @@ class UnwantedJournalController {
 
         // เช็ค ISSN ซ้ำกับ record อื่น (schema เป็นแค่ INDEX ไม่ใช่ UNIQUE เลย DB ไม่กันให้)
         if (merged.issn && merged.issn !== cur.issn) {
-          release = await acquireWriteLock();
-          if (await issnExists(merged.issn, Number(id))) {
+          release = await UnwantedJournalModel.acquireWriteLock();
+          if (await UnwantedJournalModel.issnExists(merged.issn, Number(id))) {
             if (req.file) removeFile(req.file.path);
             return res.status(400).json({ success: false, message: `ISSN ${merged.issn} มีอยู่ในรายการแล้ว` });
           }
@@ -547,14 +427,14 @@ class UnwantedJournalController {
           newEvidencePath = null;
         }
 
-        await db.query(
-          `UPDATE msu_unwanted_journals
-           SET issn = ?, journal_name = ?, publisher = ?, note = ?,
-               evidence_file_path = ?, recorded_date = ?
-           WHERE unwanted_id = ?`,
-          [merged.issn, merged.journal_name, merged.publisher, merged.note,
-           newEvidencePath, merged.recorded_date, id]
-        );
+        await UnwantedJournalModel.update(id, {
+          issn: merged.issn,
+          journal_name: merged.journal_name,
+          publisher: merged.publisher,
+          note: merged.note,
+          evidence_file_path: newEvidencePath,
+          recorded_date: merged.recorded_date,
+        });
 
         // UPDATE สำเร็จแล้วค่อยลบไฟล์เก่าทิ้ง
         if (oldPathToDelete) removeFile(oldPathToDelete);
@@ -582,16 +462,12 @@ class UnwantedJournalController {
   static async getEvidenceFile(req, res, next) {
     try {
       const { id } = req.params;
-      const [rows] = await db.query(
-        `SELECT evidence_file_path FROM msu_unwanted_journals
-         WHERE unwanted_id = ?`,
-        [id]
-      );
+      const row = await UnwantedJournalModel.findEvidenceById(id);
 
-      if (!rows.length)
+      if (!row)
         return res.status(404).json({ success: false, message: 'ไม่พบวารสาร' });
 
-      const filePath = rows[0].evidence_file_path;
+      const filePath = row.evidence_file_path;
       if (!filePath)
         return res.status(404).json({ success: false, message: 'ไม่มีไฟล์หลักฐาน' });
 
@@ -613,22 +489,15 @@ class UnwantedJournalController {
   static async deleteOne(req, res, next) {
     try {
       const { id } = req.params;
-      const [target] = await db.query(
-        `SELECT unwanted_id, evidence_file_path FROM msu_unwanted_journals
-         WHERE unwanted_id = ?`,
-        [id]
-      );
-      if (!target.length)
+      const target = await UnwantedJournalModel.findEvidenceById(id);
+      if (!target)
         return res.status(404).json({ success: false, message: 'ไม่พบวารสาร' });
 
-      await db.query(
-        `DELETE FROM msu_unwanted_journals WHERE unwanted_id = ?`,
-        [id]
-      );
+      await UnwantedJournalModel.deleteById(id);
 
       // ลบไฟล์หลักฐานหลัง DELETE สำเร็จ — ไฟล์หายไปแล้วก็ไม่เป็นไร
-      if (target[0].evidence_file_path) {
-        fs.promises.unlink(path.join(process.cwd(), target[0].evidence_file_path)).catch(() => {});
+      if (target.evidence_file_path) {
+        fs.promises.unlink(path.join(process.cwd(), target.evidence_file_path)).catch(() => {});
       }
 
       return res.json({ success: true, message: 'ลบวารสารเรียบร้อยแล้ว' });

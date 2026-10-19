@@ -1307,7 +1307,7 @@ records = parse(req.file.buffer, {
 
   /**
    * เรียกจาก: routes/userManageRoutes.js — DELETE /:id (Admin/SuperAdmin) · ลบถาวร Student/Supervisor/Staff (Admin/SuperAdmin ใช้ DELETE /admin/admins/:id)
-   * ลบไม่ได้ (409 USER_HAS_DATA) ถ้ามีข้อมูลผูกอยู่ เพื่อไม่ให้ประวัติคำขอหาย: นิสิตที่มี Pre-T3/T3 · อาจารย์ที่ยังเป็นที่ปรึกษา/เคยตัดสินคำขอ (รายการ unwanted ที่คนนี้สร้างไว้ยังอยู่ created_by เป็น NULL ตาม FK SET NULL)
+   * ลบไม่ได้ (409 USER_HAS_DATA) ถ้ามีข้อมูลผูกอยู่ เพื่อไม่ให้ประวัติคำขอหาย: นิสิตที่มี Pre-T3/T3 · อาจารย์ที่ยังเป็นที่ปรึกษา/เคยตัดสินคำขอ
    * นิสิตที่มีแค่การมอบหมายอาจารย์ (advisor_assignments) → ลบแถวนั้นทิ้งพร้อมกัน · token/OTP ถูกลบตาม FK CASCADE
    */
   // ============================================================

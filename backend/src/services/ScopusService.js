@@ -1,17 +1,11 @@
 /**
  * ScopusService
- * ดึงข้อมูลวารสารจาก Scopus API
- * Port มาจาก Python script + Key Rotation
  */
 const axios = require('axios');
 const config = require('../config');
 const scopusProxy = require('./ScopusProxyService');
 const { pickIssns } = require('../utils/input');
 
-/**
- * ดึงข้อมูลวารสารจาก Scopus Serial Title API ด้วย API key หมุนเวียน (key มาจาก ScopusProxyService)
- * เรียกจาก: JournalController.searchScopus เท่านั้น · ไม่มี key พร้อมใช้ → throw code 'SCOPUS_QUOTA_EXCEEDED' (จาก ScopusProxyService.getNextKey)
- */
 class ScopusService {
 
   /**
@@ -23,12 +17,6 @@ class ScopusService {
     return ScopusService._fetchFromApi(cleanIssn);
   }
 
-  /**
-   * เรียกจาก: getJournalByIssn (และเรียกตัวเองซ้ำเมื่อต้องเปลี่ยน key)
-   * ลำดับ: scopusProxy.getNextKey → ยิง GET /content/serial/title/issn/{issn} → scopusProxy.incrementUsage (อ่าน header โควตา) → _parseApiResponse
-   * 429 → markKeyUnavailable แล้วลอง key ถัดไป · 401/403 → markKeyRejected แล้วลอง key ถัดไป · 404 → null · อื่นๆ → throw 'Scopus API error: ...'
-   * @param {string} issn ตัวเลข/X ล้วน ไม่มีขีด
-   */
   static async _fetchFromApi(issn) {
     const keyObj = await scopusProxy.getNextKey();
 

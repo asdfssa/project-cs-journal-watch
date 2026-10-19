@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Demo นับคำขอต่อวินาทีของ Scopus key</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1c2430; --mute:#697386; --line:#dde1e8; --ok:#1f8a4c; --warn:#c2410c; --info:#2563eb; --dot:#2563eb; --old:#b8bfcb; --win:rgba(37,99,235,.10); }
+  @media (prefers-color-scheme: dark) { :root { --bg:#12161c; --card:#1b212a; --ink:#e6eaf0; --mute:#97a1b2; --line:#2c3541; --ok:#4cc38a; --warn:#fb923c; --info:#6ea0ff; --dot:#6ea0ff; --old:#566174; --win:rgba(110,160,255,.14); } }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:24px 16px 48px; background:var(--bg); color:var(--ink); font:15px/1.6 system-ui,"Segoe UI",Tahoma,sans-serif; }
+  main { max-width:880px; margin:0 auto; }
+  h1 { font-size:20px; margin:0 0 4px; } p.sub { margin:0 0 16px; color:var(--mute); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin-bottom:14px; }
+  .controls { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+  button { font:inherit; padding:7px 14px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--ink); cursor:pointer; }
+  button.primary { background:var(--info); border-color:var(--info); color:#fff; }
+  button:hover { filter:brightness(1.07); }
+  label { color:var(--mute); } input[type=range] { vertical-align:middle; width:120px; }
+  .lane { display:grid; grid-template-columns:150px 1fr 170px; gap:12px; align-items:center; padding:8px 0; border-top:1px solid var(--line); }
+  .lane:first-of-type { border-top:0; }
+  .name { font-weight:600; } .name small { display:block; font-weight:400; color:var(--mute); }
+  .next { color:var(--info); font-size:13px; }
+  .track { position:relative; height:34px; border:1px solid var(--line); border-radius:6px; overflow:hidden; }
+  .track .win { position:absolute; top:0; bottom:0; left:66.667%; right:0; background:var(--win); border-left:2px dashed var(--info); }
+  .dot { position:absolute; top:9px; width:14px; height:14px; margin-left:-7px; border-radius:50%; background:var(--dot); }
+  .dot.old { background:var(--old); }
+  .axis { display:flex; justify-content:space-between; color:var(--mute); font-size:12px; margin:0 170px 4px 162px; }
+  .count { font-size:13px; } .bar { height:8px; border-radius:4px; background:var(--line); margin-top:4px; overflow:hidden; }
+  .bar i { display:block; height:100%; background:var(--ok); transition:width .1s; } .bar.full i { background:var(--warn); }
+  .state { font-weight:600; } .state.full { color:var(--warn); } .state.free { color:var(--ok); } .state.lock { color:var(--mute); }
+  #log { font:13px/1.7 ui-monospace,Consolas,monospace; max-height:260px; overflow:auto; }
+  #log div { padding:2px 0; border-bottom:1px dashed var(--line); } #log .pick { color:var(--ok); } #log .skip { color:var(--warn); } #log .fail { color:var(--warn); font-weight:700; }
+  .legend { color:var(--mute); font-size:13px; } .legend b { color:var(--ink); }
+  .chip { display:inline-block; width:10px; height:10px; border-radius:50%; margin:0 4px 0 10px; vertical-align:baseline; }
+</style>
+</head>
+<body>
+<main>
+  <h1>การนับคำขอต่อวินาทีของ Scopus key</h1>
+  <p class="sub">จำลองการทำงานของ <code>getNextKey()</code> และ <code>_isThrottled()</code> ใน ScopusProxyService.js (ไม่ได้ยิง Scopus จริง ไม่แตะไฟล์ใด ๆ)</p>
+
+  <div class="card controls">
+    <button class="primary" id="one">ยิง 1 คำขอ</button>
+    <button id="burst">ยิงรัว 10 คำขอ</button>
+    <button id="auto">เปิดยิงอัตโนมัติ (4 ครั้ง/วินาที)</button>
+    <button id="clear">ล้าง</button>
+    <label>ลิมิตต่อวินาทีต่อ key (PER_SECOND_LIMIT)
+      <input type="range" id="limit" min="1" max="8" value="5"> <b id="limitVal">5</b></label>
+  </div>
+
+  <div class="card">
+    <div class="legend">แต่ละจุด = 1 ครั้งที่ key นั้นถูกเลือกไปใช้ (ค่าใน <code>recentRequestTimestamps</code>) ขวาสุดคือ "ตอนนี้" จุดเลื่อนไปซ้ายตามเวลา
+      <span class="chip" style="background:var(--dot)"></span>นับอยู่ (ไม่เกิน 1 วินาที)
+      <span class="chip" style="background:var(--old)"></span>เก่าเกิน 1 วินาที (ไม่นับ — โค้ดจริงจะลบทิ้งตอน <code>filter</code>)</div>
+    <div class="axis"><span>3 วินาทีก่อน</span><span>1 วินาทีก่อน</span><span>ตอนนี้</span></div>
+    <div id="lanes"></div>
+  </div>
+
+  <div class="card">
+    <b>บันทึกการตัดสินใจของ getNextKey()</b> <span class="legend">(<code>attempts</code> = ดู key ไปแล้วกี่ตัวในคำขอนี้)</span>
+    <div id="log"></div>
+  </div>
+  <p class="legend">ติ๊ก "ถูกพัก" ที่ key ใดก็ได้เพื่อจำลองกรณีได้ 429 (<code>_isLocked</code>) — ระบบจะข้าม key นั้นเสมอ ส่วนโควตารายสัปดาห์ไม่ได้จำลองในหน้านี้</p>
+</main>
+
+<script>
+// ---- จำลอง state เหมือนใน ScopusProxyService ----
+const keys = [0, 1, 2].map(i => ({ index: i, recentRequestTimestamps: [], locked: false }));
+let currentIndex = 0, PER_SECOND_LIMIT = 5, reqNo = 0;
+
+function isThrottled(k) {                       // เหมือน _isThrottled: ตัดเวลาที่เก่ากว่า 1 วินาที แล้วเทียบกับลิมิต
+  const now = Date.now();
+  k.recentRequestTimestamps = k.recentRequestTimestamps.filter(t => now - t < 1000);
+  return k.recentRequestTimestamps.length >= PER_SECOND_LIMIT;
+}
+
+function getNextKey() {                          // เหมือน getNextKey (ตัดส่วนโควตารายสัปดาห์ออก)
+  const total = keys.length, steps = [];
+  let attempts = 0;
+  while (attempts < total) {
+    const k = keys[currentIndex];
+    currentIndex = (currentIndex + 1) % total;
+    attempts++;
+    if (k.locked) { steps.push(`attempts=${attempts}: ดู key #${k.index} → ถูกพัก (429) → ข้าม`); continue; }
+    if (isThrottled(k)) { steps.push(`attempts=${attempts}: ดู key #${k.index} → ใช้ครบ ${PER_SECOND_LIMIT} ครั้งใน 1 วินาทีแล้ว → ข้าม`); continue; }
+    k.recentRequestTimestamps.push(Date.now());   // จดเวลาตอนเลือก
+    steps.push(`attempts=${attempts}: ดู key #${k.index} → ว่าง → เลือกใช้ key #${k.index}`);
+    return { key: k, steps };
+  }
+  steps.push(`attempts=${attempts} = จำนวน key ทั้งหมด → ไม่มี key ใช้ได้ → throw SCOPUS_QUOTA_EXCEEDED`);
+  return { key: null, steps };
+}
+
+// ---- UI ----
+const lanesEl = document.getElementById('lanes'), logEl = document.getElementById('log');
+lanesEl.innerHTML = keys.map(k => `
+  <div class="lane" id="lane${k.index}">
+    <div class="name">key #${k.index}<small><label><input type="checkbox" data-lock="${k.index}"> ถูกพัก (429)</label></small><span class="next" id="next${k.index}"></span></div>
+    <div class="track"><div class="win"></div><div id="dots${k.index}"></div></div>
+    <div class="count"><span id="n${k.index}"></span><div class="bar" id="bar${k.index}"><i></i></div><span class="state" id="st${k.index}"></span></div>
+  </div>`).join('');
+
+function fire() {
+  reqNo++;
+  const { key, steps } = getNextKey();
+  const div = document.createElement('div');
+  div.innerHTML = `<b>คำขอที่ ${reqNo}</b> — ` + steps.map(s => `<div class="${/เลือกใช้/.test(s) ? 'pick' : /throw/.test(s) ? 'fail' : 'skip'}">${s}</div>`).join('');
+  logEl.prepend(div);
+  while (logEl.children.length > 30) logEl.lastChild.remove();
+}
+
+function render() {
+  const now = Date.now();
+  for (const k of keys) {
+    const live = k.recentRequestTimestamps.filter(t => now - t < 1000).length;
+    document.getElementById('dots' + k.index).innerHTML = k.recentRequestTimestamps
+      .map(t => ({ t, age: now - t })).filter(o => o.age < 3000)
+      .map(o => `<span class="dot ${o.age >= 1000 ? 'old' : ''}" style="left:${(1 - o.age / 3000) * 100}%"></span>`).join('');
+    // เก็บจุดเก่ากว่า 3 วินาทีทิ้งเฉพาะการแสดงผล (โค้ดจริงทิ้งที่ 1 วินาที)
+    k.recentRequestTimestamps = k.recentRequestTimestamps.filter(t => now - t < 3000);
+    const full = !k.locked && live >= PER_SECOND_LIMIT;
+    document.getElementById('n' + k.index).textContent = `ใน 1 วินาทีล่าสุด: ${live} / ${PER_SECOND_LIMIT}`;
+    const bar = document.getElementById('bar' + k.index);
+    bar.classList.toggle('full', full); bar.firstElementChild.style.width = Math.min(100, live / PER_SECOND_LIMIT * 100) + '%';
+    const st = document.getElementById('st' + k.index);
+    st.className = 'state ' + (k.locked ? 'lock' : full ? 'full' : 'free');
+    st.textContent = k.locked ? 'ถูกพัก — ข้ามเสมอ' : full ? 'ชนลิมิต — ถูกข้าม' : 'ว่าง — เลือกได้';
+    document.getElementById('next' + k.index).textContent = k.index === currentIndex ? 'คิวถัดไปเริ่มดูที่ key นี้' : '';
+  }
+  requestAnimationFrame(render);
+}
+
+document.getElementById('one').onclick = fire;
+document.getElementById('burst').onclick = () => { for (let i = 0; i < 10; i++) fire(); };
+document.getElementById('clear').onclick = () => { keys.forEach(k => k.recentRequestTimestamps = []); logEl.innerHTML = ''; reqNo = 0; currentIndex = 0; };
+document.getElementById('limit').oninput = e => { PER_SECOND_LIMIT = +e.target.value; document.getElementById('limitVal').textContent = PER_SECOND_LIMIT; };
+lanesEl.addEventListener('change', e => { if (e.target.dataset.lock !== undefined) keys[+e.target.dataset.lock].locked = e.target.checked; });
+let timer = null; const autoBtn = document.getElementById('auto');
+autoBtn.onclick = () => {
+  if (timer) { clearInterval(timer); timer = null; autoBtn.textContent = 'เปิดยิงอัตโนมัติ (4 ครั้ง/วินาที)'; }
+  else { timer = setInterval(fire, 250); autoBtn.textContent = 'หยุดยิงอัตโนมัติ'; }
+};
+render();
+</script>
+</body>
+</html>

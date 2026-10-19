@@ -68,7 +68,7 @@ function normalizeIssn(value) {
 
 /**
  * คู่ ISSN ของวารสาร (ตัวเลขล้วน ไม่มีขีด) — issn = p-ISSN ของวารสารเสมอ ไม่ใช่ตัวที่ผู้ใช้พิมพ์ค้น
- * ไม่งั้น p-ISSN กับ e-ISSN ของวารสารเดียวกันจะยื่น Pre-T3 ซ้ำได้ (เหมือนที่ TCI ทำอยู่แล้ว)
+ * ไม่งั้น p-ISSN กับ e-ISSN ของวารสารเดียวกันจะยื่น Pre-T3 ซ้ำได้
  * ไม่มี p-ISSN → ใช้ e-ISSN, ไม่มีทั้งคู่ → ใช้ตัวที่พิมพ์ค้น
  *
  * เรียกจาก: services/ScopusService และ services/ScopusScraper ตอน map ผลค้นหาเป็นวารสาร
