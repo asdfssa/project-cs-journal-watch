@@ -18,7 +18,6 @@ const PreT3Model  = require('../models/PreT3Model');
 const UserModel   = require('../models/UserModel');
 const { advisorViewFields, advisorsAllApproved, MAJOR_ADVISOR_INACTIVE } = require('../models/_approvalHelpers');
 const MailService = require('../services/MailService');
-const db          = require('../config/database');
 const { serverError } = require('../utils/errorResponse');
 const { parsePagination, optionalDecimal } = require('../utils/input');
 const { toMysqlDate } = require('../utils/date');
@@ -207,13 +206,7 @@ class T3Controller {
     }
 
     // ดึง Advisor ของนิสิต
-    const [advisorRows] = await db.query(
-      `SELECT aa.advisor_id, aa.advisor_type, u.account_status
-         FROM advisor_assignments aa
-         JOIN users u ON u.user_id = aa.advisor_id
-        WHERE aa.student_id = ? AND aa.is_active = TRUE`,
-      [studentId]
-    );
+    const advisorRows = await UserModel.findActiveAdvisorAssignments(studentId);
 
     const majorAdvisor = advisorRows.find(a => a.advisor_type === 'Major');
     const co1Advisor   = advisorRows.find(a => a.advisor_type === 'Co_1');
@@ -412,9 +405,7 @@ class T3Controller {
           t3Id,
         });
         // แจ้ง Staff ทุกคน
-        const [staffRows] = await db.query(
-          `SELECT msu_mail FROM users WHERE role = 'Staff' AND account_status = 'Active'`
-        );
+        const staffRows = await UserModel.findActiveStaffMails();
         for (const staff of staffRows) {
           MailService.sendT3Notification(staff.msu_mail, 'faculty_pending', {
             studentName: `${student.first_name} ${student.last_name}`,

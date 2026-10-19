@@ -15,7 +15,7 @@ const PreT3Model  = require('../models/PreT3Model');
 const UserModel   = require('../models/UserModel');
 const { advisorViewFields, advisorsAllApproved, MAJOR_ADVISOR_INACTIVE } = require('../models/_approvalHelpers');
 const MailService = require('../services/MailService');
-const db          = require('../config/database');
+const UnwantedJournalModel = require('../models/UnwantedJournalModel');
 const { serverError } = require('../utils/errorResponse');
 const { parsePagination, normalizeIssn } = require('../utils/input');
 const { toMysqlDate } = require('../utils/date');
@@ -24,21 +24,6 @@ const UNWANTED_BODY = {
   code: 'UNWANTED_JOURNAL',
   message: 'วารสารนี้อยู่ในรายการวารสารที่ไม่พึงประสงค์ของมหาวิทยาลัย ไม่สามารถยื่น Pre-T3 ได้',
 };
-
-/**
- * เช็ค ISSN กับตาราง msu_unwanted_journals (วารสารที่มหาวิทยาลัยไม่ยอมรับ)
- * เรียกจาก: PreT3Controller.submit และ PreT3Controller.resubmit ก่อนบันทึก (ตอบ 400 UNWANTED_JOURNAL ถ้าเจอ)
- * @param {string} issn รูปแบบ XXXX-XXXX (ผ่าน _validateBody → normalizeIssn มาแล้ว)
- * @returns {Promise<boolean>}
- */
-// ISSN (normalize แล้ว) อยู่ใน msu_unwanted_journals ไหม — เทียบทั้งแบบมี/ไม่มีขีด เผื่อแถวเก่าเก็บไม่มีขีด
-async function isUnwantedIssn(issn) {
-  const [rows] = await db.query(
-    'SELECT 1 FROM msu_unwanted_journals WHERE issn IN (?, ?) LIMIT 1',
-    [issn, issn.replace('-', '')]
-  );
-  return rows.length > 0;
-}
 
 /**
  * กฎของนิสิตปริญญาเอก: ต้องเป็นวารสาร Scopus และ Quartile Q1/Q2 เท่านั้น
@@ -74,7 +59,7 @@ class PreT3Controller {
   /**
    * เรียกจาก: routes/preT3Routes.js — POST / (requireAuth → requireRole('Student') → submitLimiter)
    * รับ req.body: { journal_snapshot, checklist_data, article_info? } (นิสิตคือ req.user.sub)
-   * ลำดับ: _validateBody → isUnwantedIssn → UserModel.findById (โปรไฟล์ต้องครบ degree_level/curriculum_year/study_plan_code) → doctoralCriteriaError
+   * ลำดับ: _validateBody → UnwantedJournalModel.existsByIssn → UserModel.findById (โปรไฟล์ต้องครบ degree_level/curriculum_year/study_plan_code) → doctoralCriteriaError
    *   → อ่าน advisor_assignments ที่ active (ต้องมี Major) → PreT3Model.create → MailService.sendPreT3Notification('advisor_pending') ถึงอาจารย์หลัก
    * ตอบ 201 { data: { pre_t3_id } } · ISSN ซ้ำ 409 PRE_T3_DUPLICATE
    */
@@ -89,7 +74,7 @@ class PreT3Controller {
 
       const invalid = PreT3Controller._validateBody(req.body);
       if (invalid) return res.status(400).json({ success: false, ...invalid });
-      if (await isUnwantedIssn(journal_snapshot.issn)) return res.status(400).json({ success: false, ...UNWANTED_BODY });
+      if (await UnwantedJournalModel.existsByIssn(journal_snapshot.issn)) return res.status(400).json({ success: false, ...UNWANTED_BODY });
 
       // ดึงข้อมูลนิสิตจาก DB (ไม่เชื่อ Frontend)
       const student = await UserModel.findById(studentId);
@@ -120,14 +105,7 @@ class PreT3Controller {
       if (criteria) return res.status(400).json({ success: false, ...criteria });
 
       // ดึง Advisor จาก DB
-      const [advisorRows] = await db.query(
-        `SELECT aa.advisor_id, aa.advisor_type,
-                u.prefix, u.first_name, u.last_name, u.role, u.account_status
-           FROM advisor_assignments aa
-           JOIN users u ON u.user_id = aa.advisor_id
-          WHERE aa.student_id = ? AND aa.is_active = TRUE`,
-        [studentId]
-      );
+      const advisorRows = await UserModel.findActiveAdvisorAssignments(studentId);
 
       if (advisorRows.length === 0) {
         return res.status(400).json({
@@ -364,9 +342,7 @@ class PreT3Controller {
           journalName,
           preT3Id,
         });
-        const [staffRows] = await db.query(
-          `SELECT msu_mail FROM users WHERE role = 'Staff' AND account_status = 'Active'`
-        );
+        const staffRows = await UserModel.findActiveStaffMails();
         for (const staff of staffRows) {
           MailService.sendPreT3Notification(staff.msu_mail, 'faculty_pending', {
             studentName: `${student.first_name} ${student.last_name}`,
@@ -482,7 +458,7 @@ class PreT3Controller {
 
   /**
    * เรียกจาก: routes/preT3Routes.js — PATCH /:id/resubmit (Student เจ้าของ, สถานะ Rejected เท่านั้น)
-   * รับ req.body เหมือน submit → _validateBody, isUnwantedIssn, doctoralCriteriaError → PreT3Model.resubmit → แจ้งอาจารย์หลักทางอีเมล (advisor_pending)
+   * รับ req.body เหมือน submit → _validateBody, UnwantedJournalModel.existsByIssn, doctoralCriteriaError → PreT3Model.resubmit → แจ้งอาจารย์หลักทางอีเมล (advisor_pending)
    */
   // ============================================================
   // PATCH /api/pre-t3/:id/resubmit
@@ -496,7 +472,7 @@ class PreT3Controller {
 
       const invalid = PreT3Controller._validateBody(req.body);
       if (invalid) return res.status(400).json({ success: false, ...invalid });
-      if (await isUnwantedIssn(journal_snapshot.issn)) return res.status(400).json({ success: false, ...UNWANTED_BODY });
+      if (await UnwantedJournalModel.existsByIssn(journal_snapshot.issn)) return res.status(400).json({ success: false, ...UNWANTED_BODY });
 
       const row = await PreT3Model.findById(preT3Id);
       if (!row) {

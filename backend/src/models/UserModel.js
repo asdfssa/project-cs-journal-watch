@@ -4,6 +4,7 @@
  * ใช้ fully-qualified table name เพื่อหลีกเลี่ยงปัญหา session-level database
  */
 const db = require('../config/database');
+const { likeContains } = require('../utils/input');
 
 class UserModel {
   /**
@@ -111,6 +112,85 @@ static async findById(userId) {
   );
   return rows;
 }
+
+  /**
+   * อาจารย์ที่ปรึกษาที่ active ของนิสิตพร้อมชื่อ/role/สถานะบัญชี (ใช้ตรวจสิทธิ์ยื่นคำขอและสร้างแถวอนุมัติ)
+   * เรียกจาก: PreT3Controller.submit, T3Controller (ตอนยื่น T3)
+   * @param {number} studentId
+   * @returns {Promise<object[]>} แต่ละแถวมี advisor_id, advisor_type, prefix, first_name, last_name, role, account_status
+   */
+  static async findActiveAdvisorAssignments(studentId) {
+    const [rows] = await db.query(
+      `SELECT aa.advisor_id, aa.advisor_type,
+                u.prefix, u.first_name, u.last_name, u.role, u.account_status
+           FROM advisor_assignments aa
+           JOIN users u ON u.user_id = aa.advisor_id
+          WHERE aa.student_id = ? AND aa.is_active = TRUE`,
+      [studentId]
+    );
+    return rows;
+  }
+
+  /**
+   * อีเมลของ Staff ที่ Active ทุกคน (ใช้ส่งแจ้งเตือนว่ามีคำขอรอฝ่ายคณะ) · เรียกจาก: PreT3Controller, T3Controller
+   * @returns {Promise<{msu_mail:string}[]>}
+   */
+  static async findActiveStaffMails() {
+    const [rows] = await db.query(
+      `SELECT msu_mail FROM users WHERE role = 'Staff' AND account_status = 'Active'`
+    );
+    return rows;
+  }
+
+  /** แก้ช่องทางติดต่อของผู้ใช้ (ค่าว่างเป็น null แล้ว) · เรียกจาก: UserController.updateProfile */
+  static async updateContact(userId, { phone, facebook_id, line_id }) {
+    await db.query(
+      `UPDATE users
+            SET phone       = ?,
+                facebook_id = ?,
+                line_id     = ?
+          WHERE user_id = ?`,
+      [phone, facebook_id, line_id, userId]
+    );
+  }
+
+  /**
+   * รายชื่อ Staff ที่ Active พร้อมช่องทางติดต่อ ค้นด้วยชื่อ/นามสกุล/อีเมลได้ · เรียกจาก: UserController.getStaffDirectory
+   * @param {string} [search]
+   */
+  static async findActiveStaff(search) {
+    const where = [
+      "u.role = 'Staff'",
+      "u.account_status = 'Active'",
+    ];
+    const params = [];
+
+    if (search) {
+      where.push('(u.first_name LIKE ? OR u.last_name LIKE ? OR u.msu_mail LIKE ?)');
+      const like = likeContains(search);
+      params.push(like, like, like);
+    }
+
+    const whereSQL = where.join(' AND ');
+
+    const [rows] = await db.query(
+      `SELECT
+           u.user_id,
+           u.prefix,
+           u.first_name,
+           u.last_name,
+           u.department,
+           u.msu_mail,
+           u.phone,
+           u.facebook_id,
+           u.line_id
+         FROM users u
+         WHERE ${whereSQL}
+         ORDER BY u.first_name ASC, u.last_name ASC`,
+      params
+    );
+    return rows;
+  }
 
 }
 

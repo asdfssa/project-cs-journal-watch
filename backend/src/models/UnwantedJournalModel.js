@@ -1,7 +1,7 @@
 /**
  * UnwantedJournal Model
  * Data access layer สำหรับ table `msu_unwanted_journals` (รายการวารสารที่ไม่พึงประสงค์ของ มมส.)
- * ผู้เรียก: controllers/UnwantedJournalController เท่านั้น (PreT3Controller.isUnwantedIssn ยัง query ตารางนี้ตรงๆ)
+ * ผู้เรียก: controllers/UnwantedJournalController และ PreT3Controller (existsByIssn ตอนนิสิตยื่น Pre-T3)
  */
 const db = require('../config/database');
 const { normalizeIssn, likeContains } = require('../utils/input');
@@ -170,6 +170,18 @@ class UnwantedJournalModel {
       [id]
     );
     return rows[0] || null;
+  }
+
+  /**
+   * ISSN (normalize แล้ว) อยู่ในรายการวารสารต้องห้ามไหม — เทียบทั้งแบบมี/ไม่มีขีด เผื่อแถวเก่าเก็บไม่มีขีด
+   * เรียกจาก: PreT3Controller.submit, resubmit (ตอบ 400 UNWANTED_JOURNAL ถ้าเจอ)
+   */
+  static async existsByIssn(issn) {
+    const [rows] = await db.query(
+      'SELECT 1 FROM msu_unwanted_journals WHERE issn IN (?, ?) LIMIT 1',
+      [issn, issn.replace('-', '')]
+    );
+    return rows.length > 0;
   }
 
   /** เฉพาะ id + path ไฟล์หลักฐานตาม id (ไม่พบ = null) · เรียกจาก: getEvidenceFile, deleteOne */

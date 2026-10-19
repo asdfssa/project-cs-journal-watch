@@ -8,10 +8,9 @@
  *                                    แก้ได้เฉพาะ: phone, facebook_id, line_id
  *   GET   /api/user/staff          → รายชื่อบุคลากร Staff พร้อมช่องทางติดต่อ (ทุก role)
  */
-const db        = require('../config/database');
 const UserModel = require('../models/UserModel');
 const { serverError } = require('../utils/errorResponse');
-const { phoneError, nonScalarField, likeContains } = require('../utils/input');
+const { phoneError, nonScalarField } = require('../utils/input');
 
 /**
  * Controller โปรไฟล์ของผู้ใช้ที่ login — ผูกใน routes/userRoutes.js (base path /api/v3/user) ทุก role เข้าได้ (requireAuth → requireRole(...ALL_ROLES))
@@ -117,19 +116,11 @@ class UserController {
         line_id:     line_id     !== undefined ? line_id     : user.line_id,
       };
 
-      await db.query(
-        `UPDATE users
-            SET phone       = ?,
-                facebook_id = ?,
-                line_id     = ?
-          WHERE user_id = ?`,
-        [
-          merged.phone       || null,
-          merged.facebook_id || null,
-          merged.line_id     || null,
-          userId,
-        ]
-      );
+      await UserModel.updateContact(userId, {
+        phone:       merged.phone       || null,
+        facebook_id: merged.facebook_id || null,
+        line_id:     merged.line_id     || null,
+      });
 
       return res.json({
         success: true,
@@ -154,36 +145,7 @@ class UserController {
     try {
       const { search } = req.query;
 
-      let where = [
-        "u.role = 'Staff'",
-        "u.account_status = 'Active'",
-      ];
-      const params = [];
-
-      if (search) {
-        where.push('(u.first_name LIKE ? OR u.last_name LIKE ? OR u.msu_mail LIKE ?)');
-        const like = likeContains(search);
-        params.push(like, like, like);
-      }
-
-      const whereSQL = where.join(' AND ');
-
-      const [rows] = await db.query(
-        `SELECT
-           u.user_id,
-           u.prefix,
-           u.first_name,
-           u.last_name,
-           u.department,
-           u.msu_mail,
-           u.phone,
-           u.facebook_id,
-           u.line_id
-         FROM users u
-         WHERE ${whereSQL}
-         ORDER BY u.first_name ASC, u.last_name ASC`,
-        params
-      );
+      const rows = await UserModel.findActiveStaff(search);
 
       const staff = rows.map(u => ({
         userId:     u.user_id,
