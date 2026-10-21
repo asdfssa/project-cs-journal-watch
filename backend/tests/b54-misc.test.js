@@ -25,6 +25,7 @@ require.cache[dbPath] = {
       if (sql.includes('FROM pre_t3_requests')) return [[{ total: 10, pending: 1, approved: 2, rejected: 3, cancelled: 4 }]];
       if (sql.includes('FROM t3_requests')) return [[{ total: 7, pending: 1, approved: 1, rejected: 2, cancelled: 3 }]];
       if (sql.includes('FROM msu_unwanted_journals')) return [[{ total: 0 }]];
+      if (sql.includes('FROM journals_cache')) return [[{ total: 0, scopus: 0, tci: 0, via_api: 0, via_scraping: 0 }]];
       if (sql.includes('SELECT user_id, role, account_status')) return [[{ user_id: 9, role: 'Admin', account_status: state.adminStatus }]];
       if (sql.includes('FROM users WHERE msu_mail IN') && !sql.includes("role = 'Supervisor'")) return [state.existingMails.map((m) => ({ msu_mail: m }))];
       if (sql.includes("role = 'Supervisor'")) return [state.advisors];

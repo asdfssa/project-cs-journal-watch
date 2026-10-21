@@ -6,6 +6,7 @@
 const { chromium } = require('playwright');
 const config = require('../config');
 const { withScrapeSlot } = require('./scrapeQueue');
+const JournalCache = require('./JournalCache');
 const { pickIssns } = require('../utils/input');
 
 /**
@@ -22,7 +23,16 @@ class ScopusScraper {
    */
   static async getJournalByIssn(issn) {
     const cleanIssn = issn.replace('-', '').trim();
-    return withScrapeSlot(() => ScopusScraper._scrape(cleanIssn));
+    const cache = JournalCache.shared();
+
+    // hit = ไม่เข้าคิว ไม่เปิด Chromium · cache พัง/ไม่พบ → scrape ตามปกติ
+    const cached = await cache.get(cleanIssn, 'Scopus');
+    if (cached) return cached;
+
+    const result = await withScrapeSlot(() => ScopusScraper._scrape(cleanIssn));
+    if (!result) return null; // ไม่พบ → ไม่ cache
+    await cache.save(result);
+    return { ...result, fromCache: false };
   }
 
   // ===== Scraping =====

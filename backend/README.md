@@ -128,10 +128,12 @@ schema ใน `db/init/` จะถูกรันตอนสร้าง volume
 
 | Method | Path | คำอธิบาย | Auth |
 |---|---|---|---|
-| GET | `/scopus` | ค้นหาวารสารใน Scopus ด้วย ISSN (ผ่าน API) | Access token |
+| GET | `/scopus` | ค้นหาวารสารใน Scopus ด้วย ISSN (ผ่าน API, cache 6 ชม.) | Access token |
 | GET | `/tci` | ค้นหาวารสารใน TCI ด้วย ISSN (ผ่าน API) | Access token |
 | GET | `/scopus/scrape` | ค้นหา Scopus ด้วยวิธี scraping | Access token |
 | GET | `/tci/scrape` | ค้นหา TCI ด้วยวิธี scraping | Access token |
+
+> ผลค้นทั้ง 4 เส้นถูก cache ในตาราง `journals_cache` นาน 6 ชั่วโมง (`CACHE_TTL_HOURS`) — response มี `fromCache` และ `cached_at` · แถวหมดอายุถูกลบอัตโนมัติ (`CACHE_PURGE_INTERVAL_MINUTES`)
 
 ### Unwanted / Predatory Journals — `/api/v3/unwanted-journals`
 

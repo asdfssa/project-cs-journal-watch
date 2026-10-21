@@ -86,6 +86,8 @@ class JournalController {
       // ===== Meta =====
       fetch_method: data.fetch_method ?? null,
       usedFallback: data.usedFallback ?? false,
+      fromCache:    data.fromCache    ?? false,
+      cached_at:    data.cached_at    ?? null, // เวลาที่ดึงข้อมูลจริง (ใช้เมื่อ fromCache = true)
     };
   }
 

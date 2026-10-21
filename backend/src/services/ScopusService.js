@@ -4,6 +4,7 @@
 const axios = require('axios');
 const config = require('../config');
 const scopusProxy = require('./ScopusProxyService');
+const JournalCache = require('./JournalCache');
 const { pickIssns } = require('../utils/input');
 
 class ScopusService {
@@ -14,7 +15,16 @@ class ScopusService {
    */
   static async getJournalByIssn(issn) {
     const cleanIssn = issn.replace('-', '').trim();
-    return ScopusService._fetchFromApi(cleanIssn);
+    const cache = JournalCache.shared();
+
+    // hit = ไม่เรียก API และไม่แตะโควตา key · cache พัง/ไม่พบ → ดึงสดตามปกติ
+    const cached = await cache.get(cleanIssn, 'Scopus');
+    if (cached) return cached;
+
+    const result = await ScopusService._fetchFromApi(cleanIssn);
+    if (!result) return null; // ไม่พบ → ไม่ cache
+    await cache.save(result);
+    return { ...result, fromCache: false };
   }
 
   static async _fetchFromApi(issn) {

@@ -6,7 +6,7 @@ const path = require('node:path');
 const src = (p) => path.join(__dirname, '..', 'src', p);
 const stub = (p, exports) => { require.cache[src(p)] = { id: p, filename: src(p), loaded: true, exports }; };
 
-const state = { degree: 'Doctoral' };
+const state = { degree: 'Doctoral', quartile: null };
 stub('config/database.js', {
   query: async (sql) => {
     if (sql.includes('msu_unwanted_journals')) return [[]];
@@ -22,6 +22,9 @@ stub('models/PreT3Model.js', {
   resubmit: async () => true,
 });
 stub('services/MailService.js', { sendPreT3Notification: () => {} });
+// ตัวตรวจฝั่ง server (report-1): ในเทสต์นี้ "ข้อมูลจริง" = ค่า quartile ที่เทสต์กำหนด เพื่อทดสอบกฎ ป.เอก อย่างเดียว
+stub('services/ScopusService.js', { getJournalByIssn: async () => ({ scopus_best_quartile: state.quartile || null, scopus_discontinued: false }) });
+stub('services/TCIService.js', { getJournalByIssn: async () => ({ tci_tier: 2, tci_inactive: false }) });
 const C = require(src('controllers/PreT3Controller.js'));
 
 const checklist = Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => [`item${i}`, true]));
@@ -29,6 +32,7 @@ const body = (db, q) => ({ journal_snapshot: { issn: '1234-5678', journal_name: 
 const makeRes = () => ({ code: 200, body: null, status(c) { this.code = c; return this; }, json(b) { this.body = b; return this; } });
 const run = async (fn, degree, db, q) => {
   state.degree = degree;
+  state.quartile = q;
   const res = makeRes();
   await C[fn]({ user: { sub: 1 }, params: { id: '5' }, body: body(db, q) }, res);
   return res;

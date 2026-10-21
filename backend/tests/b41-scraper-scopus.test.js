@@ -30,6 +30,8 @@ stubModule(axiosPath, { get: async (_url, opts) => { const k = opts.headers['X-E
 const { withScrapeSlot, claimUserScrape } = require(src('services/scrapeQueue.js'));
 const proxy = require(src('services/ScopusProxyService.js'));
 const ScopusService = require(src('services/ScopusService.js'));
+// ทดสอบพฤติกรรม key/429 ตอนยิง API จริง → cache ว่างเสมอ (ไม่ต่อ MySQL)
+require(src('services/JournalCache.js')).shared = () => ({ get: async () => null, save: async () => {} });
 
 const httpError = (status, headers = {}) => Object.assign(new Error(`HTTP ${status}`), { response: { status, headers } });
 const OK = { headers: {}, data: { 'serial-metadata-response': { entry: [{ 'dc:title': 'T', 'prism:issn': '12345678' }] } } };

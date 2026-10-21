@@ -16,6 +16,8 @@ const UserModel   = require('../models/UserModel');
 const { advisorViewFields, advisorsAllApproved, MAJOR_ADVISOR_INACTIVE } = require('../models/_approvalHelpers');
 const MailService = require('../services/MailService');
 const UnwantedJournalModel = require('../models/UnwantedJournalModel');
+const ScopusService = require('../services/ScopusService');
+const TCIService    = require('../services/TCIService');
 const { serverError } = require('../utils/errorResponse');
 const { parsePagination, normalizeIssn } = require('../utils/input');
 const { toMysqlDate } = require('../utils/date');
@@ -33,7 +35,7 @@ const UNWANTED_BODY = {
  * @returns {{code:string, message:string}|null} null = ผ่าน (หรือไม่ใช่ปริญญาเอก)
  */
 // ปริญญาเอก: ผ่านได้เฉพาะ Scopus Q1/Q2 (เกณฑ์จริงอยู่ที่ฝั่ง FE ด้วย แต่ API ต้องกันเอง)
-// shortcut: ตรวจจากค่าใน journal_snapshot ที่ client ส่งมา ไม่ได้ดึง Scopus ซ้ำ, ถ้าต้องกันการปลอมค่า ให้ดึงจาก ScopusService ตรวจที่ server
+// ต้องเรียกหลัง verifyJournalSnapshot เสมอ — quartile_or_tier ใน js คือค่าจริงจาก Scopus ที่ server ดึงมาเขียนทับแล้ว
 function doctoralCriteriaError(student, js) {
   if (student.degree_level !== 'Doctoral') return null;
   if (js.indexed_database !== 'Scopus') {
@@ -43,6 +45,35 @@ function doctoralCriteriaError(student, js) {
     return { code: 'DOCTORAL_QUARTILE_TOO_LOW', message: 'นิสิตปริญญาเอกต้องใช้วารสาร Scopus Quartile Q1 หรือ Q2 เท่านั้น' };
   }
   return null;
+}
+
+const DISCONTINUED_BODY = {
+  code: 'JOURNAL_DISCONTINUED',
+  message: 'วารสารนี้ถูกถอดออกจากฐานข้อมูล (Discontinued/Inactive) ไม่สามารถยื่น Pre-T3 ได้',
+};
+
+/**
+ * ดึงข้อมูลวารสารจริงจาก Scopus/TCI (ผ่าน service ซึ่งมี cache 6 ชม.) แล้ว 'เขียนทับ' quartile_or_tier และ is_discontinued ใน journal_snapshot
+ * ด้วยค่าจริง — ไม่เชื่อค่าที่ client ส่งมา (report-1 ข้อ 1) · เรียกจาก: submit และ resubmit ก่อน doctoralCriteriaError
+ * ค่าที่ได้ตรงกับที่ frontend สร้าง: Scopus = scopus_best_quartile · TCI = `กลุ่มที่ N` (ไม่มี tier → 99)
+ * ตรวจกับต้นทางไม่ได้ (เช่น SCOPUS_QUOTA_EXCEEDED, error เครือข่าย) → throw ต่อให้ serverError ตอบ ไม่ถอยไปใช้ค่าจาก client
+ * shortcut: วารสารที่เพิ่งถูกถอด (Discontinued/Inactive) อาจผ่านได้อีกไม่เกิน TTL ของ cache (6 ชม.)
+ * @param {object} js journal_snapshot (ผ่าน _validateBody แล้ว: issn = XXXX-XXXX, indexed_database = Scopus|TCI) — ถูกแก้ค่าตรงๆ
+ * @returns {Promise<{code:string, message:string}|null>} null = ผ่าน
+ */
+async function verifyJournalSnapshot(js) {
+  const found = await (js.indexed_database === 'Scopus' ? ScopusService : TCIService).getJournalByIssn(js.issn);
+  if (!found) {
+    return { code: 'JOURNAL_NOT_FOUND', message: `ไม่พบวารสาร ISSN ${js.issn} ในฐานข้อมูล ${js.indexed_database}` };
+  }
+  const real = js.indexed_database === 'Scopus'
+    ? { quartile_or_tier: found.scopus_best_quartile ?? null, is_discontinued: !!found.scopus_discontinued }
+    : { quartile_or_tier: `กลุ่มที่ ${found.tci_tier ?? 99}`, is_discontinued: !!found.tci_inactive };
+  if (js.quartile_or_tier !== real.quartile_or_tier || !!js.is_discontinued !== real.is_discontinued) {
+    console.warn(`[PreT3] journal_snapshot ไม่ตรงกับต้นทาง ISSN ${js.issn}: client=${js.quartile_or_tier}/${!!js.is_discontinued} จริง=${real.quartile_or_tier}/${real.is_discontinued}`);
+  }
+  Object.assign(js, real);
+  return real.is_discontinued ? DISCONTINUED_BODY : null;
 }
 
 const DUPLICATE_BODY = {
@@ -100,6 +131,9 @@ class PreT3Controller {
           missing,
         });
       }
+
+      const notVerified = await verifyJournalSnapshot(journal_snapshot);
+      if (notVerified) return res.status(400).json({ success: false, ...notVerified });
 
       const criteria = doctoralCriteriaError(student, journal_snapshot);
       if (criteria) return res.status(400).json({ success: false, ...criteria });
@@ -485,6 +519,9 @@ class PreT3Controller {
         return res.status(400).json({ success: false, code: 'INVALID_STATE', message: 'สามารถยื่นซ้ำได้เฉพาะรายการที่ถูกปฏิเสธเท่านั้น' });
       }
 
+      const notVerified = await verifyJournalSnapshot(journal_snapshot);
+      if (notVerified) return res.status(400).json({ success: false, ...notVerified });
+
       const me = await UserModel.findById(studentId);
       const criteria = me && doctoralCriteriaError(me, journal_snapshot);
       if (criteria) return res.status(400).json({ success: false, ...criteria });
@@ -668,10 +705,8 @@ class PreT3Controller {
       return { code: 'INVALID_JOURNAL', message: 'journal_snapshot.indexed_database ต้องเป็น Scopus หรือ TCI' };
     }
     // วารสาร Discontinued (Scopus) / Inactive (TCI) ยื่น Pre-T3 ไม่ได้ (T3 ไม่ตรวจซ้ำ เพราะอ้าง Pre-T3 ที่อนุมัติไปแล้ว)
-    // shortcut: เชื่อธงจาก journal_snapshot ที่ client ส่งมา, ถ้าต้องกันการปลอมค่า ให้ดึงจาก ScopusService/TCIService ตรวจที่ server
-    if (js.is_discontinued) {
-      return { code: 'JOURNAL_DISCONTINUED', message: 'วารสารนี้ถูกถอดออกจากฐานข้อมูล (Discontinued/Inactive) ไม่สามารถยื่น Pre-T3 ได้' };
-    }
+    // ด่านเร็วจากธงที่ client ส่งมา (ไม่ต้องเรียก Scopus/TCI) · ค่าจริงตรวจที่ verifyJournalSnapshot หลังด่านอื่นผ่านแล้ว
+    if (js.is_discontinued) return DISCONTINUED_BODY;
     // checklist ต้องมีครบ item1–item9 และเป็น boolean
     for (let i = 1; i <= 9; i++) {
       if (typeof cl[`item${i}`] !== 'boolean') {

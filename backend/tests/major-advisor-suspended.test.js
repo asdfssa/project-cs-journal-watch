@@ -32,6 +32,8 @@ const t3Body = {
 
 let created;
 UserModel.findById = async () => ({ user_id: 1, degree_level: 'Master', curriculum_year: '2566', study_plan_code: 'Master_A1', msu_mail: 's@msu.ac.th' });
+// ตัวตรวจวารสารฝั่ง server (report-1) ไม่ใช่สิ่งที่เทสต์นี้ทดสอบ → ตอบว่าวารสารปกติ
+require(src('services/ScopusService.js')).getJournalByIssn = async () => ({ scopus_best_quartile: 'Q1', scopus_discontinued: false });
 PreT3Model.create = async () => { created = true; return 1; };
 PreT3Model.findById = async () => ({ student_id: 1, overall_status: 'Approved', indexed_database: 'Scopus', quartile_or_tier: 'Q1' });
 T3Model.create = async () => { created = true; return 99; };

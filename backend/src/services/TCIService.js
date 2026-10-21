@@ -3,6 +3,7 @@
  * ดึงข้อมูลวารสารจาก TCI API
  */
 const axios = require('axios');
+const JournalCache = require('./JournalCache');
 
 /**
  * ดึงข้อมูลวารสารจาก TCI (Thai-Journal Citation Index) ผ่าน API ของ tci-thailand.org
@@ -16,7 +17,16 @@ class TCIService {
    */
   static async getJournalByIssn(issn) {
     const cleanIssn = issn.trim();
-    return TCIService._fetchFromApi(cleanIssn);
+    const cache = JournalCache.shared();
+
+    // hit = ไม่ยิง TCI · cache พัง/ไม่พบ → ดึงสดตามปกติ
+    const cached = await cache.get(cleanIssn, 'TCI');
+    if (cached) return cached;
+
+    const result = await TCIService._fetchFromApi(cleanIssn);
+    if (!result) return null; // ไม่พบ → ไม่ cache
+    await cache.save(result);
+    return { ...result, fromCache: false };
   }
 
   /**

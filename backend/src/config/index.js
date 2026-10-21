@@ -113,6 +113,12 @@ module.exports = {
     baseUrl: 'https://api.elsevier.com',
   },
 
+  // cache ผลค้นวารสาร (ตาราง journals_cache) · ใช้ร่วมกันทั้ง Scopus/TCI และทั้ง API/Scraper
+  cache: {
+    ttlHours: parseInt(process.env.CACHE_TTL_HOURS, 10) || 6,                          // อายุ cache นับจากเวลาดึงข้อมูล (ไม่ต่ออายุเมื่ออ่าน)
+    purgeIntervalMinutes: parseInt(process.env.CACHE_PURGE_INTERVAL_MINUTES, 10) || 10, // ลบแถวหมดอายุไม่ถี่กว่านี้
+  },
+
   scraper: {
     headless: process.env.SCRAPER_HEADLESS !== 'false',
     slowMo: parseInt(process.env.SCRAPER_SLOW_MO, 10) || 400,

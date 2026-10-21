@@ -102,7 +102,7 @@ class AdminController {
   // ============================================================
   static async getStats(req, res, next) {
     try {
-      const { users: userRow, preT3: preT3Row, t3: t3Row, unwanted: unwantedRow } = await AdminStatsModel.getOverview();
+      const { users: userRow, preT3: preT3Row, t3: t3Row, unwanted: unwantedRow, journalCache: cacheRow } = await AdminStatsModel.getOverview();
 
       let apiKeyStats = [];
       try {
@@ -126,6 +126,10 @@ class AdminController {
           pre_t3:  { total: Number(preT3Row.total), pending: Number(preT3Row.pending), approved: Number(preT3Row.approved), rejected: Number(preT3Row.rejected), cancelled: Number(preT3Row.cancelled) },
           t3:      { total: Number(t3Row.total),    pending: Number(t3Row.pending),    approved: Number(t3Row.approved),    rejected: Number(t3Row.rejected), cancelled: Number(t3Row.cancelled) },
           msu_unwanted: { total: Number(unwantedRow.total) },
+          journal_cache: {
+            total: Number(cacheRow.total), scopus: Number(cacheRow.scopus), tci: Number(cacheRow.tci),
+            via_api: Number(cacheRow.via_api), via_scraping: Number(cacheRow.via_scraping), ttl_hours: config.cache.ttlHours,
+          },
           api_keys: apiKeyStats,
         },
       });

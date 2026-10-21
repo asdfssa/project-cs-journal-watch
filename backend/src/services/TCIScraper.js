@@ -5,6 +5,7 @@
 const { chromium } = require('playwright');
 const config = require('../config');
 const { withScrapeSlot } = require('./scrapeQueue');
+const JournalCache = require('./JournalCache');
 
 const TCI_BASE = 'https://tci-thailand.org';
 
@@ -22,7 +23,16 @@ class TCIScraper {
    */
   static async getJournalByIssn(issn) {
     const cleanIssn = issn.trim();
-    return withScrapeSlot(() => TCIScraper._scrape(cleanIssn));
+    const cache = JournalCache.shared();
+
+    // hit = ไม่เข้าคิว ไม่เปิด Chromium · cache พัง/ไม่พบ → scrape ตามปกติ
+    const cached = await cache.get(cleanIssn, 'TCI');
+    if (cached) return cached;
+
+    const result = await withScrapeSlot(() => TCIScraper._scrape(cleanIssn));
+    if (!result) return null; // ไม่พบ → ไม่ cache
+    await cache.save(result);
+    return { ...result, fromCache: false };
   }
 
   // ===== Scraping =====
