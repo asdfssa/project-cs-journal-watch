@@ -145,7 +145,7 @@ class AdminController {
   static async getUsers(req, res, next) {
     try {
       const { role, status, search } = req.query;
-      // ponytail: เพดาน 1000 เพราะหน้า staff manage-users ดึง limit=1000 แล้วกรองฝั่ง client — ลดได้เมื่อ FE ทำ pagination จริง
+      // เพดาน 1000 เพราะหน้า staff manage-users ดึง limit=1000 แล้วกรองฝั่ง client — ลดได้เมื่อ FE ทำ pagination จริง
       const { page, limit, offset } = parsePagination(req.query, 1000);
 
       const { rows, total } = await AdminUserModel.findPage({ role, status, search, limit, offset });

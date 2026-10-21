@@ -17,9 +17,6 @@ export interface Journal {
     evidence_file_path: string | null;
     recorded_date:      Date;
     created_at:         Date;
-    first_name:         string;
-    last_name:          string;
-    msu_mail:           string;
 }
 
 export interface Pagination {

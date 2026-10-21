@@ -52,7 +52,7 @@ app.use(
   })
 );
 
-// CORS
+// CORS (Cross-Origin Resource Sharing)
 app.use(
   cors({
     origin: config.cors.origin,

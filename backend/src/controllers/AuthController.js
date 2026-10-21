@@ -11,9 +11,9 @@ const config = require('../config');
 // Cookie options สำหรับ refresh token
 const REFRESH_COOKIE_OPTIONS = {
   httpOnly: true,          // JS อ่านไม่ได้ ป้องกัน XSS
-  secure: process.env.NODE_ENV === 'production', // HTTPS only ใน production
-  sameSite: 'strict',      // ป้องกัน CSRF
-  maxAge: config.jwt.refreshExpiresMs, // เท่ากับอายุ refresh token ใน DB (JWT_REFRESH_EXPIRES)
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'strict',
+  maxAge: config.jwt.refreshExpiresMs,
   path: '/api/v3/auth', // ส่ง cookie เฉพาะ /api/v3/auth routes
 };
 

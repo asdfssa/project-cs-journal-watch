@@ -5,4 +5,7 @@ ingress:
   # หน้าเว็บ + /api/v3 (frontend อยู่ใน backend container เดียวกัน)
   - hostname: journal.farmlnwza007.online
     service: http://backend:3000
+  # API สำหรับ frontend ที่รันคนละที่ (เช่นเพื่อนทดสอบจาก localhost:4200) — backend ตัวเดียวกัน
+  - hostname: api.farmlnwza007.online
+    service: http://backend:3000
   - service: http_status:404
