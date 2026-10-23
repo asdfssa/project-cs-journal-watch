@@ -56,6 +56,8 @@ const DISCONTINUED_BODY = {
  * ดึงข้อมูลวารสารจริงจาก Scopus/TCI (ผ่าน service ซึ่งมี cache 6 ชม.) แล้ว 'เขียนทับ' quartile_or_tier และ is_discontinued ใน journal_snapshot
  * ด้วยค่าจริง — ไม่เชื่อค่าที่ client ส่งมา (report-1 ข้อ 1) · เรียกจาก: submit และ resubmit ก่อน doctoralCriteriaError
  * ค่าที่ได้ตรงกับที่ frontend สร้าง: Scopus = scopus_best_quartile · TCI = `กลุ่มที่ N` (ไม่มี tier → 99)
+ * ยังเขียนทับ issn = p-ISSN จริง และ journal_name จากต้นทางด้วย (ต้นทางไม่ส่งมา = คงค่าเดิม) แล้วตรวจรายการไม่พึงประสงค์ซ้ำทั้ง p-ISSN และ e-ISSN
+ * (ตาราง msu_unwanted_journals เก็บ ISSN ตัวเดียวต่อแถว — ถ้าเทียบแต่ ISSN ที่นิสิตพิมพ์ การพิมพ์อีกตัวของวารสารเดียวกันจะเลี่ยงได้ และยื่น Pre-T3 ซ้ำได้)
  * ตรวจกับต้นทางไม่ได้ (เช่น SCOPUS_QUOTA_EXCEEDED, error เครือข่าย) → throw ต่อให้ serverError ตอบ ไม่ถอยไปใช้ค่าจาก client
  * shortcut: วารสารที่เพิ่งถูกถอด (Discontinued/Inactive) อาจผ่านได้อีกไม่เกิน TTL ของ cache (6 ชม.)
  * @param {object} js journal_snapshot (ผ่าน _validateBody แล้ว: issn = XXXX-XXXX, indexed_database = Scopus|TCI) — ถูกแก้ค่าตรงๆ
@@ -73,6 +75,13 @@ async function verifyJournalSnapshot(js) {
     console.warn(`[PreT3] journal_snapshot ไม่ตรงกับต้นทาง ISSN ${js.issn}: client=${js.quartile_or_tier}/${!!js.is_discontinued} จริง=${real.quartile_or_tier}/${real.is_discontinued}`);
   }
   Object.assign(js, real);
+
+  const printIssn = normalizeIssn(found.issn);
+  if (printIssn) js.issn = printIssn;
+  if (found.journal_name) js.journal_name = found.journal_name;
+  for (const issn of [printIssn, normalizeIssn(found.eissn)]) {
+    if (issn && await UnwantedJournalModel.existsByIssn(issn)) return UNWANTED_BODY;
+  }
   return real.is_discontinued ? DISCONTINUED_BODY : null;
 }
 

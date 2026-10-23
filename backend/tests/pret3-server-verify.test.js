@@ -7,8 +7,9 @@ const path = require('node:path');
 const src = (p) => path.join(__dirname, '..', 'src', p);
 const stub = (p, exports) => { require.cache[src(p)] = { id: p, filename: src(p), loaded: true, exports }; };
 
-const state = { degree: 'Doctoral', scopus: null, tci: null, scopusErr: null, lookups: [], created: [], resubmitted: [] };
-stub('config/database.js', { query: async () => [[]] });
+const state = { unwanted: [], degree: 'Doctoral', scopus: null, tci: null, scopusErr: null, lookups: [], created: [], resubmitted: [] };
+// ตาราง msu_unwanted_journals จำลอง: เจอเมื่อ ISSN (มี/ไม่มีขีด) อยู่ใน state.unwanted
+stub('config/database.js', { query: async (sql, params) => (sql.includes('msu_unwanted_journals') ? [params.some((p) => state.unwanted.includes(p)) ? [{ 1: 1 }] : []] : [[]]) });
 stub('models/UserModel.js', {
   findById: async () => ({ user_id: 1, msu_mail: 'a@msu.ac.th', degree_level: state.degree, curriculum_year: '2566', study_plan_code: 'Doc_2_1', first_name: 'a', last_name: 'b' }),
   findActiveAdvisorAssignments: async () => [{ advisor_id: 2, advisor_type: 'Major', account_status: 'Active' }],
@@ -37,7 +38,7 @@ const run = async (fn, js, degree = 'Doctoral') => {
   return res;
 };
 test.beforeEach(() => {
-  Object.assign(state, { scopus: { scopus_best_quartile: 'Q1', scopus_discontinued: false }, tci: { tci_tier: 1, tci_inactive: false }, scopusErr: null, lookups: [], created: [], resubmitted: [] });
+  Object.assign(state, { unwanted: [], scopus: { scopus_best_quartile: 'Q1', scopus_discontinued: false }, tci: { tci_tier: 1, tci_inactive: false }, scopusErr: null, lookups: [], created: [], resubmitted: [] });
 });
 
 for (const fn of ['submit', 'resubmit']) {
@@ -111,5 +112,41 @@ for (const fn of ['submit', 'resubmit']) {
     const r = await run(fn, { quartile_or_tier: 'Q1' });
     assert.ok(r.code < 400, JSON.stringify(r.body));
     assert.equal(stored()[0].quartile_or_tier, 'Q2');
+  });
+}
+
+for (const fn of ['submit', 'resubmit']) {
+  const stored = () => (fn === 'submit' ? state.created : state.resubmitted);
+  const mmwr = (extra = {}) => ({ issn: '10575987', eissn: '15458601', journal_name: 'MMWR', scopus_best_quartile: 'Q1', scopus_discontinued: false, ...extra });
+
+  test(`${fn}: พิมพ์ e-ISSN ของวารสารที่ p-ISSN อยู่ในรายการไม่พึงประสงค์ → 400 UNWANTED_JOURNAL (เลี่ยงไม่ได้)`, async () => {
+    state.scopus = mmwr(); state.unwanted = ['1057-5987'];
+    const r = await run(fn, { issn: '1545-8601' }, 'Master');
+    assert.equal(r.code, 400);
+    assert.equal(r.body.code, 'UNWANTED_JOURNAL');
+    assert.equal(stored().length, 0);
+  });
+
+  test(`${fn}: พิมพ์ p-ISSN แต่ e-ISSN ของวารสารเดียวกันอยู่ในรายการไม่พึงประสงค์ → 400 UNWANTED_JOURNAL`, async () => {
+    state.scopus = mmwr(); state.unwanted = ['1545-8601'];
+    const r = await run(fn, { issn: '1057-5987' }, 'Master');
+    assert.equal(r.body.code, 'UNWANTED_JOURNAL');
+    assert.equal(stored().length, 0);
+  });
+
+  test(`${fn}: บันทึก ISSN = p-ISSN จริงเสมอ (พิมพ์ e-ISSN) และชื่อวารสารจากต้นทาง ไม่ใช่ชื่อที่ client ส่ง`, async () => {
+    state.scopus = mmwr();
+    const r = await run(fn, { issn: '1545-8601', journal_name: 'Nature (ปลอมชื่อ)' }, 'Master');
+    assert.ok(r.code < 400, JSON.stringify(r.body));
+    assert.equal(stored()[0].issn, '1057-5987');
+    assert.equal(stored()[0].journal_name, 'MMWR');
+  });
+
+  test(`${fn}: ต้นทางไม่ส่งชื่อ/ISSN มา → คงค่าที่ client ส่ง (ไม่เขียนทับเป็นค่าว่าง)`, async () => {
+    state.scopus = { scopus_best_quartile: 'Q1', scopus_discontinued: false };
+    const r = await run(fn, { issn: '1234-5678', journal_name: 'Client Name' }, 'Master');
+    assert.ok(r.code < 400, JSON.stringify(r.body));
+    assert.equal(stored()[0].issn, '1234-5678');
+    assert.equal(stored()[0].journal_name, 'Client Name');
   });
 }
