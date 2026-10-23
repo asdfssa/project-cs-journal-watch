@@ -34,6 +34,7 @@ interface TciJournalResult {
   passForDoctoral: boolean;
   passForMaster: boolean;
   checkDate: string;
+  cachedAt: string | null; // เวลาที่ดึงข้อมูลจริง เมื่อผลมาจาก cache (null = ดึงสดจากต้นทาง)
 }
 
 interface JournalResult {
@@ -70,6 +71,7 @@ interface JournalResult {
   passForDoctoral: boolean;
   passForMaster: boolean;
   checkDate: string;
+  cachedAt: string | null; // เวลาที่ดึงข้อมูลจริง เมื่อผลมาจาก cache (null = ดึงสดจากต้นทาง)
 }
 
 @Component({
@@ -369,6 +371,13 @@ export class Search implements OnInit, OnDestroy {
     }, 50);
   }
 
+  /* ป้าย "ข้อมูลจาก cache": backend ส่ง fromCache + cached_at (เวลาที่ดึงข้อมูลจริง) · ดึงสด = null */
+  private cachedAtLabel(data: { fromCache?: boolean; cached_at?: string | null }): string | null {
+    if (!data.fromCache) return null;
+    if (!data.cached_at) return 'ไม่ทราบเวลา';
+    return new Date(data.cached_at).toLocaleString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + ' น.';
+  }
+
   private mapResult(data: Data, isUnwanted: boolean, unwantedUnknown = false): JournalResult {
     const extra     = data as any;
     const quartile  = data.scopus_best_quartile ?? '';
@@ -485,6 +494,7 @@ export class Search implements OnInit, OnDestroy {
       passForDoctoral,
       passForMaster,
       checkDate: now.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' }),
+      cachedAt: this.cachedAtLabel(data),
     };
   }
 
@@ -513,6 +523,7 @@ export class Search implements OnInit, OnDestroy {
       passForDoctoral,
       passForMaster,
       checkDate: now.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' }),
+      cachedAt: this.cachedAtLabel(data),
     };
   }
 

@@ -36,4 +36,5 @@ export interface Data {
     coverage_end_year:      null;
     fetch_method:           string;
     fromCache:              boolean;
+    cached_at?:             string | null;
 }

@@ -1397,6 +1397,17 @@ $blue:   #1A5FAB;
   }
 }
 
+.badge-cache {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 12px;
+  border-radius: 6px;
+  background: #EAF1FB;
+  color: #1A5FAB;
+  border: 1px solid #C9DBF2;
+  font-family: 'Sarabun', sans-serif;
+}
+
 .badge-date {
   font-size: 12px;
   font-weight: 500;
@@ -2480,7 +2491,8 @@ $blue:   #1A5FAB;
   }
   .badge-field, .badge-db, .badge-q,
   .badge-status, .badge-unwanted,
-  .badge-date {
+  .badge-date,
+  .badge-cache {
     font-size: 9px !important;
     padding: 2px 7px !important;
   }

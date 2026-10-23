@@ -534,6 +534,7 @@
             @if (unwantedUnknown()) { <i class="ti ti-help"></i> ตรวจสอบ MSU Unwanted ไม่ได้ } @else if (r.isUnwanted) { <i class="ti ti-ban"></i> ติด MSU Unwanted } @else { <i class="ti ti-check"></i> ไม่ติด MSU Unwanted }
           </span>
           <span class="badge-date"><i class="ti ti-calendar"></i> ตรวจสอบ: {{ r.checkDate }}</span>
+          @if (r.cachedAt) { <span class="badge-cache" title="ผลจากข้อมูลที่เก็บไว้ (ไม่เกิน 6 ชั่วโมง) ไม่ได้ดึงจากต้นทางใหม่"><i class="ti ti-database"></i> ข้อมูลจาก cache · ดึงเมื่อ {{ r.cachedAt }}</span> }
         </div>
 
         <!-- Scopus Core Metrics -->
@@ -761,6 +762,7 @@
               @if (unwantedUnknown()) { <i class="ti ti-help"></i> ตรวจสอบ MSU Unwanted ไม่ได้ } @else if (t.isUnwanted) { <i class="ti ti-ban"></i> ติด MSU Unwanted } @else { <i class="ti ti-check"></i> ไม่ติด MSU Unwanted }
             </span>
             <span class="badge-date"><i class="ti ti-calendar"></i> ตรวจสอบ: {{ t.checkDate }}</span>
+            @if (t.cachedAt) { <span class="badge-cache" title="ผลจากข้อมูลที่เก็บไว้ (ไม่เกิน 6 ชั่วโมง) ไม่ได้ดึงจากต้นทางใหม่"><i class="ti ti-database"></i> ข้อมูลจาก cache · ดึงเมื่อ {{ t.cachedAt }}</span> }
           </div>
 
           <!-- TCI Core Information -->

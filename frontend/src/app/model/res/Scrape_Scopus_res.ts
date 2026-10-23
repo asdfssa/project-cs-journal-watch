@@ -36,6 +36,7 @@ export interface Data {
     coverage_end_year:      string;
     fetch_method:           string;
     fromCache:              boolean;
+    cached_at?:             string | null;
 }
 
 export interface ScopusQuartileDatum {
