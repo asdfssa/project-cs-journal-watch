@@ -30,7 +30,7 @@ class UploadController {
    * รับ: req.params.id (t3_id, requireNumericId ตรวจแล้ว), req.params.field (ชื่อ field เช่น full_paper ต้องอยู่ใน FIELD_TO_KEY), req.user (sub, role)
    * ลำดับ: T3Model.findById → ตรวจสิทธิ์ (Student ต้องเป็นเจ้าของ, Supervisor ต้องเป็นอาจารย์ในคำร้อง) → หา path จาก journal_evidence_files[field]
    *   → ตรวจว่าไฟล์อยู่บนดิสก์จริง (uploads/t3/{t3_id}/{field}/...) → res.download (บังคับ attachment)
-   * ตอบ error: 400 INVALID_FIELD · 404 NOT_FOUND/FILE_NOT_FOUND/FILE_MISSING · 403 FORBIDDEN
+   * ตอบ error: 400 INVALID_FIELD · 404 NOT_FOUND (ไม่มีรายการ หรือไม่ใช่ของคุณ — ตอบเหมือนกัน)/FILE_NOT_FOUND/FILE_MISSING
    */
   // ============================================================
   // GET /api/upload/t3/:id/files/:field
@@ -48,11 +48,13 @@ class UploadController {
       }
 
       const row = await T3Model.findById(t3Id);
-      if (!row) return res.status(404).json({ success: false, code: 'NOT_FOUND', message: 'ไม่พบ T3 นี้' });
+      // "ไม่ใช่ของคุณ" ตอบเหมือน "ไม่มีรายการ" ทุกประการ (report-1 ข้อ 2)
+      const notFound = () => res.status(404).json({ success: false, code: 'NOT_FOUND', message: 'ไม่พบ T3 นี้' });
+      if (!row) return notFound();
 
       // ตรวจสิทธิ์
       if (role === 'Student' && row.student_id !== userId) {
-        return res.status(403).json({ success: false, code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์ดูไฟล์นี้' });
+        return notFound();
       }
       if (role === 'Supervisor') {
         const parseJson = (val) => { try { return typeof val === 'string' ? JSON.parse(val) : val; } catch { return {}; } };
@@ -61,7 +63,7 @@ class UploadController {
           String(parseJson(row.co_advisor_1_approval)?.user_id)  === String(userId) ||
           String(parseJson(row.co_advisor_2_approval)?.user_id)  === String(userId);
         if (!isMyStudent) {
-          return res.status(403).json({ success: false, code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์ดูไฟล์นี้' });
+          return notFound();
         }
       }
 

@@ -58,6 +58,10 @@ function normalizeInnovationType(value) {
 // ชนิดวารสารของ T3 derive จาก Pre-T3 ที่อนุมัติแล้วเท่านั้น (indexed_database + กลุ่ม TCI) —
 // ไม่อ่าน publication_details.type ที่ client ส่งมา เพราะกำหนดน้ำหนักคะแนนโดยตรง (B31)
 //   Scopus → International_Journal · TCI กลุ่ม 1/2 → National_TCI_Tier1/2 · อ่านไม่ได้ → null (ผู้เรียกตอบ 400)
+// คำตอบเดียวกันทั้ง "ไม่มีรายการ" และ "ไม่ใช่ของคุณ" — คนนอกแยกไม่ได้ว่า ID นั้นมีอยู่จริง (report-1 ข้อ 2)
+const NOT_FOUND_BODY = { code: 'NOT_FOUND', message: 'ไม่พบ T3 นี้' };
+const PRE_T3_NOT_FOUND = { status: 404, code: 'PRE_T3_NOT_FOUND', message: 'ไม่พบ Pre-T3 นี้' };
+
 const NATIONAL_TIER_MAP = {
   '1': 'National_TCI_Tier1',
   '2': 'National_TCI_Tier2',
@@ -176,10 +180,10 @@ class T3Controller {
     // ตรวจ Pre-T3 ต้อง Approved และเป็นของนิสิตคนนี้
     const preT3 = await PreT3Model.findById(pre_t3_id);
     if (!preT3) {
-      return { error: { status: 404, code: 'PRE_T3_NOT_FOUND', message: 'ไม่พบ Pre-T3 นี้' } };
+      return { error: { ...PRE_T3_NOT_FOUND } };
     }
     if (preT3.student_id !== studentId) {
-      return { error: { status: 403, code: 'FORBIDDEN', message: 'Pre-T3 นี้ไม่ใช่ของคุณ' } };
+      return { error: { ...PRE_T3_NOT_FOUND } };
     }
     if (preT3.overall_status !== 'Approved') {
       return { error: {
@@ -313,11 +317,11 @@ class T3Controller {
 
       const row = await T3Model.findById(t3Id);
       if (!row) {
-        return res.status(404).json({ success: false, code: 'NOT_FOUND', message: 'ไม่พบ T3 นี้' });
+        return res.status(404).json({ success: false, ...NOT_FOUND_BODY });
       }
 
       if (role === 'Student' && row.student_id !== userId) {
-        return res.status(403).json({ success: false, code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์ดูรายการนี้' });
+        return res.status(404).json({ success: false, ...NOT_FOUND_BODY });
       }
 
       if (role === 'Supervisor') {
@@ -327,7 +331,7 @@ class T3Controller {
           String(row.co_advisor_2_approval?.user_id) === String(userId);
 
         if (!isMyStudent) {
-          return res.status(403).json({ success: false, code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์ดูรายการนี้' });
+          return res.status(404).json({ success: false, ...NOT_FOUND_BODY });
         }
       }
 
@@ -362,17 +366,19 @@ class T3Controller {
       }
 
       const row = await T3Model.findById(t3Id);
-      if (!row) return res.status(404).json({ success: false, code: 'NOT_FOUND', message: 'ไม่พบ T3 นี้' });
+      if (!row) return res.status(404).json({ success: false, ...NOT_FOUND_BODY });
+
+      // ไม่ใช่อาจารย์ของรายการนี้ = ตอบเหมือนไม่มีรายการ และต้องเช็คก่อนสถานะ (ไม่งั้นสถานะหลุดให้คนนอก)
+      const { my_role, can_review } = advisorViewFields(row, advisorId);
+      if (my_role === null) {
+        return res.status(404).json({ success: false, ...NOT_FOUND_BODY });
+      }
 
       if (row.overall_status !== 'Pending') {
         return res.status(400).json({ success: false, code: 'INVALID_STATE', message: `T3 นี้อยู่ในสถานะ ${row.overall_status} แล้ว` });
       }
 
       // อนุมัติ/ปฏิเสธเป็นสิทธิ์ของอาจารย์ที่ปรึกษาหลักคนเดียว — อาจารย์ร่วมไม่มีสิทธิ์ตัดสิน (ผลขึ้นกับอาจารย์หลัก)
-      const { my_role, can_review } = advisorViewFields(row, advisorId);
-      if (my_role === null) {
-        return res.status(403).json({ success: false, code: 'FORBIDDEN', message: 'คุณไม่ใช่อาจารย์ที่ปรึกษาของ T3 นี้' });
-      }
       if (my_role !== 'Major') {
         return res.status(403).json({ success: false, code: 'NOT_MAJOR_ADVISOR', message: 'เฉพาะอาจารย์ที่ปรึกษาหลักเท่านั้นที่อนุมัติหรือปฏิเสธได้ (หากเห็นต่างกรุณาปรึกษาอาจารย์ที่ปรึกษาหลัก)' });
       }
@@ -476,7 +482,7 @@ class T3Controller {
       }
 
       const row = await T3Model.findById(t3Id);
-      if (!row) return res.status(404).json({ success: false, code: 'NOT_FOUND', message: 'ไม่พบ T3 นี้' });
+      if (!row) return res.status(404).json({ success: false, ...NOT_FOUND_BODY });
 
       if (row.advisor_approval?.status !== 'Approved') {
         return res.status(400).json({ success: false, code: 'ADVISOR_NOT_APPROVED', message: 'อาจารย์ที่ปรึกษายังไม่อนุมัติ' });
@@ -542,10 +548,10 @@ class T3Controller {
 
       const row = await T3Model.findById(t3Id);
       if (!row) {
-        return res.status(404).json({ success: false, code: 'NOT_FOUND', message: 'ไม่พบ T3 นี้' });
+        return res.status(404).json({ success: false, ...NOT_FOUND_BODY });
       }
       if (row.student_id !== studentId) {
-        return res.status(403).json({ success: false, code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์ยกเลิกรายการนี้' });
+        return res.status(404).json({ success: false, ...NOT_FOUND_BODY });
       }
       if (!['Pending', 'Rejected'].includes(row.overall_status)) {
         return res.status(400).json({

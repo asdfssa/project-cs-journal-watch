@@ -47,6 +47,9 @@ function doctoralCriteriaError(student, js) {
   return null;
 }
 
+// คำตอบเดียวกันทั้ง "ไม่มีรายการ" และ "ไม่ใช่ของคุณ" — คนนอกแยกไม่ได้ว่า ID นั้นมีอยู่จริง (report-1 ข้อ 2)
+const NOT_FOUND_BODY = { code: 'NOT_FOUND', message: 'ไม่พบ Pre-T3 นี้' };
+
 const DISCONTINUED_BODY = {
   code: 'JOURNAL_DISCONTINUED',
   message: 'วารสารนี้ถูกถอดออกจากฐานข้อมูล (Discontinued/Inactive) ไม่สามารถยื่น Pre-T3 ได้',
@@ -289,12 +292,12 @@ class PreT3Controller {
 
       const row = await PreT3Model.findById(preT3Id);
       if (!row) {
-        return res.status(404).json({ success: false, code: 'NOT_FOUND', message: 'ไม่พบ Pre-T3 นี้' });
+        return res.status(404).json({ success: false, ...NOT_FOUND_BODY });
       }
 
       // ตรวจสิทธิ์
       if (role === 'Student' && row.student_id !== userId) {
-        return res.status(403).json({ success: false, code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์ดูรายการนี้' });
+        return res.status(404).json({ success: false, ...NOT_FOUND_BODY });
       }
 
       if (role === 'Supervisor') {
@@ -307,7 +310,7 @@ class PreT3Controller {
           String(co2?.user_id)      === String(userId);
 
         if (!isMyStudent) {
-          return res.status(403).json({ success: false, code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์ดูรายการนี้' });
+          return res.status(404).json({ success: false, ...NOT_FOUND_BODY });
         }
       }
 
@@ -344,7 +347,13 @@ class PreT3Controller {
 
       const row = await PreT3Model.findById(preT3Id);
       if (!row) {
-        return res.status(404).json({ success: false, code: 'NOT_FOUND', message: 'ไม่พบ Pre-T3 นี้' });
+        return res.status(404).json({ success: false, ...NOT_FOUND_BODY });
+      }
+
+      // ไม่ใช่อาจารย์ของรายการนี้ = ตอบเหมือนไม่มีรายการ และต้องเช็คก่อนสถานะ (ไม่งั้นสถานะหลุดให้คนนอก)
+      const { my_role, can_review } = advisorViewFields(row, advisorId);
+      if (my_role === null) {
+        return res.status(404).json({ success: false, ...NOT_FOUND_BODY });
       }
 
       if (row.overall_status !== 'Pending') {
@@ -352,10 +361,6 @@ class PreT3Controller {
       }
 
       // อนุมัติ/ปฏิเสธเป็นสิทธิ์ของอาจารย์ที่ปรึกษาหลักคนเดียว — อาจารย์ร่วมไม่มีสิทธิ์ตัดสิน (ผลขึ้นกับอาจารย์หลัก)
-      const { my_role, can_review } = advisorViewFields(row, advisorId);
-      if (my_role === null) {
-        return res.status(403).json({ success: false, code: 'FORBIDDEN', message: 'คุณไม่ใช่อาจารย์ที่ปรึกษาของ Pre-T3 นี้' });
-      }
       if (my_role !== 'Major') {
         return res.status(403).json({ success: false, code: 'NOT_MAJOR_ADVISOR', message: 'เฉพาะอาจารย์ที่ปรึกษาหลักเท่านั้นที่อนุมัติหรือปฏิเสธได้ (หากเห็นต่างกรุณาปรึกษาอาจารย์ที่ปรึกษาหลัก)' });
       }
@@ -457,7 +462,7 @@ class PreT3Controller {
 
       const row = await PreT3Model.findById(preT3Id);
       if (!row) {
-        return res.status(404).json({ success: false, code: 'NOT_FOUND', message: 'ไม่พบ Pre-T3 นี้' });
+        return res.status(404).json({ success: false, ...NOT_FOUND_BODY });
       }
 
       // ต้องรอให้ advisor approve ครบก่อน
@@ -519,10 +524,10 @@ class PreT3Controller {
 
       const row = await PreT3Model.findById(preT3Id);
       if (!row) {
-        return res.status(404).json({ success: false, code: 'NOT_FOUND', message: 'ไม่พบ Pre-T3 นี้' });
+        return res.status(404).json({ success: false, ...NOT_FOUND_BODY });
       }
       if (row.student_id !== studentId) {
-        return res.status(403).json({ success: false, code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์แก้ไขรายการนี้' });
+        return res.status(404).json({ success: false, ...NOT_FOUND_BODY });
       }
       if (row.overall_status !== 'Rejected') {
         return res.status(400).json({ success: false, code: 'INVALID_STATE', message: 'สามารถยื่นซ้ำได้เฉพาะรายการที่ถูกปฏิเสธเท่านั้น' });
@@ -596,10 +601,10 @@ class PreT3Controller {
 
       const row = await PreT3Model.findById(preT3Id);
       if (!row) {
-        return res.status(404).json({ success: false, code: 'NOT_FOUND', message: 'ไม่พบ Pre-T3 นี้' });
+        return res.status(404).json({ success: false, ...NOT_FOUND_BODY });
       }
       if (row.student_id !== studentId) {
-        return res.status(403).json({ success: false, code: 'FORBIDDEN', message: 'ไม่มีสิทธิ์ยกเลิกรายการนี้' });
+        return res.status(404).json({ success: false, ...NOT_FOUND_BODY });
       }
       if (!['Pending', 'Rejected', 'Approved'].includes(row.overall_status)) {
         return res.status(400).json({
